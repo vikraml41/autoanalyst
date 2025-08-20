@@ -1,0 +1,17 @@
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.env
+.DS_Store
+Miniforge3.sh
+Miniconda3*.sh
+*.log
