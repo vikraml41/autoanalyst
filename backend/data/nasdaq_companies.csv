@@ -1,0 +1,3427 @@
+﻿Symbol,GICS Sector,GICS Sub-Industry
+YI,Health Care,Medical/Nursing Services
+PIH,Finance,Property-Casualty Insurers
+PIHPP,Finance,Property-Casualty Insurers
+TURN,Finance,Finance/Investors Services
+FLWS,Consumer Services,Other Specialty Stores
+BCOW,Finance,Banks
+FCCY,Finance,Savings Institutions
+SRCE,Finance,Major Banks
+VNET,Technology,"Computer Software: Programming, Data Processing"
+TWOU,Technology,Computer Software: Prepackaged Software
+QFIN,Finance,Finance: Consumer Services
+TPNL,Miscellaneous,Business Services
+JOBS,Technology,Diversified Commercial Services
+EGHT,Technology,EDP Services
+AAON,Capital Goods,Industrial Machinery/Components
+ABEO,Health Care,Major Pharmaceuticals
+ABEOW,Health Care,Major Pharmaceuticals
+ABIL,Consumer Durables,Telecommunications Equipment
+ABMD,Health Care,Medical/Dental Instruments
+AXAS,Energy,Oil & Gas Production
+ACIU,Health Care,Major Pharmaceuticals
+ACIA,Technology,Semiconductors
+ACTG,Miscellaneous,Multi-Sector Companies
+ACHC,Health Care,Medical Specialities
+ACAD,Health Care,Major Pharmaceuticals
+ACST,Health Care,Major Pharmaceuticals
+AXDX,Capital Goods,Biotechnology: Laboratory Analytical Instruments
+XLRN,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+ARAY,Health Care,Medical/Dental Instruments
+ACRX,Health Care,Major Pharmaceuticals
+ACER,Health Care,Major Pharmaceuticals
+ACET,Health Care,Other Pharmaceuticals
+AKAO,Health Care,Major Pharmaceuticals
+ACHV,Health Care,Biotechnology: In Vitro & In Vivo Diagnostic Substances
+ACHN,Health Care,Major Pharmaceuticals
+ACIW,Technology,Computer Software: Prepackaged Software
+ACRS,Health Care,Major Pharmaceuticals
+ACMR,Technology,Industrial Machinery/Components
+ACNB,Finance,Major Banks
+ACOR,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+ATVI,Technology,Computer Software: Prepackaged Software
+ADMS,Health Care,Major Pharmaceuticals
+ADMP,Health Care,Major Pharmaceuticals
+ADAP,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+ADUS,Health Care,Medical/Nursing Services
+AEY,Consumer Services,Office Equipment/Supplies/Services
+IOTS,Technology,Semiconductors
+ADIL,Health Care,Major Pharmaceuticals
+ADILW,Health Care,Major Pharmaceuticals
+ADMA,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+ADBE,Technology,Computer Software: Prepackaged Software
+ADOM,Capital Goods,Auto Parts:O.E.M.
+ADTN,Public Utilities,Telecommunications Equipment
+ADRO,Health Care,Major Pharmaceuticals
+ADES,Basic Industries,Major Chemicals
+AEIS,Capital Goods,Industrial Machinery/Components
+AMD,Technology,Semiconductors
+ADXS,Health Care,Major Pharmaceuticals
+ADVM,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+DWMC,n/a,n/a
+DWSH,n/a,n/a
+BKCH,n/a,n/a
+ACT,n/a,n/a
+AEGN,Basic Industries,Water Supply
+AGLE,Health Care,Major Pharmaceuticals
+AEHR,Capital Goods,Electrical Products
+AMTX,Basic Industries,Major Chemicals
+AERI,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+AVAV,Capital Goods,Aerospace
+ARPO,Health Care,Major Pharmaceuticals
+AEZS,Health Care,Major Pharmaceuticals
+AEMD,Capital Goods,Biotechnology: Laboratory Analytical Instruments
+GNMX,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+AFMD,Health Care,Major Pharmaceuticals
+AGEN,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+AGRX,Health Care,Major Pharmaceuticals
+AGYS,Technology,EDP Services
+AGIO,Health Care,Major Pharmaceuticals
+AGMH,Technology,EDP Services
+AGNC,Consumer Services,Real Estate Investment Trusts
+AGNCB,Consumer Services,Real Estate Investment Trusts
+AGNCN,Consumer Services,Real Estate Investment Trusts
+AGFS,Finance,Business Services
+AGFSW,Finance,Business Services
+ALRN,Health Care,Major Pharmaceuticals
+AIMT,Health Care,Major Pharmaceuticals
+AIRT,Transportation,Air Freight/Delivery Services
+ATSG,Transportation,Air Freight/Delivery Services
+AIRG,Technology,Radio And Television Broadcasting And Communications Equipment
+AMCN,Technology,Advertising
+AKAM,Miscellaneous,Business Services
+AKTX,Health Care,Major Pharmaceuticals
+AKCA,Health Care,Major Pharmaceuticals
+AKBA,Health Care,Major Pharmaceuticals
+AKER,Health Care,Biotechnology: In Vitro & In Vivo Diagnostic Substances
+AKRX,Health Care,Major Pharmaceuticals
+AKTS,Public Utilities,Telecommunications Equipment
+ALRM,Technology,Computer Software: Prepackaged Software
+ALSK,Public Utilities,Telecommunications Equipment
+ALAC,Finance,Business Services
+ALACR,Finance,Business Services
+ALACU,Finance,Business Services
+ALACW,Finance,Business Services
+ALBO,Health Care,Major Pharmaceuticals
+ABDC,n/a,n/a
+ALDR,Health Care,Major Pharmaceuticals
+ALDX,Health Care,Major Pharmaceuticals
+ALEC,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+ALXN,Health Care,Major Pharmaceuticals
+ALCO,Consumer Non-Durables,Farming/Seeds/Milling
+ALGN,Health Care,Industrial Specialties
+ALIM,Health Care,Major Pharmaceuticals
+ALYA,Technology,"Computer Software: Programming, Data Processing"
+ALJJ,Miscellaneous,Business Services
+ALKS,Health Care,Major Pharmaceuticals
+ALLK,Health Care,Major Pharmaceuticals
+ABTX,Finance,Major Banks
+ALGT,Transportation,Air Freight/Delivery Services
+ALGR,Finance,Business Services
+ALGRR,Finance,Business Services
+ALGRU,Finance,Business Services
+ALGRW,Finance,Business Services
+ALNA,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+ARLP,Energy,Coal Mining
+LNT,Public Utilities,Power Generation
+AHPI,Health Care,Industrial Specialties
+AMOT,Capital Goods,Electrical Products
+ALQA,Health Care,Medical/Dental Instruments
+ALLO,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+ALLT,Technology,Computer Communications Equipment
+MDRX,Technology,EDP Services
+ALNY,Health Care,Major Pharmaceuticals
+AOSL,Technology,Semiconductors
+GOOG,Technology,"Computer Software: Programming, Data Processing"
+GOOGL,Technology,"Computer Software: Programming, Data Processing"
+SMCP,n/a,n/a
+ATEC,Health Care,Medical/Dental Instruments
+ALPN,Health Care,Major Pharmaceuticals
+AMR,Energy,Oil & Gas Production
+AMRWW,Energy,Oil & Gas Production
+AABA,Technology,EDP Services
+ALTR,Technology,Computer Software: Prepackaged Software
+ALT,Health Care,Major Pharmaceuticals
+ASPS,Consumer Services,Other Consumer Services
+AIMC,Capital Goods,Industrial Machinery/Components
+ALTM,Energy,Oil & Gas Production
+AMAG,Health Care,Major Pharmaceuticals
+AMAL,Consumer Non-Durables,Textiles
+AMRN,Health Care,Major Pharmaceuticals
+AMRK,Basic Industries,Other Specialty Stores
+AMZN,Consumer Services,Catalog/Specialty Distribution
+AMBC,Finance,Property-Casualty Insurers
+AMBCW,Finance,Property-Casualty Insurers
+AMBA,Technology,Semiconductors
+AMCX,Consumer Services,Television Services
+AMCI,Finance,Business Services
+AMCIU,Finance,Business Services
+AMCIW,Finance,Business Services
+DOX,Technology,EDP Services
+AMED,Health Care,Medical/Nursing Services
+UHAL,Consumer Services,Rental/Leasing Companies
+AMRH,Technology,Semiconductors
+AMRHW,Technology,Semiconductors
+ATAX,Finance,Finance: Consumer Services
+AMOV,Public Utilities,Telecommunications Equipment
+AAL,Transportation,Air Freight/Delivery Services
+AETI,Energy,Industrial Machinery/Components
+AFIN,Consumer Services,Real Estate Investment Trusts
+AMNB,Finance,Major Banks
+ANAT,Finance,Life Insurance
+AOBC,Capital Goods,Ordnance And Accessories
+APEI,Consumer Services,Other Consumer Services
+AREC,Consumer Services,Other Consumer Services
+AMRB,Finance,Major Banks
+AMSWA,Technology,Computer Software: Prepackaged Software
+AMSC,Consumer Durables,Metal Fabrications
+AMWD,Basic Industries,Forest Products
+CRMT,Consumer Durables,Automotive Aftermarket
+ABCB,Finance,Major Banks
+AMSF,Finance,Property-Casualty Insurers
+ASRV,Finance,Major Banks
+ASRVP,Finance,Major Banks
+ATLO,Finance,Major Banks
+AMGN,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+FOLD,Health Care,Major Pharmaceuticals
+AMKR,Technology,Semiconductors
+AMPH,Health Care,Major Pharmaceuticals
+IBUY,n/a,n/a
+ASYS,Technology,Industrial Machinery/Components
+AMRS,Basic Industries,Major Chemicals
+ADI,Technology,Semiconductors
+ANAB,Health Care,Major Pharmaceuticals
+AVXL,Health Care,Biotechnology: Commercial Physical & Biological Resarch
+ANCN,Health Care,Major Pharmaceuticals
+ANDAU,Finance,Business Services
+ANGI,Consumer Services,Advertising
+ANGO,Health Care,Medical/Dental Instruments
+ANIP,Health Care,Major Pharmaceuticals
+ANIK,Health Care,Medical/Dental Instruments
+ANIX,Health Care,Medical Specialities
+ANSS,Technology,Computer Software: Prepackaged Software
+ATRS,Health Care,Medical/Dental Instruments
+APLS,Health Care,Major Pharmaceuticals
+APOG,Capital Goods,Auto Parts:O.E.M.
+APEN,Health Care,Medical/Dental Instruments
+AINV,n/a,n/a
+AMEH,Consumer Services,Professional Services
+APPF,Technology,Computer Software: Prepackaged Software
+APPN,Technology,Computer Software: Prepackaged Software
+AAPL,Technology,Computer Manufacturing
+ARCI,Consumer Services,Home Furnishings
+APDN,Consumer Services,Other Consumer Services
+APDNW,Consumer Services,Other Consumer Services
+AGTC,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+AMAT,Technology,Semiconductors
+AAOI,Technology,Semiconductors
+AREX,Energy,Oil & Gas Production
+APVO,Health Care,Major Pharmaceuticals
+APTX,Health Care,Major Pharmaceuticals
+APM,Health Care,Major Pharmaceuticals
+APTO,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+APYX,Health Care,Medical/Dental Instruments
+AQMS,Basic Industries,Metal Fabrications
+AQB,n/a,n/a
+AQST,Health Care,Major Pharmaceuticals
+AQXP,Health Care,Major Pharmaceuticals
+PETX,Health Care,Major Pharmaceuticals
+ARAV,Health Care,Major Pharmaceuticals
+ABUS,Health Care,Major Pharmaceuticals
+ARCW,Capital Goods,Metal Fabrications
+ABIO,Health Care,Biotechnology: In Vitro & In Vivo Diagnostic Substances
+RKDA,Basic Industries,Agricultural Chemicals
+ARCB,Transportation,Trucking Freight/Courier Services
+ACGL,Finance,Property-Casualty Insurers
+ACGLO,Finance,Property-Casualty Insurers
+ACGLP,Finance,Property-Casualty Insurers
+FUV,Consumer Non-Durables,Motor Vehicles
+ARCE,Consumer Services,Other Consumer Services
+ARCT,n/a,n/a
+ARDX,Health Care,Major Pharmaceuticals
+ARNA,Health Care,Major Pharmaceuticals
+ARCC,n/a,n/a
+ARGX,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+ARDS,Health Care,Major Pharmaceuticals
+ARKR,Consumer Services,Restaurants
+ARTX,Miscellaneous,Industrial Machinery/Components
+ARQL,Health Care,Major Pharmaceuticals
+ARRY,Health Care,Major Pharmaceuticals
+ARRS,Technology,Radio And Television Broadcasting And Communications Equipment
+DWCR,n/a,n/a
+DWAT,n/a,n/a
+AROW,Finance,Major Banks
+ARWR,Health Care,Major Pharmaceuticals
+ASNS,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+ARTNA,Public Utilities,Water Supply
+ARTW,Capital Goods,Industrial Machinery/Components
+ARVN,Health Care,Major Pharmaceuticals
+ARYA,Finance,Business Services
+ARYAU,Finance,Business Services
+ARYAW,Finance,Business Services
+ASNA,Consumer Services,Clothing/Shoe/Accessory Stores
+ASND,Health Care,Major Pharmaceuticals
+ASCMA,Consumer Services,Other Consumer Services
+APWC,Basic Industries,Telecommunications Equipment
+ASLN,Health Care,Major Pharmaceuticals
+ASML,Technology,Industrial Machinery/Components
+ASPU,Consumer Services,Other Consumer Services
+AZPN,Technology,EDP Services
+ASMB,Health Care,Major Pharmaceuticals
+ASRT,Health Care,Major Pharmaceuticals
+ASFI,Finance,Finance Companies
+ASTE,Capital Goods,Construction/Ag Equipment/Trucks
+ATRO,Capital Goods,Military/Government/Technical
+ALOT,Technology,Computer peripheral equipment
+ASTC,Capital Goods,Biotechnology: Laboratory Analytical Instruments
+ASUR,Technology,EDP Services
+ASV,Capital Goods,Construction/Ag Equipment/Trucks
+ATAI,Consumer Services,Other Consumer Services
+ATRA,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+ATNX,Health Care,Major Pharmaceuticals
+ATHX,Health Care,Major Pharmaceuticals
+AAME,Finance,Life Insurance
+ACBI,Finance,Major Banks
+AY,Public Utilities,Electric Utilities: Central
+ATLC,Finance,Finance: Consumer Services
+AAWW,Transportation,Transportation Services
+AFH,Finance,Property-Casualty Insurers
+AFHBL,Finance,Property-Casualty Insurers
+TEAM,Technology,Computer Software: Prepackaged Software
+ATNI,Public Utilities,Telecommunications Equipment
+ATOM,Technology,Semiconductors
+ATOS,Health Care,Major Pharmaceuticals
+ATRC,Health Care,Medical/Dental Instruments
+ATRI,Health Care,Medical/Dental Instruments
+ATIS,Basic Industries,Miscellaneous
+ATISW,Basic Industries,Miscellaneous
+ATTU,Technology,Computer Software: Prepackaged Software
+LIFE,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+AUBN,Finance,Major Banks
+BOLD,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+AUDC,Public Utilities,Telecommunications Equipment
+AEYE,Technology,Computer Software: Prepackaged Software
+AUPH,Health Care,Major Pharmaceuticals
+EARS,Health Care,Major Pharmaceuticals
+JG,Technology,"Computer Software: Programming, Data Processing"
+ADSK,Technology,Computer Software: Prepackaged Software
+AUTL,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+ADP,Technology,EDP Services
+AUTO,Technology,"Computer Software: Programming, Data Processing"
+AVDL,Health Care,Major Pharmaceuticals
+AVCO,Consumer Services,Professional Services
+AVDR,Health Care,Major Pharmaceuticals
+ATXI,Health Care,Major Pharmaceuticals
+AVEO,Health Care,Major Pharmaceuticals
+AVNW,Technology,Radio And Television Broadcasting And Communications Equipment
+CDMO,Health Care,Major Pharmaceuticals
+CDMOP,Health Care,Major Pharmaceuticals
+AVID,Technology,Computer Software: Prepackaged Software
+AVGR,Health Care,Medical/Dental Instruments
+CAR,Consumer Services,Rental/Leasing Companies
+AVT,Consumer Non-Durables,Electronic Components
+AVRO,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+AWRE,Technology,Computer Software: Prepackaged Software
+ACLS,Technology,Industrial Machinery/Components
+AXGN,Health Care,Biotechnology: Electromedical & Electrotherapeutic Apparatus
+AAXN,Capital Goods,Ordnance And Accessories
+AXNX,Health Care,Medical/Dental Instruments
+AXGT,Health Care,Major Pharmaceuticals
+AXSM,Health Care,Major Pharmaceuticals
+AXTI,Technology,Semiconductors
+AYTU,Health Care,Major Pharmaceuticals
+AZRX,Health Care,Major Pharmaceuticals
+BCOM,Consumer Services,Telecommunications Equipment
+RILY,Miscellaneous,Business Services
+RILYG,Miscellaneous,Business Services
+RILYH,Miscellaneous,Business Services
+RILYI,Miscellaneous,Business Services
+RILYL,Miscellaneous,Business Services
+RILYZ,Miscellaneous,Business Services
+BOSC,Technology,Computer Communications Equipment
+BIDU,Technology,"Computer Software: Programming, Data Processing"
+BCPC,Basic Industries,Major Chemicals
+BLDP,Energy,Industrial Machinery/Components
+BANF,Finance,Major Banks
+BANFP,Finance,Major Banks
+BCTF,Finance,Savings Institutions
+BAND,Technology,Computer Software: Prepackaged Software
+BFC,Finance,Major Banks
+BOCH,Finance,Major Banks
+BMRC,Finance,Major Banks
+BMLP,Finance,Commercial Banks
+BKSC,Finance,Major Banks
+BOTJ,Finance,Major Banks
+OZK,Finance,Major Banks
+BSVN,Finance,Major Banks
+BFIN,Finance,Savings Institutions
+BFL,n/a,n/a
+BWFG,Finance,Major Banks
+BANR,Finance,Major Banks
+BZUN,Consumer Services,Catalog/Specialty Distribution
+DFVL,Finance,Commercial Banks
+DFVS,Finance,Commercial Banks
+DLBS,Finance,Commercial Banks
+DTUL,Finance,Commercial Banks
+DTUS,Finance,Commercial Banks
+DTYL,Finance,Commercial Banks
+DTYS,Finance,Commercial Banks
+FLAT,Finance,Commercial Banks
+STPP,Finance,Commercial Banks
+TAPR,Finance,Commercial Banks
+BBSI,Technology,Professional Services
+GOLD,Basic Industries,Precious Metals
+BSET,Consumer Durables,Home Furnishings
+ZTEST,n/a,n/a
+BCML,Finance,Major Banks
+BCBP,Finance,Savings Institutions
+BECN,Consumer Services,RETAIL: Building Materials
+BBGI,Consumer Services,Broadcasting
+BBBY,Consumer Services,Home Furnishings
+BGNE,Health Care,Major Pharmaceuticals
+BELFA,Capital Goods,Electrical Products
+BELFB,Capital Goods,Electrical Products
+BLPH,Health Care,Major Pharmaceuticals
+BLCM,Health Care,Major Pharmaceuticals
+BNCL,Finance,Savings Institutions
+BNFT,Technology,Computer Software: Prepackaged Software
+BNTC,Health Care,Major Pharmaceuticals
+BNTCW,Health Care,Major Pharmaceuticals
+BRY,Energy,Oil & Gas Production
+BYSI,Health Care,Major Pharmaceuticals
+BGCP,Finance,Investment Bankers/Brokers/Service
+BGFV,Consumer Services,Other Specialty Stores
+BRPA,Finance,Business Services
+BRPAR,Finance,Business Services
+BRPAU,Finance,Business Services
+BRPAW,Finance,Business Services
+BILI,Technology,EDP Services
+BASI,Health Care,Biotechnology: Commercial Physical & Biological Resarch
+ORPN,Health Care,Major Pharmaceuticals
+BIOC,Health Care,Medical Specialities
+BCRX,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+BDSI,Health Care,Major Pharmaceuticals
+BFRA,Health Care,Major Pharmaceuticals
+BIIB,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+BHTG,Consumer Services,Other Consumer Services
+BKYI,Technology,Computer Communications Equipment
+BIOL,Health Care,Medical/Dental Instruments
+BLFS,Health Care,Biotechnology: Electromedical & Electrotherapeutic Apparatus
+BLRX,Health Care,Major Pharmaceuticals
+BMRN,Health Care,Major Pharmaceuticals
+BMRA,Health Care,Medical/Dental Instruments
+BNGO,Capital Goods,Biotechnology: Laboratory Analytical Instruments
+BNGOW,Capital Goods,Biotechnology: Laboratory Analytical Instruments
+BVXV,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+BVXVW,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+BPTH,Health Care,Major Pharmaceuticals
+BIOS,Health Care,Medical/Nursing Services
+BSGM,Health Care,Biotechnology: Electromedical & Electrotherapeutic Apparatus
+BSTC,Health Care,Major Pharmaceuticals
+TECH,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+BEAT,Health Care,Medical Specialities
+BTAI,Health Care,Major Pharmaceuticals
+BCAC,Health Care,Major Pharmaceuticals
+BCACR,Health Care,Major Pharmaceuticals
+BCACU,Health Care,Major Pharmaceuticals
+BCACW,Health Care,Major Pharmaceuticals
+BJRI,Consumer Services,Restaurants
+BRAC,Finance,Business Services
+BRACR,Finance,Business Services
+BRACU,Finance,Business Services
+BRACW,Finance,Business Services
+BLKB,Technology,Computer Software: Prepackaged Software
+BL,Technology,Computer Software: Prepackaged Software
+BKCC,n/a,n/a
+TCPC,n/a,n/a
+BLNK,Consumer Durables,Electrical Products
+BLNKW,Consumer Durables,Electrical Products
+BLMN,Consumer Services,Restaurants
+BCOR,Finance,Finance: Consumer Services
+BLBD,Capital Goods,Construction/Ag Equipment/Trucks
+BHBK,Finance,Major Banks
+BLUE,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+BKEP,Energy,Natural Gas Distribution
+BKEPP,Energy,Natural Gas Distribution
+BPMC,Health Care,Major Pharmaceuticals
+ITEQ,n/a,n/a
+BMCH,Consumer Services,RETAIL: Building Materials
+WIFI,Consumer Services,Telecommunications Equipment
+BOKF,Finance,Major Banks
+BOKFL,Finance,Major Banks
+BNSO,Capital Goods,Industrial Machinery/Components
+BKNG,Miscellaneous,Business Services
+BRQS,Technology,EDP Services
+BOMN,Finance,Real Estate
+BPFH,Finance,Major Banks
+EPAY,Technology,Computer Software: Prepackaged Software
+BOXL,Miscellaneous,Industrial Machinery/Components
+BWMC,Finance,Business Services
+BWMCU,Finance,Business Services
+BWMCW,Finance,Business Services
+BCLI,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+BVNSC,n/a,n/a
+BDGE,Finance,Major Banks
+BLIN          ,Technology,Computer Software: Prepackaged Software
+BWB,Finance,Major Banks
+BRID,Consumer Non-Durables,Specialty Foods
+BCOV,Technology,EDP Services
+BHF,Finance,Life Insurance
+BHFAL,Finance,Life Insurance
+AVGO,Technology,Semiconductors
+BVSN,Technology,Computer Software: Prepackaged Software
+BYFC,Finance,Savings Institutions
+BWEN,Capital Goods,Metal Fabrications
+BPY,Finance,Real Estate
+BPR,Consumer Services,Real Estate Investment Trusts
+BPRAP,Consumer Services,Real Estate Investment Trusts
+BRKL,Finance,Savings Institutions
+BRKS,Technology,Industrial Machinery/Components
+DOOO,Capital Goods,Industrial Specialties
+BRKR,Capital Goods,Biotechnology: Laboratory Analytical Instruments
+BMTC,Finance,Major Banks
+BLMT,Finance,Major Banks
+BSQR,Miscellaneous,Business Services
+BLDR,Consumer Services,RETAIL: Building Materials
+BFST,Finance,Major Banks
+CFFI,Finance,Major Banks
+CHRW,Transportation,Oil Refining/Marketing
+CCMP,Technology,Semiconductors
+CDNS,Technology,Computer Software: Prepackaged Software
+CDZI,Public Utilities,Water Supply
+CZR,Consumer Services,Hotels/Resorts
+CSTE,Capital Goods,Building Materials
+CLBS,Health Care,Hospital/Nursing Management
+CHY,n/a,n/a
+CHI,n/a,n/a
+CCD,n/a,n/a
+CHW,n/a,n/a
+CGO,n/a,n/a
+CSQ,n/a,n/a
+CAMP,Technology,Radio And Television Broadcasting And Communications Equipment
+CVGW,Consumer Non-Durables,Farming/Seeds/Milling
+CALA,Health Care,Major Pharmaceuticals
+CALM,Consumer Non-Durables,Farming/Seeds/Milling
+CLMT,Energy,Integrated oil Companies
+CRUSC,n/a,n/a
+CLXT,Basic Industries,Agricultural Chemicals
+CATC,Finance,Major Banks
+CAC,Finance,Major Banks
+CAMT,Capital Goods,Electronic Components
+CSIQ,Technology,Semiconductors
+CGIX,Health Care,Medical Specialities
+CPHC,Consumer Services,Services-Misc. Amusement & Recreation
+CBNK,Finance,Major Banks
+CCBG,Finance,Major Banks
+CPLP,Transportation,Marine Transportation
+CSWC,Consumer Non-Durables,Textiles
+CSWCL,Consumer Non-Durables,Textiles
+CPTA,n/a,n/a
+CPTAG,n/a,n/a
+CPTAL,n/a,n/a
+CFFN,Finance,Savings Institutions
+CAPR,Health Care,Major Pharmaceuticals
+CSTR,Finance,Major Banks
+CPST,Energy,Industrial Machinery/Components
+CARA,Health Care,Major Pharmaceuticals
+CBLK,Technology,Computer Software: Prepackaged Software
+CARB,Technology,EDP Services
+CSII,Health Care,Medical/Dental Instruments
+CDLX,Technology,"Computer Software: Programming, Data Processing"
+CATM,Miscellaneous,Business Services
+CDNA,Health Care,Medical Specialities
+CECO,Consumer Services,Other Consumer Services
+CTRE,Consumer Services,Real Estate Investment Trusts
+CARG,Technology,EDP Services
+CARO,Finance,Major Banks
+CART,Finance,Major Banks
+CRZO,Energy,Oil & Gas Production
+TAST,Consumer Services,Restaurants
+CARV,Finance,Savings Institutions
+CASM,Health Care,Medical/Dental Instruments
+CASA,Technology,Radio And Television Broadcasting And Communications Equipment
+CWST,Public Utilities,Environmental Services
+CASY,Consumer Durables,Automotive Aftermarket
+CASI,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+CASS,Miscellaneous,Business Services
+CTRM,Transportation,Marine Transportation
+CATB,Health Care,Major Pharmaceuticals
+CBIO,Health Care,Major Pharmaceuticals
+CPRX,Health Care,Major Pharmaceuticals
+CATS,Health Care,Hospital/Nursing Management
+CATY,Finance,Major Banks
+CGVIC,n/a,n/a
+CIVEC,n/a,n/a
+CVCO,Basic Industries,Homebuilding
+CBFV,Finance,Major Banks
+CBAT,Miscellaneous,Industrial Machinery/Components
+CBMB,Finance,Savings Institutions
+CBOE,n/a,n/a
+CBTX,Finance,Major Banks
+CDK,Miscellaneous,Business Services
+CDW,Consumer Services,Catalog/Specialty Distribution
+CECE,Capital Goods,Pollution Control Equipment
+CELC,Health Care,Medical Specialities
+CELG,Health Care,Major Pharmaceuticals
+CELGZ,Health Care,Major Pharmaceuticals
+CLDX,Health Care,Biotechnology: In Vitro & In Vivo Diagnostic Substances
+APOP,n/a,n/a
+APOPW,n/a,n/a
+CLRB,Health Care,Major Pharmaceuticals
+CLRBW,Health Care,Major Pharmaceuticals
+CLRBZ,Health Care,Major Pharmaceuticals
+CLLS,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+CBMG,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+CLSN,Health Care,Major Pharmaceuticals
+CELH,Consumer Non-Durables,Beverages (Production/Distribution)
+CYAD,Health Care,Major Pharmaceuticals
+CETX,Capital Goods,Industrial Machinery/Components
+CETXP,Capital Goods,Industrial Machinery/Components
+CETXW,Capital Goods,Industrial Machinery/Components
+CDEV,Energy,Oil & Gas Production
+CSFL,Finance,Major Banks
+CETV,Consumer Services,Broadcasting
+CFBK,Finance,Savings Institutions
+CENT,Consumer Durables,Consumer Specialties
+CENTA,Consumer Durables,Consumer Specialties
+CVCY,Finance,Major Banks
+CTRC,Consumer Non-Durables,Apparel
+CENX,Basic Industries,Aluminum
+CNBKA,Finance,Major Banks
+CNTY,Consumer Services,Hotels/Resorts
+CRNT,Technology,Radio And Television Broadcasting And Communications Equipment
+CERC,Health Care,Major Pharmaceuticals
+CERN,Technology,EDP Services
+CERS,Health Care,Medical/Dental Instruments
+KOOL,Capital Goods,Medical Specialities
+CEVA,Technology,Semiconductors
+CFFA,Finance,Business Services
+CFFAU,Finance,Business Services
+CFFAW,Finance,Business Services
+CSBR,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+CYOU,Technology,Computer Software: Prepackaged Software
+BURG,Consumer Services,Restaurants
+CTHR,Consumer Durables,Consumer Specialties
+GTLS,Capital Goods,Metal Fabrications
+CHTR,Consumer Services,Television Services
+CTAC,Finance,Business Services
+CTACU,Finance,Business Services
+CTACW,Finance,Business Services
+CHKP,Technology,Computer Software: Prepackaged Software
+CHEK,Health Care,Medical Electronics
+CHEKW,Health Care,Medical Electronics
+CHEKZ,Health Care,Medical Electronics
+CKPT,Health Care,Major Pharmaceuticals
+CEMI,Health Care,Major Pharmaceuticals
+CHFC,Finance,Major Banks
+CCXI,Health Care,Major Pharmaceuticals
+CHMG,Finance,Major Banks
+CHKE,Consumer Non-Durables,Apparel
+CHFS,Health Care,Biotechnology: Electromedical & Electrotherapeutic Apparatus
+CHMA,Health Care,Major Pharmaceuticals
+CSSE,Consumer Services,Movies/Entertainment
+CSSEP,Consumer Services,Movies/Entertainment
+PLCE,Consumer Services,Clothing/Shoe/Accessory Stores
+CMRX,Health Care,Major Pharmaceuticals
+CADC,Basic Industries,Engineering & Construction
+CAAS,Capital Goods,Auto Parts:O.E.M.
+GLG,Finance,Major Banks
+CBPO,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+CCCL,Capital Goods,Building Materials
+CCRC,Miscellaneous,Business Services
+JRJC,Finance,Investment Bankers/Brokers/Service
+HGSH,Finance,Real Estate
+CIFS,Consumer Services,Professional Services
+CJJD,Consumer Durables,Specialty Chemicals
+CLDC,Finance,Diversified Financial Services
+CHNR,Basic Industries,Precious Metals
+CREG,Miscellaneous,Business Services
+SXTC,Health Care,Major Pharmaceuticals
+CNTF,n/a,n/a
+CXDC,Capital Goods,Containers/Packaging
+CCIH,Technology,EDP Services
+CNET,Technology,"Computer Software: Programming, Data Processing"
+IMOS,Technology,Semiconductors
+CDXC,Consumer Durables,Specialty Chemicals
+CHSCL,Consumer Services,Farming/Seeds/Milling
+CHSCM,Consumer Services,Farming/Seeds/Milling
+CHSCN,Consumer Services,Farming/Seeds/Milling
+CHSCO,Consumer Services,Farming/Seeds/Milling
+CHSCP,Consumer Services,Farming/Seeds/Milling
+CHDN,Consumer Services,Services-Misc. Amusement & Recreation
+CHUY,Consumer Services,Restaurants
+CDTX,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+CMCT,Consumer Services,Real Estate Investment Trusts
+CMCTP,Consumer Services,Real Estate Investment Trusts
+CMPR,Miscellaneous,Publishing
+CINF,Finance,Property-Casualty Insurers
+CIDM,Consumer Services,Consumer Electronics/Video Chains
+CTAS,Consumer Non-Durables,Apparel
+CRUS,Technology,Semiconductors
+CSCO,Technology,Computer Communications Equipment
+CTRN,Consumer Services,Clothing/Shoe/Accessory Stores
+CTXR,Health Care,Major Pharmaceuticals
+CTXRW,Health Care,Major Pharmaceuticals
+CZNC,Finance,Major Banks
+CZWI,Finance,Savings Institutions
+CZFC,Finance,Major Banks
+CIZN,Finance,Major Banks
+CTXS,Technology,Computer Software: Prepackaged Software
+CHCO,Finance,Major Banks
+CIVB,Finance,Major Banks
+CIVBP,Finance,Major Banks
+CLAR,Consumer Non-Durables,Recreational Products/Toys
+CLNE,Public Utilities,Natural Gas Distribution
+CACG,n/a,n/a
+YLDE,n/a,n/a
+LRGE,n/a,n/a
+CLFD,Public Utilities,Telecommunications Equipment
+CLRO,Public Utilities,Telecommunications Equipment
+CLSD,Health Care,Major Pharmaceuticals
+CLIR,Capital Goods,Industrial Machinery/Components
+CMTA,Health Care,Major Pharmaceuticals
+CBLI,Health Care,Biotechnology: Commercial Physical & Biological Resarch
+CLVS,Health Care,Major Pharmaceuticals
+CLPS,Technology,Computer Software: Prepackaged Software
+CMFN,n/a,n/a
+CMFNL,n/a,n/a
+CMSS,Consumer Durables,Automotive Aftermarket
+CMSSR,Consumer Durables,Automotive Aftermarket
+CMSSU,Consumer Durables,Automotive Aftermarket
+CMSSW,Consumer Durables,Automotive Aftermarket
+CME,Finance,Investment Bankers/Brokers/Service
+CCNE,Finance,Major Banks
+CCB,Finance,Major Banks
+COKE,Consumer Non-Durables,Beverages (Production/Distribution)
+COCP,Health Care,Major Pharmaceuticals
+CODA,Capital Goods,Industrial Machinery/Components
+CDXS,Basic Industries,Major Chemicals
+CODX,Health Care,Medical/Dental Instruments
+CVLY,Finance,Savings Institutions
+JVA,Consumer Non-Durables,Food Distributors
+CCOI,Consumer Services,Telecommunications Equipment
+CGNX,Capital Goods,Industrial Machinery/Components
+CTSH,Technology,EDP Services
+CWBR,Health Care,Major Pharmaceuticals
+COHR,Capital Goods,Biotechnology: Laboratory Analytical Instruments
+CHRS,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+COHU,Capital Goods,Electrical Products
+CLCT,Miscellaneous,Business Services
+COLL,Health Care,Major Pharmaceuticals
+CIGI,Finance,Real Estate
+CLGN,Health Care,Industrial Specialties
+CBAN,Finance,Major Banks
+COLB,Finance,Major Banks
+CLBK,Finance,Savings Institutions
+COLM,Consumer Non-Durables,Apparel
+CMCO,Capital Goods,Construction/Ag Equipment/Trucks
+CMCSA,Consumer Services,Television Services
+CCNI,Technology,Professional Services
+CBSH,Finance,Major Banks
+CBSHP,Finance,Major Banks
+CVGI,Capital Goods,Auto Parts:O.E.M.
+COMM,Technology,Radio And Television Broadcasting And Communications Equipment
+JCS,Public Utilities,Telecommunications Equipment
+ESXB,Finance,Major Banks
+CFBI,Finance,Savings Institutions
+CTBI,Finance,Major Banks
+CWBC,Finance,Major Banks
+CVLT,Technology,Computer Software: Prepackaged Software
+CGEN,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+CPSI,Technology,EDP Services
+CTG,Technology,EDP Services
+SCOR,Miscellaneous,Business Services
+CHCI,Capital Goods,Homebuilding
+CMTL,Technology,Radio And Television Broadcasting And Communications Equipment
+CNAT,Health Care,Major Pharmaceuticals
+CNCE,Health Care,Major Pharmaceuticals
+BBCP,Basic Industries,Engineering & Construction
+CDOR,Consumer Services,Real Estate Investment Trusts
+CFMS,Health Care,Industrial Specialties
+CNFR,Finance,Property-Casualty Insurers
+CNFRL,Finance,Property-Casualty Insurers
+CNMD,Health Care,Biotechnology: Electromedical & Electrotherapeutic Apparatus
+CTWS,Public Utilities,Water Supply
+CNOB,Finance,Major Banks
+CONN,Consumer Services,Consumer Electronics/Video Chains
+CNSL,Public Utilities,Telecommunications Equipment
+CWCO,Public Utilities,Water Supply
+CNAC,Health Care,Medical Specialities
+CNACR,Health Care,Medical Specialities
+CNACU,Health Care,Medical Specialities
+CNACW,Health Care,Medical Specialities
+CNST,Health Care,Major Pharmaceuticals
+ROAD,Basic Industries,Military/Government/Technical
+CPSS,Finance,Finance: Consumer Services
+CFRX,Health Care,Major Pharmaceuticals
+CTRV,Health Care,Major Pharmaceuticals
+CTRL,Capital Goods,Electrical Products
+AWSM,Consumer Non-Durables,Electronic Components
+CPRT,Consumer Durables,Automotive Aftermarket
+CRBP,Health Care,Major Pharmaceuticals
+CORT,Health Care,Major Pharmaceuticals
+CORE,Consumer Non-Durables,Food Distributors
+CSOD,Technology,Computer Software: Prepackaged Software
+CORV,Health Care,Major Pharmaceuticals
+CRVL,Finance,Specialty Insurers
+CRVS,Health Care,Major Pharmaceuticals
+CSGP,Miscellaneous,Business Services
+COST,Consumer Services,Department/Specialty Retail Stores
+CPAH,Technology,Computer Software: Prepackaged Software
+ICBK,Finance,Major Banks
+COUP,Technology,Computer Software: Prepackaged Software
+CVTI,Transportation,Trucking Freight/Courier Services
+CVET,Health Care,Medical/Nursing Services
+COWN,Finance,Investment Bankers/Brokers/Service
+COWNL,Finance,Investment Bankers/Brokers/Service
+COWNZ,Finance,Investment Bankers/Brokers/Service
+PMTS,Finance,Finance Companies
+CPSH,Capital Goods,Building Materials
+CRAI,Miscellaneous,Other Consumer Services
+CBRL,Consumer Services,Restaurants
+BREW,Consumer Non-Durables,Beverages (Production/Distribution)
+CRAY,Technology,Computer Manufacturing
+CREX,Technology,EDP Services
+CREXW,Technology,EDP Services
+CACC,Finance,Finance: Consumer Services
+DGLD,Finance,Investment Bankers/Brokers/Service
+DSLV,Finance,Investment Bankers/Brokers/Service
+GLDI,Finance,Investment Bankers/Brokers/Service
+SLVO,Finance,Investment Bankers/Brokers/Service
+TVIX,Finance,Investment Bankers/Brokers/Service
+UGLD,Finance,Investment Bankers/Brokers/Service
+USLV,Finance,Investment Bankers/Brokers/Service
+USOI,Finance,Investment Bankers/Brokers/Service
+VIIX,Finance,Investment Bankers/Brokers/Service
+ZIV,Finance,Investment Bankers/Brokers/Service
+CREE,Technology,Semiconductors
+CRESY,Finance,Real Estate
+CRNX,Health Care,Major Pharmaceuticals
+CRSP,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+CRTO,Technology,Advertising
+CROX,Consumer Non-Durables,Shoe Manufacturing
+CRON,Consumer Durables,Specialty Chemicals
+CCRN,Technology,Professional Services
+CRWS,Basic Industries,Textiles
+CYRX,Transportation,Oil Refining/Marketing
+CYRXW,Transportation,Oil Refining/Marketing
+CSGS,Technology,EDP Services
+CCLP,Energy,Oilfield Services/Equipment
+CSPI,Technology,EDP Services
+CSWI,Basic Industries,Home Furnishings
+CSX,Transportation,Railroads
+CTIC,Health Care,Major Pharmaceuticals
+CTIB,Basic Industries,Specialty Chemicals
+CTRP,Miscellaneous,Business Services
+CUE,Health Care,Major Pharmaceuticals
+CUI,Consumer Non-Durables,Electronic Components
+CPIX,Health Care,Major Pharmaceuticals
+CMLS,Consumer Services,Broadcasting
+CRIS,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+CUTR,Health Care,Biotechnology: Electromedical & Electrotherapeutic Apparatus
+CVBF,Finance,Major Banks
+CVV,Technology,Industrial Machinery/Components
+CYAN,Consumer Durables,Specialty Chemicals
+CYBR,Technology,Computer Software: Prepackaged Software
+CYBE,Capital Goods,Electronic Components
+CYCC,Health Care,Major Pharmaceuticals
+CYCCP,Health Care,Major Pharmaceuticals
+CBAY,Health Care,Major Pharmaceuticals
+CY,Technology,Semiconductors
+CYRN,Technology,Computer Software: Prepackaged Software
+CONE,Consumer Services,Real Estate Investment Trusts
+CYTK,Health Care,Major Pharmaceuticals
+CTMX,Health Care,Major Pharmaceuticals
+CYTX,Health Care,Medical/Dental Instruments
+CYTXZ,Health Care,Medical/Dental Instruments
+CTSO,Health Care,Medical/Dental Instruments
+CYTR,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+DJCO,Consumer Services,Newspapers/Magazines
+DAKT,Consumer Durables,Miscellaneous manufacturing industries
+DARE,Health Care,Major Pharmaceuticals
+DRIO,Health Care,Medical/Dental Instruments
+DRIOW,Health Care,Medical/Dental Instruments
+DZSI,Public Utilities,Telecommunications Equipment
+DSKE,Consumer Services,Transportation Services
+DSKEW,Consumer Services,Transportation Services
+DAIO,Capital Goods,Electrical Products
+DTSS,Technology,Computer Software: Prepackaged Software
+PLAY,Consumer Services,Restaurants
+DTEA,Consumer Non-Durables,Food Chains
+DFNL,n/a,n/a
+DINT,n/a,n/a
+DUSA,n/a,n/a
+DWLD,n/a,n/a
+DWSN,Energy,Oil & Gas Production
+DBVT,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+DDMX,Finance,Business Services
+DDMXU,Finance,Business Services
+DDMXW,Finance,Business Services
+DCPH,Health Care,Major Pharmaceuticals
+DFRG,Consumer Services,Restaurants
+TACO,Consumer Services,Restaurants
+TACOW,Consumer Services,Restaurants
+DMPI,Health Care,Major Pharmaceuticals
+DNLI,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+DENN,Consumer Services,Restaurants
+XRAY,Health Care,Medical/Dental Instruments
+DERM,Health Care,Major Pharmaceuticals
+DEST,Consumer Services,Clothing/Shoe/Accessory Stores
+DXLG,Consumer Services,Clothing/Shoe/Accessory Stores
+DSWL,Consumer Non-Durables,Plastic Products
+DXCM,Health Care,Medical/Dental Instruments
+DFBH,Finance,Business Services
+DFBHU,Finance,Business Services
+DFBHW,Finance,Business Services
+DHXM,n/a,n/a
+DMAC,Health Care,Major Pharmaceuticals
+DHIL,Finance,Investment Managers
+FANG,Energy,Oil & Gas Production
+DCIX,Transportation,Marine Transportation
+DRNA,Health Care,Major Pharmaceuticals
+DFFN,Health Care,Major Pharmaceuticals
+DGII,Technology,Computer Communications Equipment
+DMRC,Technology,EDP Services
+DRAD,Health Care,Biotechnology: Electromedical & Electrotherapeutic Apparatus
+DGLY,Technology,Radio And Television Broadcasting And Communications Equipment
+APPS,Miscellaneous,Multi-Sector Companies
+DCOM,Finance,Savings Institutions
+DIOD,Technology,Semiconductors
+DISCA,Consumer Services,Television Services
+DISCB,Consumer Services,Television Services
+DISCK,Consumer Services,Television Services
+DISH,Consumer Services,Television Services
+DVCR,Health Care,Hospital/Nursing Management
+SAUC,Consumer Services,Restaurants
+DLHC,Technology,Professional Services
+BOOM,Capital Goods,Industrial Specialties
+DNBF,Finance,Major Banks
+DOCU,Technology,Computer Software: Prepackaged Software
+DOGZ,Consumer Durables,Miscellaneous manufacturing industries
+DLTR,Consumer Services,Department/Specialty Retail Stores
+DLPN,Consumer Services,Other Consumer Services
+DLPNW,Consumer Services,Other Consumer Services
+DOMO,Technology,Computer Software: Prepackaged Software
+DGICA,Finance,Property-Casualty Insurers
+DGICB,Finance,Property-Casualty Insurers
+DMLP,Energy,Oil & Gas Production
+DORM,Capital Goods,Auto Parts:O.E.M.
+DOVA,Health Care,Major Pharmaceuticals
+LYL,Finance,Finance/Investors Services
+DBX,Technology,Computer Software: Prepackaged Software
+DCAR,Consumer Services,Telecommunications Equipment
+DRYS,Transportation,Marine Transportation
+DSPG,Technology,Semiconductors
+DLTH,Consumer Services,Clothing/Shoe/Accessory Stores
+DNKN,Consumer Services,Restaurants
+DRRX,Health Care,Major Pharmaceuticals
+DXPE,Capital Goods,Industrial Machinery/Components
+DYSL,Capital Goods,Industrial Machinery/Components
+DYNT,Health Care,Medical/Dental Instruments
+DVAX,Health Care,Major Pharmaceuticals
+ETFC,Finance,Savings Institutions
+SSP,Consumer Services,Broadcasting
+EBMT,Finance,Major Banks
+EGBN,Finance,Major Banks
+EGLE,Transportation,Marine Transportation
+EFBI,Finance,Savings Institutions
+EGRX,Health Care,Major Pharmaceuticals
+EWBC,Finance,Major Banks
+EML,Capital Goods,Industrial Machinery/Components
+EAST,Consumer Non-Durables,Beverages (Production/Distribution)
+EVGBC,n/a,n/a
+EVSTC,n/a,n/a
+EVFTC,n/a,n/a
+EVLMC,n/a,n/a
+OKDCC,n/a,n/a
+EBAY,Miscellaneous,Business Services
+EBAYL,Miscellaneous,Business Services
+EBIX,Technology,EDP Services
+ECHO,Transportation,Oil Refining/Marketing
+SATS,Technology,Radio And Television Broadcasting And Communications Equipment
+EEI,Consumer Services,Military/Government/Technical
+EDAP,Health Care,Biotechnology: Electromedical & Electrotherapeutic Apparatus
+EDGE,Health Care,Major Pharmaceuticals
+EDNT,Consumer Non-Durables,Recreational Products/Toys
+EDIT,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+EDTX,Finance,Business Services
+EDTXU,Finance,Business Services
+EDTXW,Finance,Business Services
+EDUC,Consumer Durables,Consumer Specialties
+EGAN,Technology,Computer Software: Prepackaged Software
+EHTH,Finance,Specialty Insurers
+EIDX,Health Care,Major Pharmaceuticals
+EIGR,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+EKSO,Capital Goods,Industrial Machinery/Components
+LOCO,Consumer Services,Restaurants
+ESLT,Capital Goods,Military/Government/Technical
+ERI,Consumer Services,Hotels/Resorts
+SOLO,Capital Goods,Auto Manufacturing
+SOLOW,Capital Goods,Auto Manufacturing
+ECOR,Health Care,Biotechnology: Electromedical & Electrotherapeutic Apparatus
+EA,Technology,Computer Software: Prepackaged Software
+EFII,Technology,Computer Communications Equipment
+ELSE,Capital Goods,Industrial Machinery/Components
+ESBK,Finance,Major Banks
+ELOX,Health Care,Biotechnology: Commercial Physical & Biological Resarch
+ELTK,Technology,Electrical Products
+EMCI,Finance,Property-Casualty Insurers
+EMCF,Finance,Major Banks
+EMKR,Technology,Semiconductors
+EMMS,Consumer Services,Broadcasting
+NYNY,Consumer Services,Restaurants
+ENTA,Health Care,Major Pharmaceuticals
+ECPG,Finance,Finance Companies
+WIRE,Capital Goods,Metal Fabrications
+ENDP,Health Care,Major Pharmaceuticals
+ELGX,Health Care,Medical/Dental Instruments
+NDRA,Health Care,Biotechnology: Electromedical & Electrotherapeutic Apparatus
+NDRAW,Health Care,Biotechnology: Electromedical & Electrotherapeutic Apparatus
+EIGI,Technology,Computer Software: Prepackaged Software
+WATT,Technology,Radio And Television Broadcasting And Communications Equipment
+EFOI,Consumer Durables,Building Products
+ERII,Technology,Industrial Machinery/Components
+ENG,Consumer Services,Military/Government/Technical
+ENOB,Health Care,Major Pharmaceuticals
+ENPH,Technology,Semiconductors
+ESGR,Finance,Property-Casualty Insurers
+ESGRO,Finance,Property-Casualty Insurers
+ESGRP,Finance,Property-Casualty Insurers
+ETTX,Health Care,Major Pharmaceuticals
+ENFC,Finance,Banks
+ENTG,Consumer Non-Durables,Plastic Products
+ENTX,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+ENTXW,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+EBTC,Finance,Major Banks
+EFSC,Finance,Major Banks
+EPZM,Health Care,Major Pharmaceuticals
+PLUS,Technology,Retail: Computer Software & Peripheral Equipment
+EPSN,n/a,n/a
+EQ,Health Care,Major Pharmaceuticals
+EQIX,Consumer Services,Real Estate Investment Trusts
+EQBK,Finance,Major Banks
+ERIC,Technology,Radio And Television Broadcasting And Communications Equipment
+ERIE,Finance,Specialty Insurers
+ERYP,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+ESCA,Consumer Non-Durables,Recreational Products/Toys
+ESPR,Health Care,Major Pharmaceuticals
+ESQ,Finance,Commercial Banks
+ESSA,Finance,Banks
+EPIX,Health Care,Major Pharmaceuticals
+ESTA,Health Care,Industrial Specialties
+ESTR,Public Utilities,Environmental Services
+ESTRW,Public Utilities,Environmental Services
+VBND,n/a,n/a
+VUSE,n/a,n/a
+VIDI,n/a,n/a
+ETON,Health Care,Major Pharmaceuticals
+ETSY,Miscellaneous,Business Services
+CLWT,Consumer Durables,Diversified Electronic Products
+EDRY,Consumer Services,Marine Transportation
+EEFT,Finance,Investment Bankers/Brokers/Service
+ESEA,Transportation,Marine Transportation
+EVLO,Health Care,Major Pharmaceuticals
+EVBG,Technology,Computer Software: Prepackaged Software
+EVK,Consumer Non-Durables,Apparel
+EVER,Technology,"Computer Software: Programming, Data Processing"
+MRAM,Technology,Semiconductors
+EVLV,Consumer Services,Catalog/Specialty Distribution
+EVOP,Miscellaneous,Business Services
+EVFM,Health Care,Major Pharmaceuticals
+EVGN,Basic Industries,Agricultural Chemicals
+EVOK,Health Care,Major Pharmaceuticals
+EOLS,Health Care,Major Pharmaceuticals
+EVOL,Technology,EDP Services
+EXAS,Health Care,Biotechnology: Commercial Physical & Biological Resarch
+FLAG,n/a,n/a
+ROBO,n/a,n/a
+XELA,Miscellaneous,Business Services
+EXEL,Health Care,Biotechnology: Commercial Physical & Biological Resarch
+EXFO,Capital Goods,Electrical Products
+EXLS,Miscellaneous,Business Services
+EXPI,Finance,Real Estate
+EXPE,Consumer Services,Transportation Services
+EXPD,Transportation,Oil Refining/Marketing
+EXPO,Consumer Services,Professional Services
+STAY,Consumer Services,Hotels/Resorts
+XOG,Energy,Oil & Gas Production
+EXTR,Technology,Computer Communications Equipment
+EYEG,Health Care,Major Pharmaceuticals
+EYEGW,Health Care,Major Pharmaceuticals
+EYEN,Health Care,Major Pharmaceuticals
+EYPT,Capital Goods,Biotechnology: Laboratory Analytical Instruments
+EZPW,Consumer Services,Other Specialty Stores
+FFIV,Technology,Computer Communications Equipment
+FB,Technology,"Computer Software: Programming, Data Processing"
+FLMN,Energy,Oil & Gas Production
+FLMNW,Energy,Oil & Gas Production
+DAVE,Consumer Services,Restaurants
+FANH,Finance,Specialty Insurers
+FARM,Consumer Non-Durables,Packaged Foods
+FMAO,Finance,Savings Institutions
+FMNB,Finance,Major Banks
+FAMI,Consumer Non-Durables,Packaged Foods
+FARO,Capital Goods,Industrial Machinery/Components
+FAST,Consumer Services,RETAIL: Building Materials
+FAT,Consumer Services,Restaurants
+FATE,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+FBSS,Finance,Major Banks
+FLF,Finance,Life Insurance
+FNHC,Finance,Property-Casualty Insurers
+FENC,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+GSM,Capital Goods,Metal Fabrications
+FFBW,Finance,Savings Institutions
+FCSC,Health Care,Major Pharmaceuticals
+FGEN,Health Care,Major Pharmaceuticals
+FDBC,Finance,Major Banks
+ONEQ,n/a,n/a
+LION,Finance,Major Banks
+FDUS,n/a,n/a
+FDUSL,n/a,n/a
+FDUSZ,n/a,n/a
+FRGI,Consumer Services,Restaurants
+FITB,Finance,Major Banks
+FITBI,Finance,Major Banks
+FISI,Finance,Major Banks
+FNSR,Technology,Semiconductors
+FNJN,Miscellaneous,Multi-Sector Companies
+FTAC,Finance,Business Services
+FTACU,Finance,Business Services
+FTACW,Finance,Business Services
+FEYE,Technology,Computer peripheral equipment
+FBNC,Finance,Major Banks
+FNLC,Finance,Major Banks
+FRBA,n/a,n/a
+BUSE,Finance,Major Banks
+FBIZ,Finance,Major Banks
+FCAP,Finance,Savings Institutions
+FCBP,Finance,Major Banks
+FCNCA,Finance,Major Banks
+FCBC,Finance,Major Banks
+FCCO,Finance,Major Banks
+FDEF,Finance,Savings Institutions
+FFBC,Finance,Major Banks
+FFIN,Finance,Major Banks
+THFF,Finance,Major Banks
+FFNW,Finance,Major Banks
+FFWM,Finance,Major Banks
+FGBI,Finance,Savings Institutions
+FHB,Finance,Major Banks
+INBK,Finance,Major Banks
+INBKL,Finance,Major Banks
+FIBK,Finance,Major Banks
+FRME,Finance,Major Banks
+FMBH,Finance,Major Banks
+FMBI,Finance,Major Banks
+FNWB,Finance,Banks
+FSFG,Finance,Savings Institutions
+FSLR,Technology,Semiconductors
+FAAR,n/a,n/a
+FPA,n/a,n/a
+BICK,n/a,n/a
+FBZ,n/a,n/a
+FTHI,n/a,n/a
+FCAL,n/a,n/a
+FCAN,n/a,n/a
+FTCS,n/a,n/a
+FCEF,n/a,n/a
+FCA,n/a,n/a
+SKYY,n/a,n/a
+RNDM,n/a,n/a
+FDT,n/a,n/a
+FDTS,n/a,n/a
+FVC,n/a,n/a
+FV,n/a,n/a
+IFV,n/a,n/a
+DDIV,n/a,n/a
+DVOL,n/a,n/a
+DVLU,n/a,n/a
+DWPP,n/a,n/a
+DALI,n/a,n/a
+FDNI,n/a,n/a
+FEM,n/a,n/a
+RNEM,n/a,n/a
+FEMB,n/a,n/a
+FEMS,n/a,n/a
+FTSM,n/a,n/a
+FEP,n/a,n/a
+FEUZ,n/a,n/a
+FGM,n/a,n/a
+FTGC,n/a,n/a
+FTLB,n/a,n/a
+HYLS,n/a,n/a
+FHK,n/a,n/a
+NFTY,n/a,n/a
+FTAG,n/a,n/a
+FTRI,n/a,n/a
+LEGR,n/a,n/a
+FPXI,n/a,n/a
+FPXE,n/a,n/a
+FJP,n/a,n/a
+FEX,n/a,n/a
+FTC,n/a,n/a
+RNLC,n/a,n/a
+FTA,n/a,n/a
+FLN,n/a,n/a
+LMBS,n/a,n/a
+LDSF,n/a,n/a
+FMB,n/a,n/a
+FMK,n/a,n/a
+FNX,n/a,n/a
+FNY,n/a,n/a
+RNMC,n/a,n/a
+FNK,n/a,n/a
+FAD,n/a,n/a
+FAB,n/a,n/a
+MDIV,n/a,n/a
+MCEF,n/a,n/a
+FMHI,n/a,n/a
+QABA,n/a,n/a
+ROBT,n/a,n/a
+FTXO,n/a,n/a
+QCLN,n/a,n/a
+GRID,n/a,n/a
+CIBR,n/a,n/a
+FTXG,n/a,n/a
+CARZ,n/a,n/a
+FTXN,n/a,n/a
+FTXH,n/a,n/a
+FTXD,n/a,n/a
+FTXL,n/a,n/a
+FONE,n/a,n/a
+TDIV,n/a,n/a
+FTXR,n/a,n/a
+QQEW,n/a,n/a
+QQXT,n/a,n/a
+QTEC,n/a,n/a
+AIRR,n/a,n/a
+RDVY,n/a,n/a
+RFAP,n/a,n/a
+RFDI,n/a,n/a
+RFEM,n/a,n/a
+RFEU,n/a,n/a
+FID,n/a,n/a
+FTSL,n/a,n/a
+FYX,n/a,n/a
+FYC,n/a,n/a
+RNSC,n/a,n/a
+FYT,n/a,n/a
+SDVY,n/a,n/a
+FKO,n/a,n/a
+FCVT,n/a,n/a
+FDIV,n/a,n/a
+FSZ,n/a,n/a
+FIXD,n/a,n/a
+TUSA,n/a,n/a
+FKU,n/a,n/a
+RNDV,n/a,n/a
+FUNC,Finance,Major Banks
+FUSB,Finance,Major Banks
+MYFW,Finance,Major Banks
+FCFS,Consumer Services,Other Specialty Stores
+SVVC,n/a,n/a
+FSV,Finance,Real Estate
+FISV,Technology,EDP Services
+FIVE,Consumer Services,Department/Specialty Retail Stores
+FPRX,Health Care,Major Pharmaceuticals
+FVE,Health Care,Hospital/Nursing Management
+FIVN,Technology,EDP Services
+FLEX,Technology,Electrical Products
+FLKS,Health Care,Major Pharmaceuticals
+FLXN,Health Care,Major Pharmaceuticals
+SKOR,n/a,n/a
+LKOR,n/a,n/a
+MBSD,n/a,n/a
+ASET,n/a,n/a
+ESGG,n/a,n/a
+ESG,n/a,n/a
+QLC,n/a,n/a
+FPAY,Technology,Diversified Commercial Services
+FPAYW,Technology,Diversified Commercial Services
+FLXS,Consumer Durables,Home Furnishings
+FLIR,Capital Goods,Industrial Machinery/Components
+FLNT,Consumer Services,Advertising
+FLDM,Capital Goods,Biotechnology: Laboratory Analytical Instruments
+FFIC,Finance,Major Banks
+FNCB,Finance,Major Banks
+FOMX,Consumer Durables,Specialty Chemicals
+FOCS,Finance,Investment Managers
+FONR,Health Care,Biotechnology: Electromedical & Electrotherapeutic Apparatus
+FSCT,Technology,Computer peripheral equipment
+FRSX,Technology,Computer Software: Prepackaged Software
+FORM,Technology,Semiconductors
+FORTY,Technology,EDP Services
+FORR,Consumer Services,Diversified Commercial Services
+FRTA,Capital Goods,Building Materials
+FTNT,Technology,Computer peripheral equipment
+FBIO,Health Care,Major Pharmaceuticals
+FBIOP,Health Care,Major Pharmaceuticals
+FTSV,Health Care,Major Pharmaceuticals
+FMCI,Finance,Business Services
+FMCIU,Finance,Business Services
+FMCIW,Finance,Business Services
+FWRD,Transportation,Oil Refining/Marketing
+FORD,Consumer Non-Durables,Plastic Products
+FWP,Health Care,Major Pharmaceuticals
+FOSL,Consumer Non-Durables,Consumer Specialties
+FOXF,Consumer Non-Durables,Motor Vehicles
+FRAN,Consumer Services,Clothing/Shoe/Accessory Stores
+FELE,Consumer Durables,Metal Fabrications
+FRED,Consumer Services,Department/Specialty Retail Stores
+RAIL,Capital Goods,Railroads
+FEIM,Capital Goods,Electrical Products
+FRPT,Consumer Non-Durables,Packaged Foods
+FTDR,Finance,Diversified Commercial Services
+FTEO,n/a,n/a
+FTR,Public Utilities,Telecommunications Equipment
+FRPH,Finance,Real Estate
+FSBW,Finance,Banks
+FSBC,Finance,Savings Institutions
+FTD,Consumer Services,Other Consumer Services
+FTEK,Capital Goods,Pollution Control Equipment
+FCEL,Miscellaneous,Industrial Machinery/Components
+FLGT,Health Care,Medical Specialities
+FORK,Consumer Non-Durables,Plastic Products
+FLL,Consumer Services,Hotels/Resorts
+FULT,Finance,Major Banks
+FNKO,Consumer Non-Durables,Recreational Products/Toys
+FSNN,Technology,Computer Software: Prepackaged Software
+FTFT,Consumer Non-Durables,Packaged Foods
+FFHL,Capital Goods,Specialty Chemicals
+FVCB,Finance,Major Banks
+WILC,Consumer Non-Durables,Food Distributors
+GTHX,Health Care,Major Pharmaceuticals
+FOANC,n/a,n/a
+GRBIC,n/a,n/a
+MOGLC,n/a,n/a
+PETZC,n/a,n/a
+GAIA,Consumer Services,Movies/Entertainment
+GLPG,Health Care,Major Pharmaceuticals
+GALT,Health Care,Major Pharmaceuticals
+GLMD,Health Care,Major Pharmaceuticals
+GMDA,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+GLPI,Consumer Services,Real Estate Investment Trusts
+GPIC,Consumer Non-Durables,Recreational Products/Toys
+GRMN,Capital Goods,Industrial Machinery/Components
+GARS,n/a,n/a
+GLIBA,Public Utilities,Telecommunications Equipment
+GLIBP,Public Utilities,Telecommunications Equipment
+GDS,Technology,"Computer Software: Programming, Data Processing"
+GEMP,Health Care,Major Pharmaceuticals
+GENC,Capital Goods,Construction/Ag Equipment/Trucks
+GFN,Technology,Diversified Commercial Services
+GFNCP,Technology,Diversified Commercial Services
+GFNSL,Technology,Diversified Commercial Services
+GENE,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+GNUS,Consumer Services,Movies/Entertainment
+GNMK,Health Care,Medical/Dental Instruments
+GNCA,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+GHDX,Health Care,Medical Specialities
+GNPX,Health Care,Major Pharmaceuticals
+GNTX,Capital Goods,Auto Parts:O.E.M.
+THRM,Capital Goods,Auto Parts:O.E.M.
+GEOS,Capital Goods,Industrial Machinery/Components
+GABC,Finance,Major Banks
+GERN,Health Care,Major Pharmaceuticals
+GEVO,Basic Industries,Major Chemicals
+ROCK,Capital Goods,Steel/Iron Ore
+GIGM,Technology,"Computer Software: Programming, Data Processing"
+GIII,Consumer Non-Durables,Apparel
+GILT,Technology,Radio And Television Broadcasting And Communications Equipment
+GILD,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+GBCI,Finance,Major Banks
+GLAD,Consumer Non-Durables,Textiles
+GLADD,Consumer Non-Durables,Textiles
+GLADN,Consumer Non-Durables,Textiles
+GOOD,Consumer Services,Real Estate
+GOODM,Consumer Services,Real Estate
+GOODO,Consumer Services,Real Estate
+GOODP,Consumer Services,Real Estate
+GAIN,n/a,n/a
+GAINL,n/a,n/a
+GAINM,n/a,n/a
+LAND,Consumer Services,Real Estate Investment Trusts
+LANDP,Consumer Services,Real Estate Investment Trusts
+GLBZ,Finance,Major Banks
+GBT,Health Care,Major Pharmaceuticals
+ENT,Consumer Services,Telecommunications Equipment
+GBLI,Finance,Property-Casualty Insurers
+GBLIL,Finance,Property-Casualty Insurers
+GBLIZ,Finance,Property-Casualty Insurers
+SELF,Consumer Services,Real Estate Investment Trusts
+GWRS,Public Utilities,Water Supply
+DRIV,n/a,n/a
+KRMA,n/a,n/a
+DAX,n/a,n/a
+EBIZ,n/a,n/a
+FINX,n/a,n/a
+AIQ,n/a,n/a
+BFIT,n/a,n/a
+SNSR,n/a,n/a
+LNGR,n/a,n/a
+MILN,n/a,n/a
+CHIC,n/a,n/a
+EFAS,n/a,n/a
+QYLD,n/a,n/a
+BOTZ,n/a,n/a
+CATH,n/a,n/a
+SOCL,n/a,n/a
+ALTY,n/a,n/a
+SRET,n/a,n/a
+YLCO,n/a,n/a
+GLBS,Transportation,Marine Transportation
+GLUU,Technology,EDP Services
+GLYC,Health Care,Major Pharmaceuticals
+GOGO,Consumer Services,Telecommunications Equipment
+GLNG,Consumer Services,Marine Transportation
+GMLP,Consumer Services,Marine Transportation
+GMLPP,Consumer Services,Marine Transportation
+DNJR,Finance,Finance: Consumer Services
+GDEN,Consumer Services,Services-Misc. Amusement & Recreation
+GOGL,Consumer Services,Marine Transportation
+GBDC,n/a,n/a
+GTIM,Consumer Services,Restaurants
+GSHD,Finance,Specialty Insurers
+GPRO,Miscellaneous,Industrial Machinery/Components
+GPAQ,Finance,Business Services
+GPAQU,Finance,Business Services
+GPAQW,Finance,Business Services
+GRSH,Finance,Business Services
+GRSHU,Finance,Business Services
+GRSHW,Finance,Business Services
+GMHIU,Finance,Business Services
+GOSS,Health Care,Major Pharmaceuticals
+LOPE,Consumer Services,Other Consumer Services
+GRVY,Miscellaneous,Business Services
+GECC,n/a,n/a
+GECCL,n/a,n/a
+GECCM,n/a,n/a
+GEC,Technology,Computer Software: Prepackaged Software
+GLDD,Basic Industries,Military/Government/Technical
+GSBC,Finance,Major Banks
+GRBK,Capital Goods,Homebuilding
+GPP,Basic Industries,Major Chemicals
+GPRE,Basic Industries,Major Chemicals
+GCBC,Finance,Banks
+GLAC,Finance,Business Services
+GLACR,Finance,Business Services
+GLACU,Finance,Business Services
+GLACW,Finance,Business Services
+GLRE,Finance,Property-Casualty Insurers
+GRNQ,Technology,EDP Services
+GSKY,Miscellaneous,Business Services
+GSUM,Technology,Computer Software: Prepackaged Software
+GRIF,Finance,Real Estate
+GRFS,Health Care,Major Pharmaceuticals
+GRIN,Transportation,Marine Transportation
+GRTS,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+GRPN,Technology,Advertising
+OMAB,Transportation,Aerospace
+GGAL,Finance,Commercial Banks
+GVP,Technology,Computer Software: Prepackaged Software
+GSIT,Technology,Semiconductors
+GSVC,n/a,n/a
+GTXI,Health Care,Major Pharmaceuticals
+GTYH,Technology,EDP Services
+GTYHW,Technology,EDP Services
+GNTY,Finance,Major Banks
+GFED,Finance,Major Banks
+GH,Health Care,Medical Specialities
+GIFI,Capital Goods,Metal Fabrications
+GURE,Basic Industries,Major Chemicals
+GPOR,Energy,Oil & Gas Production
+GWPH,Health Care,Major Pharmaceuticals
+GWGH,Finance,Life Insurance
+GYRO,Consumer Services,Building operators
+HEES,n/a,n/a
+HLG,Consumer Services,Other Consumer Services
+HNRG,Energy,Coal Mining
+HALL,Finance,Property-Casualty Insurers
+HALO,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+HBK,Finance,Savings Institutions
+HLNE,Finance,Investment Managers
+HJLI,Health Care,Medical/Dental Instruments
+HJLIW,Health Care,Medical/Dental Instruments
+HWC,Finance,Major Banks
+HWCPL,Finance,Major Banks
+HAFC,Finance,Major Banks
+HONE,Finance,Major Banks
+HLIT,Technology,Radio And Television Broadcasting And Communications Equipment
+HARP,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+HROW,Health Care,Major Pharmaceuticals
+HFGIC,n/a,n/a
+HBIO,Capital Goods,Biotechnology: Laboratory Analytical Instruments
+HCAP,n/a,n/a
+HCAPZ,n/a,n/a
+HAS,Consumer Non-Durables,Recreational Products/Toys
+HA,Transportation,Air Freight/Delivery Services
+HWKN,Consumer Durables,Specialty Chemicals
+HWBK,Finance,Major Banks
+HYAC,Finance,Business Services
+HYACU,Finance,Business Services
+HYACW,Finance,Business Services
+HAYN,Capital Goods,Steel/Iron Ore
+HDS,Consumer Services,Office Equipment/Supplies/Services
+HIIQ,Finance,Specialty Insurers
+HCSG,Health Care,Hospital/Nursing Management
+HQY,Miscellaneous,Business Services
+HSTM,Technology,"Computer Software: Programming, Data Processing"
+HTLD,Transportation,Trucking Freight/Courier Services
+HTLF,Finance,Major Banks
+HTBX,Health Care,Major Pharmaceuticals
+HEBT,Capital Goods,Metal Fabrications
+HSII,Technology,Diversified Commercial Services
+HELE,Consumer Durables,Home Furnishings
+HSDT,Health Care,Biotechnology: Electromedical & Electrotherapeutic Apparatus
+HMTV,Consumer Services,Television Services
+HNNA,Finance,Investment Managers
+HSIC,Health Care,Medical Specialities
+HTBK,Finance,Major Banks
+HFWA,Finance,Banks
+HCCI,Basic Industries,Miscellaneous
+MLHR,Consumer Durables,Office Equipment/Supplies/Services
+HRTX,Health Care,Major Pharmaceuticals
+HSKA,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+HX,Finance,Finance: Consumer Services
+HFFG,Consumer Non-Durables,Food Distributors
+HIBB,Consumer Services,Other Specialty Stores
+SNLN,n/a,n/a
+HPJ,Miscellaneous,Industrial Machinery/Components
+HIHO,Capital Goods,Metal Fabrications
+HIMX,Technology,Semiconductors
+HIFS,n/a,n/a
+HSGX,Health Care,Industrial Specialties
+HCCH,Finance,Business Services
+HCCHR,Finance,Business Services
+HCCHU,Finance,Business Services
+HCCHW,Finance,Business Services
+HMNF,Finance,Savings Institutions
+HMSY,Miscellaneous,Business Services
+HOLI,Energy,Industrial Machinery/Components
+HOLX,Health Care,Medical Electronics
+HBCP,Finance,Banks
+HOMB,Finance,Major Banks
+HFBL,Finance,Savings Institutions
+HMST,Finance,Major Banks
+HMTA,Finance,Major Banks
+HTBI,Finance,Savings Institutions
+FIXX,Health Care,Major Pharmaceuticals
+HOFT,Consumer Durables,Home Furnishings
+HOPE,Finance,Major Banks
+HFBC,Finance,Major Banks
+HBNC,Finance,Major Banks
+HZNP,Health Care,Major Pharmaceuticals
+HRZN,n/a,n/a
+HPT,Consumer Services,Real Estate Investment Trusts
+TWNK,Consumer Non-Durables,Packaged Foods
+TWNKW,Consumer Non-Durables,Packaged Foods
+HOTH,Health Care,Major Pharmaceuticals
+HMHC,Consumer Services,Books
+HWCC,Consumer Non-Durables,Telecommunications Equipment
+HOVNP,Capital Goods,Homebuilding
+HBMD,Finance,Major Banks
+HTGM,Capital Goods,Biotechnology: Laboratory Analytical Instruments
+HTHT,Consumer Services,Hotels/Resorts
+HUBG,Transportation,Oil Refining/Marketing
+HSON,Technology,Professional Services
+HDSN,Consumer Durables,Industrial Specialties
+HUNT,Transportation,Oil Refining/Marketing
+HUNTU,Transportation,Oil Refining/Marketing
+HUNTW,Transportation,Oil Refining/Marketing
+HBAN,Finance,Major Banks
+HBANN,Finance,Major Banks
+HBANO,Finance,Major Banks
+HURC,Capital Goods,Industrial Machinery/Components
+HURN,Consumer Services,Professional Services
+HCM,Health Care,Major Pharmaceuticals
+HBP,Consumer Services,RETAIL: Building Materials
+HVBC,Finance,Major Banks
+HYGS,Basic Industries,Major Chemicals
+HYRE,Consumer Services,Rental/Leasing Companies
+IDSY,Consumer Durables,Telecommunications Equipment
+IIIV,Miscellaneous,Business Services
+IAC,Consumer Services,Other Specialty Stores
+IBKC,Finance,Major Banks
+IBKCO,Finance,Major Banks
+IBKCP,Finance,Major Banks
+ICAD,Health Care,Medical/Dental Instruments
+IEP,Capital Goods,Auto Parts:O.E.M.
+ICCH,Finance,Property-Casualty Insurers
+ICFI,Consumer Services,Professional Services
+ICHR,Technology,Semiconductors
+ICLK,Technology,Computer Software: Prepackaged Software
+ICLR,Health Care,Biotechnology: Commercial Physical & Biological Resarch
+ICON,Consumer Non-Durables,Shoe Manufacturing
+ICUI,Health Care,Medical/Dental Instruments
+IPWR,Energy,Industrial Machinery/Components
+IDEX,Consumer Services,Television Services
+INVE,Technology,Computer peripheral equipment
+IDRA,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+IDXX,Health Care,Biotechnology: In Vitro & In Vivo Diagnostic Substances
+IESC,Capital Goods,Engineering & Construction
+IROQ,Finance,Savings Institutions
+IFMK,Consumer Services,Food Chains
+INFO,Technology,"Computer Software: Programming, Data Processing"
+IIVI,Capital Goods,Electronic Components
+IKNX,Miscellaneous,Industrial Machinery/Components
+ILMN,Capital Goods,Biotechnology: Laboratory Analytical Instruments
+IMAC,Health Care,Medical Specialities
+IMACW,Health Care,Medical Specialities
+ISNS,Capital Goods,Industrial Machinery/Components
+IMMR,Technology,Computer peripheral equipment
+ICCC,Health Care,Biotechnology: In Vitro & In Vivo Diagnostic Substances
+IMDZ,Health Care,Major Pharmaceuticals
+IMGN,Health Care,Major Pharmaceuticals
+IMMU,Health Care,Biotechnology: In Vitro & In Vivo Diagnostic Substances
+IMRN,Health Care,Major Pharmaceuticals
+IMRNW,Health Care,Major Pharmaceuticals
+IMMP,Health Care,Major Pharmaceuticals
+PI,Capital Goods,Industrial Machinery/Components
+IMV,Health Care,Major Pharmaceuticals
+INCY,Health Care,Biotechnology: Commercial Physical & Biological Resarch
+INDB,Finance,Major Banks
+IBCP,Finance,Major Banks
+IBTX,Finance,Major Banks
+ILPT,n/a,n/a
+IDSA,Consumer Durables,Industrial Specialties
+INFN,Public Utilities,Telecommunications Equipment
+INFI,Health Care,Major Pharmaceuticals
+IFRX,n/a,n/a
+III,Consumer Services,Professional Services
+IEA,Finance,Business Services
+IEAWW,Finance,Business Services
+IMKTA,Consumer Services,Food Chains
+INMB,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+INWK,Miscellaneous,Business Services
+INOD,Technology,EDP Services
+IPHS,Consumer Durables,Specialty Chemicals
+IOSP,Basic Industries,Major Chemicals
+INNT,Health Care,Major Pharmaceuticals
+ISSC,Technology,EDP Services
+INVA,Health Care,Major Pharmaceuticals
+INGN,Health Care,Industrial Specialties
+INOV,Technology,EDP Services
+INO,Health Care,Medical/Dental Instruments
+INPX,Technology,EDP Services
+INSG,Consumer Durables,Telecommunications Equipment
+NSIT,Consumer Services,Catalog/Specialty Distribution
+ISIG,Consumer Services,Advertising
+INSM,Health Care,Major Pharmaceuticals
+INSE,Technology,Computer Software: Prepackaged Software
+IIIN,Capital Goods,Steel/Iron Ore
+PODD,Health Care,Medical/Dental Instruments
+INSY,Health Care,Major Pharmaceuticals
+NTEC,Health Care,Major Pharmaceuticals
+IART,Health Care,Medical/Dental Instruments
+IDTI,Technology,Semiconductors
+IMTE,Consumer Non-Durables,Consumer Electronics/Appliances
+INTC,Technology,Semiconductors
+NTLA,Health Care,Biotechnology: In Vitro & In Vivo Diagnostic Substances
+IPCI,Health Care,Major Pharmaceuticals
+IPAR,Consumer Non-Durables,Package Goods/Cosmetics
+ICPT,Health Care,Major Pharmaceuticals
+IDCC,Miscellaneous,Multi-Sector Companies
+TILE,Consumer Durables,Home Furnishings
+IMI,Technology,Semiconductors
+INAP,Technology,"Computer Software: Programming, Data Processing"
+IBOC,Finance,Major Banks
+IMXI,Miscellaneous,Business Services
+ISCA,Consumer Services,Services-Misc. Amusement & Recreation
+IGLD,Public Utilities,Telecommunications Equipment
+IIJI,Technology,"Computer Software: Programming, Data Processing"
+IDXG,Health Care,Medical/Dental Instruments
+XENT,Health Care,Medical/Dental Instruments
+IPLDP,Public Utilities,Power Generation
+IVAC,Technology,Industrial Machinery/Components
+INTL,Finance,Investment Bankers/Brokers/Service
+ITCI,Health Care,Major Pharmaceuticals
+XON,Health Care,Biotechnology: Commercial Physical & Biological Resarch
+IIN,Capital Goods,Electrical Products
+INTU,Technology,Computer Software: Prepackaged Software
+ISRG,Health Care,Industrial Specialties
+PLW,n/a,n/a
+ADRA,n/a,n/a
+ADRD,n/a,n/a
+ADRE,n/a,n/a
+ADRU,n/a,n/a
+PKW,n/a,n/a
+PFM,n/a,n/a
+PYZ,n/a,n/a
+PEZ,n/a,n/a
+PSL,n/a,n/a
+PIZ,n/a,n/a
+PIE,n/a,n/a
+PXI,n/a,n/a
+PFI,n/a,n/a
+PTH,n/a,n/a
+PRN,n/a,n/a
+DWLV,n/a,n/a
+PDP,n/a,n/a
+DWAQ,n/a,n/a
+DWAS,n/a,n/a
+DWIN,n/a,n/a
+DWTR,n/a,n/a
+PTF,n/a,n/a
+PUI,n/a,n/a
+IDLB,n/a,n/a
+PRFZ,n/a,n/a
+PAGG,n/a,n/a
+PSAU,n/a,n/a
+PIO,n/a,n/a
+PGJ,n/a,n/a
+PEY,n/a,n/a
+IPKW,n/a,n/a
+PID,n/a,n/a
+KBWB,n/a,n/a
+KBWD,n/a,n/a
+KBWY,n/a,n/a
+KBWP,n/a,n/a
+KBWR,n/a,n/a
+LDRI,n/a,n/a
+LALT,n/a,n/a
+PNQI,n/a,n/a
+PDBC,n/a,n/a
+QQQ,n/a,n/a
+USLB,n/a,n/a
+PSCD,n/a,n/a
+PSCC,n/a,n/a
+PSCE,n/a,n/a
+PSCF,n/a,n/a
+PSCH,n/a,n/a
+PSCI,n/a,n/a
+PSCT,n/a,n/a
+PSCM,n/a,n/a
+PSCU,n/a,n/a
+ISDX,n/a,n/a
+ISDS,n/a,n/a
+ISEM,n/a,n/a
+IUS,n/a,n/a
+IUSS,n/a,n/a
+VRIG,n/a,n/a
+PHO,n/a,n/a
+ISTR,Finance,Major Banks
+ISBC,Finance,Major Banks
+ITIC,Finance,Specialty Insurers
+NVIV,Health Care,Medical/Dental Instruments
+IONS,Health Care,Major Pharmaceuticals
+IOVA,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+IPGP,Technology,Semiconductors
+IPIC,Consumer Services,Restaurants
+CLRG,n/a,n/a
+CSML,n/a,n/a
+IQ,Consumer Services,Consumer Electronics/Video Chains
+IRMD,Health Care,Medical/Dental Instruments
+IRTC,Health Care,Medical/Dental Instruments
+IRIX,Health Care,Biotechnology: Electromedical & Electrotherapeutic Apparatus
+IRDM,Consumer Durables,Telecommunications Equipment
+IRDMB,Consumer Durables,Telecommunications Equipment
+IRBT,Consumer Durables,Consumer Electronics/Appliances
+IRWD,Health Care,Major Pharmaceuticals
+IRCP,Consumer Services,Building operators
+SLQD,n/a,n/a
+ISHG,n/a,n/a
+SHY,n/a,n/a
+TLT,n/a,n/a
+IEI,n/a,n/a
+IEF,n/a,n/a
+AIA,n/a,n/a
+USIG,n/a,n/a
+COMT,n/a,n/a
+ISTB,n/a,n/a
+IXUS,n/a,n/a
+IUSG,n/a,n/a
+IUSV,n/a,n/a
+IUSB,n/a,n/a
+HEWG,n/a,n/a
+SUSB,n/a,n/a
+ESGD,n/a,n/a
+ESGE,n/a,n/a
+ESGU,n/a,n/a
+SUSC,n/a,n/a
+XT,n/a,n/a
+FALN,n/a,n/a
+IFEU,n/a,n/a
+IFGL,n/a,n/a
+BGRN,n/a,n/a
+IGF,n/a,n/a
+GNMA,n/a,n/a
+HYXE,n/a,n/a
+IGIB,n/a,n/a
+IGOV,n/a,n/a
+EMB,n/a,n/a
+MBB,n/a,n/a
+JKI,n/a,n/a
+ACWX,n/a,n/a
+ACWI,n/a,n/a
+AAXJ,n/a,n/a
+EWZS,n/a,n/a
+MCHI,n/a,n/a
+SCZ,n/a,n/a
+EEMA,n/a,n/a
+EMXC,n/a,n/a
+EUFN,n/a,n/a
+IEUS,n/a,n/a
+RING,n/a,n/a
+SDG,n/a,n/a
+ENZL,n/a,n/a
+QAT,n/a,n/a
+TUR,n/a,n/a
+UAE,n/a,n/a
+IBB,n/a,n/a
+SOXX,n/a,n/a
+PFF,n/a,n/a
+AMCA,n/a,n/a
+EMIF,n/a,n/a
+ICLN,n/a,n/a
+WOOD,n/a,n/a
+INDY,n/a,n/a
+IJT,n/a,n/a
+DVY,n/a,n/a
+SHV,n/a,n/a
+IGSB,n/a,n/a
+ISRL,Energy,Oil & Gas Production
+ITI,Consumer Durables,Telecommunications Equipment
+ITRM,Health Care,Major Pharmaceuticals
+ITRI,Capital Goods,Electrical Products
+ITRN,Consumer Non-Durables,Electronic Components
+IVENC,n/a,n/a
+IVFGC,n/a,n/a
+IVFVC,n/a,n/a
+IZEA,Consumer Services,Advertising
+JJSF,Consumer Non-Durables,Specialty Foods
+MAYS,Consumer Services,Building operators
+JBHT,Transportation,Trucking Freight/Courier Services
+JCOM,Technology,Telecommunications Equipment
+JKHY,Technology,EDP Services
+JACK,Consumer Services,Restaurants
+JAGX,Health Care,Major Pharmaceuticals
+JAKK,Consumer Non-Durables,Recreational Products/Toys
+JRVR,Finance,Property-Casualty Insurers
+JSML,n/a,n/a
+JSMD,n/a,n/a
+JASN,Consumer Durables,Miscellaneous manufacturing industries
+JASNW,Consumer Durables,Miscellaneous manufacturing industries
+JAZZ,Health Care,Major Pharmaceuticals
+JD,Consumer Services,Other Specialty Stores
+JSYN,Public Utilities,Natural Gas Distribution
+JSYNR,Public Utilities,Natural Gas Distribution
+JSYNU,Public Utilities,Natural Gas Distribution
+JSYNW,Public Utilities,Natural Gas Distribution
+JRSH,Consumer Non-Durables,Apparel
+JBLU,Transportation,Air Freight/Delivery Services
+JCTCF,Consumer Services,RETAIL: Building Materials
+JMU,Technology,EDP Services
+JBSS,Consumer Non-Durables,Specialty Foods
+JOUT,Consumer Non-Durables,Recreational Products/Toys
+JNCE,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+KALU,Capital Goods,Metal Fabrications
+KALA,Health Care,Major Pharmaceuticals
+KALV,Health Care,Major Pharmaceuticals
+KMDA,Health Care,Major Pharmaceuticals
+KNDI,Capital Goods,Auto Manufacturing
+KPTI,Health Care,Major Pharmaceuticals
+KZIA,Capital Goods,Miscellaneous
+KBLM,Finance,Business Services
+KBLMR,Finance,Business Services
+KBLMU,Finance,Business Services
+KBLMW,Finance,Business Services
+KBSF,Consumer Non-Durables,Apparel
+KCAP,n/a,n/a
+KCAPL,n/a,n/a
+KRNY,Finance,Savings Institutions
+KELYA,Technology,Professional Services
+KELYB,Technology,Professional Services
+KMPH,Health Care,Major Pharmaceuticals
+KFFB,Finance,Savings Institutions
+KEQU,Capital Goods,Medical Specialities
+KTCC,Technology,Computer peripheral equipment
+KZR,Health Care,Major Pharmaceuticals
+KFRC,Technology,Professional Services
+KE,Technology,Electrical Products
+KBAL,Consumer Durables,Home Furnishings
+KIN,Health Care,Major Pharmaceuticals
+KGJI,Miscellaneous,Business Services
+KINS,Finance,Property-Casualty Insurers
+KNSA,Health Care,Major Pharmaceuticals
+KNSL,Finance,Property-Casualty Insurers
+KIRK,Consumer Services,Other Specialty Stores
+KTOV,Health Care,Major Pharmaceuticals
+KTOVW,Health Care,Major Pharmaceuticals
+KLAC,Capital Goods,Electronic Components
+KLXE,Energy,Oilfield Services/Equipment
+KOD,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+KONA,Consumer Services,Restaurants
+KOPN,Technology,Semiconductors
+KRNT,Capital Goods,Industrial Machinery/Components
+KOSS,Consumer Non-Durables,Consumer Electronics/Appliances
+KWEB,n/a,n/a
+KTOS,Capital Goods,Military/Government/Technical
+KRYS,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+KLIC,Technology,Semiconductors
+KURA,Health Care,Major Pharmaceuticals
+KVHI,Technology,Radio And Television Broadcasting And Communications Equipment
+FSTR,Basic Industries,Metal Fabrications
+LJPC,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+LSBK,Finance,Savings Institutions
+LBAI,Finance,Major Banks
+LKFN,Finance,Major Banks
+LAKE,Health Care,Industrial Specialties
+LRCX,Technology,Industrial Machinery/Components
+LAMR,Consumer Services,Real Estate Investment Trusts
+LANC,Consumer Non-Durables,Packaged Foods
+LNDC,Consumer Non-Durables,Packaged Foods
+LARK,Finance,Major Banks
+LMRK,Consumer Services,Real Estate
+LMRKN,Consumer Services,Real Estate
+LMRKO,Consumer Services,Real Estate
+LMRKP,Consumer Services,Real Estate
+LE,Consumer Services,Clothing/Shoe/Accessory Stores
+LSTR,Transportation,Trucking Freight/Courier Services
+LNTH,Health Care,Biotechnology: In Vitro & In Vivo Diagnostic Substances
+LTRX,Technology,Computer Communications Equipment
+LSCC,Technology,Semiconductors
+LAUR,Consumer Services,Other Consumer Services
+LAWS,Consumer Durables,Industrial Specialties
+LAZY,Consumer Durables,Automotive Aftermarket
+LCNB,Finance,Major Banks
+LPTX,Health Care,Major Pharmaceuticals
+LEGH,Basic Industries,Homebuilding
+LGCY,Energy,Oil & Gas Production
+LTXB,Finance,Savings Institutions
+DDBI,n/a,n/a
+EDBI,n/a,n/a
+INFR,n/a,n/a
+LVHD,n/a,n/a
+SQLV,n/a,n/a
+UDBI,n/a,n/a
+LACQ,Finance,Business Services
+LACQU,Finance,Business Services
+LACQW,Finance,Business Services
+LMAT,Health Care,Medical/Dental Instruments
+TREE,Finance,Finance: Consumer Services
+LEVL,Finance,Major Banks
+LXRX,Health Care,Major Pharmaceuticals
+LX,Finance,Finance: Consumer Services
+LFAC,Finance,Business Services
+LFACU,Finance,Business Services
+LFACW,Finance,Business Services
+LGIH,Capital Goods,Homebuilding
+LHCG,Health Care,Medical/Nursing Services
+LLIT,Health Care,Medical/Dental Instruments
+LBRDA,Consumer Services,Television Services
+LBRDK,Consumer Services,Television Services
+LEXEA,Consumer Services,Other Consumer Services
+LEXEB,Consumer Services,Other Consumer Services
+LBTYA,Consumer Services,Television Services
+LBTYB,Consumer Services,Television Services
+LBTYK,Consumer Services,Television Services
+LILA,Consumer Services,Television Services
+LILAK,Consumer Services,Television Services
+BATRA,Consumer Services,Broadcasting
+BATRK,Consumer Services,Broadcasting
+FWONA,Consumer Services,Broadcasting
+FWONK,Consumer Services,Broadcasting
+LSXMA,Consumer Services,Broadcasting
+LSXMB,Consumer Services,Broadcasting
+LSXMK,Consumer Services,Broadcasting
+LTRPA,Technology,EDP Services
+LTRPB,Technology,EDP Services
+LCUT,Capital Goods,Industrial Machinery/Components
+LFVN,Health Care,Major Pharmaceuticals
+LWAY,Consumer Non-Durables,Packaged Foods
+LGND,Health Care,Major Pharmaceuticals
+LTBR,Consumer Services,Professional Services
+LPTH,Technology,Semiconductors
+LLEX,Energy,Oil & Gas Production
+LMB,Basic Industries,Engineering & Construction
+LLNW,Miscellaneous,Business Services
+LMST,Finance,Major Banks
+LMNR,Consumer Non-Durables,Farming/Seeds/Milling
+LINC,Consumer Services,Other Consumer Services
+LECO,Technology,Industrial Machinery/Components
+LIND,Consumer Services,Transportation Services
+LINDW,Consumer Services,Transportation Services
+LPCN,Health Care,Major Pharmaceuticals
+YVR,Consumer Non-Durables,Beverages (Production/Distribution)
+LQDA,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+LQDT,Miscellaneous,Business Services
+LFUS,Consumer Durables,Electrical Products
+LIVN,Health Care,Biotechnology: Electromedical & Electrotherapeutic Apparatus
+LOB,Finance,Major Banks
+LIVE,Finance,Finance/Investors Services
+LPSN,Technology,Computer Software: Prepackaged Software
+LIVX,Consumer Services,Restaurants
+LKQ,Consumer Services,Motor Vehicles
+LMFA,Finance,Finance: Consumer Services
+LMFAW,Finance,Finance: Consumer Services
+LOGC,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+LOGI,Technology,Computer peripheral equipment
+LOGM,Technology,Computer Software: Prepackaged Software
+CNCR,n/a,n/a
+CHNA,n/a,n/a
+LONE,Energy,Oil & Gas Production
+LOAC,Finance,Business Services
+LOACR,Finance,Business Services
+LOACU,Finance,Business Services
+LOACW,Finance,Business Services
+LOOP,Basic Industries,Major Chemicals
+LORL,Technology,Radio And Television Broadcasting And Communications Equipment
+LPLA,Finance,Investment Bankers/Brokers/Service
+LRAD,Consumer Non-Durables,Consumer Electronics/Appliances
+LYTS,Consumer Durables,Building Products
+LULU,Consumer Non-Durables,Apparel
+LITE,Consumer Durables,Telecommunications Equipment
+LMNX,Health Care,Medical/Dental Instruments
+LUNA,Health Care,Biotechnology: Commercial Physical & Biological Resarch
+LKCO,Technology,EDP Services
+LBC,Finance,Major Banks
+MBTF,Finance,Major Banks
+MCBC,Finance,Major Banks
+MFNC,Finance,Major Banks
+MTSI,Technology,Semiconductors
+MGNX,Health Care,Major Pharmaceuticals
+MDGL,Health Care,Major Pharmaceuticals
+MAGS,Consumer Durables,Telecommunications Equipment
+MGLN,Health Care,Hospital/Nursing Management
+MGTA,Health Care,Major Pharmaceuticals
+MGIC,Technology,Computer Software: Prepackaged Software
+MGYR,Finance,Savings Institutions
+MHLD,Finance,Property-Casualty Insurers
+MMYT,Consumer Services,Transportation Services
+MBUU,Capital Goods,Marine Transportation
+MLVF,Finance,Savings Institutions
+MAMS,Technology,Computer Software: Prepackaged Software
+TUSK,Energy,Oilfield Services/Equipment
+RPIBC,n/a,n/a
+MANH,Technology,Computer Software: Prepackaged Software
+LOAN,Consumer Services,Real Estate Investment Trusts
+MNTX,Technology,Industrial Machinery/Components
+MTEX,Consumer Durables,Specialty Chemicals
+MNKD,Health Care,Major Pharmaceuticals
+MANT,Consumer Services,Other Consumer Services
+MARA,Miscellaneous,Multi-Sector Companies
+MCHX,Miscellaneous,Business Services
+MRIN,Technology,EDP Services
+MARPS,Energy,Oil & Gas Production
+MRNS,Health Care,Major Pharmaceuticals
+MRKR,Health Care,Major Pharmaceuticals
+MKTX,Finance,Investment Bankers/Brokers/Service
+MRLN,Finance,Major Banks
+MAR,Consumer Services,Hotels/Resorts
+MBII,Basic Industries,Agricultural Chemicals
+MRTN,Transportation,Trucking Freight/Courier Services
+MMLP,Energy,Oil Refining/Marketing
+MRVL,Technology,Semiconductors
+MASI,Health Care,Biotechnology: Electromedical & Electrotherapeutic Apparatus
+MCFT,Capital Goods,Marine Transportation
+MTCH,Technology,"Computer Software: Programming, Data Processing"
+MTLS,Technology,Computer Software: Prepackaged Software
+MTRX,Basic Industries,Engineering & Construction
+MAT,Consumer Non-Durables,Recreational Products/Toys
+MATW,Capital Goods,Metal Fabrications
+MXIM,Technology,Semiconductors
+MXWL,Miscellaneous,Industrial Machinery/Components
+MBFI,Finance,Major Banks
+MBFIO,Finance,Major Banks
+MGRC,Technology,Diversified Commercial Services
+MDCA,Technology,Advertising
+MDJH,Finance,Real Estate
+MDRR,Consumer Services,Real Estate Investment Trusts
+MFIN,Finance,Finance: Consumer Services
+MFINL,Finance,Finance: Consumer Services
+MNOV,Health Care,Major Pharmaceuticals
+MDSO,Technology,Computer Software: Prepackaged Software
+MDGS,Health Care,Medical/Dental Instruments
+MDGSW,Health Care,Medical/Dental Instruments
+MDWD,Consumer Durables,Specialty Chemicals
+MEDP,Health Care,Biotechnology: Commercial Physical & Biological Resarch
+MEIP,Health Care,Major Pharmaceuticals
+MGTX,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+MLCO,Consumer Services,Hotels/Resorts
+MLNT,Health Care,Major Pharmaceuticals
+MLNX,Technology,Semiconductors
+MELR,Finance,Major Banks
+MNLO,Health Care,Major Pharmaceuticals
+MTSL,Public Utilities,Telecommunications Equipment
+MELI,Miscellaneous,Business Services
+AMTB,Finance,Major Banks
+AMTBB,Finance,Major Banks
+MBWM,Finance,Major Banks
+MERC,Basic Industries,Paper
+MBIN,Finance,Major Banks
+MRCY,Capital Goods,Electrical Products
+EBSB,Finance,Major Banks
+VIVO,Health Care,Biotechnology: In Vitro & In Vivo Diagnostic Substances
+MRBK,n/a,n/a
+MMSI,Health Care,Medical/Dental Instruments
+MACK,Health Care,Major Pharmaceuticals
+MRSN,Health Care,Major Pharmaceuticals
+MRUS,Health Care,Major Pharmaceuticals
+MESA,Transportation,Air Freight/Delivery Services
+MLAB,Capital Goods,Industrial Machinery/Components
+MESO,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+CASH,Finance,Savings Institutions
+MEOH,Basic Industries,Major Chemicals
+MGEE,Energy,Electric Utilities: Central
+MGPI,Consumer Non-Durables,Beverages (Production/Distribution)
+MBOT,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+MCHP,Technology,Semiconductors
+MU,Technology,Semiconductors
+MSFT,Technology,Computer Software: Prepackaged Software
+MSTR,Technology,Computer Software: Prepackaged Software
+MVIS,Capital Goods,Industrial Machinery/Components
+MICT,Capital Goods,Electrical Products
+MPB,Finance,Major Banks
+MTP,Health Care,Major Pharmaceuticals
+MCEP,Energy,Oil & Gas Production
+MBCN,Finance,Major Banks
+MSEX,Public Utilities,Water Supply
+MSBI,Finance,Major Banks
+MSVB,Finance,Savings Institutions
+MOFG,Finance,Major Banks
+MLND,Health Care,Major Pharmaceuticals
+TIGO,Public Utilities,Telecommunications Equipment
+MIME,Technology,Computer Software: Prepackaged Software
+MNDO,Technology,EDP Services
+NERV,Health Care,Major Pharmaceuticals
+MGEN,Health Care,Medical Specialities
+MRTX,Health Care,Major Pharmaceuticals
+MSON,Capital Goods,Medical Specialities
+MIND,Technology,Diversified Commercial Services
+MINDP,Technology,Diversified Commercial Services
+MITK,Technology,Computer peripheral equipment
+MKSI,Capital Goods,Industrial Machinery/Components
+MMAC,Finance,Real Estate
+MTC,n/a,n/a
+MINI,Capital Goods,Metal Fabrications
+MOBL,Technology,Computer Software: Prepackaged Software
+MMDM,Consumer Services,Broadcasting
+MMDMR,Consumer Services,Broadcasting
+MMDMU,Consumer Services,Broadcasting
+MMDMW,Consumer Services,Broadcasting
+MRNA,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+MOGO,Finance,Finance: Consumer Services
+MTEM,Health Care,Major Pharmaceuticals
+MBRX,Health Care,Major Pharmaceuticals
+MNTA,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+MOMO,Technology,Computer Software: Prepackaged Software
+MKGI,Consumer Services,Transportation Services
+MCRI,Consumer Services,Hotels/Resorts
+MDLZ,Consumer Non-Durables,Packaged Foods
+MGI,Miscellaneous,Business Services
+MDB,Technology,Computer Software: Prepackaged Software
+MNCLU,Finance,Business Services
+MPWR,Technology,Semiconductors
+TYPE,Technology,EDP Services
+MNRO,Consumer Services,Automotive Aftermarket
+MRCC,n/a,n/a
+MRCCL,n/a,n/a
+MNST,Consumer Non-Durables,Beverages (Production/Distribution)
+MORN,Finance,Investment Managers
+MOR,Health Care,Major Pharmaceuticals
+MOSY,Technology,Semiconductors
+MTFB,Health Care,Major Pharmaceuticals
+MTFBW,Health Care,Major Pharmaceuticals
+MPAA,Capital Goods,Auto Parts:O.E.M.
+MOTS,Health Care,Medical/Dental Instruments
+MPVD,Basic Industries,Precious Metals
+MOXC,Technology,"Computer Software: Programming, Data Processing"
+COOP,Finance,Finance: Consumer Services
+MSBF,Finance,Savings Institutions
+MTBC,Technology,Computer Software: Prepackaged Software
+MTBCP,Technology,Computer Software: Prepackaged Software
+MTEC,Technology,EDP Services
+MTECU,Technology,EDP Services
+MTECW,Technology,EDP Services
+MTSC,Capital Goods,Industrial Machinery/Components
+MUDS,Finance,Business Services
+MUDSU,Finance,Business Services
+MUDSW,Finance,Business Services
+LABL,Miscellaneous,Publishing
+MBIO,Health Care,Major Pharmaceuticals
+MFSF,Finance,Major Banks
+MVBF,Finance,Major Banks
+MYSZ,Technology,Computer Software: Prepackaged Software
+MYL,Health Care,Major Pharmaceuticals
+MYND,Health Care,Hospital/Nursing Management
+MYNDW,Health Care,Hospital/Nursing Management
+MYOK,Health Care,Major Pharmaceuticals
+MYOS,Health Care,Major Pharmaceuticals
+MYRG,Basic Industries,Water Supply
+MYGN,Health Care,Biotechnology: In Vitro & In Vivo Diagnostic Substances
+NBRV,Health Care,Major Pharmaceuticals
+NAKD,Consumer Non-Durables,Apparel
+NNDM,Technology,Electrical Products
+NANO,Capital Goods,Industrial Machinery/Components
+NSTG,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+NAOV,Health Care,Industrial Specialties
+NH,Technology,EDP Services
+NK,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+NSSC,Consumer Durables,Telecommunications Equipment
+NDAQ,Finance,Investment Bankers/Brokers/Service
+NTRA,Health Care,Medical Specialities
+NATH,Consumer Services,Restaurants
+NKSH,Finance,Major Banks
+FIZZ,Consumer Non-Durables,Beverages (Production/Distribution)
+NCMI,Consumer Services,Advertising
+NCOM,Finance,Major Banks
+NESR,Energy,Oilfield Services/Equipment
+NESRW,Energy,Oilfield Services/Equipment
+NGHC,Finance,Property-Casualty Insurers
+NGHCN,Finance,Property-Casualty Insurers
+NGHCO,Finance,Property-Casualty Insurers
+NGHCP,Finance,Property-Casualty Insurers
+NGHCZ,Finance,Property-Casualty Insurers
+NHLD,Finance,Investment Bankers/Brokers/Service
+NHLDW,Finance,Investment Bankers/Brokers/Service
+NATI,Technology,Computer Software: Prepackaged Software
+NRC,Health Care,Biotechnology: Commercial Physical & Biological Resarch
+NSEC,Finance,Life Insurance
+EYE,Health Care,Ophthalmic Goods
+NWLI,Finance,Life Insurance
+NAII,Consumer Durables,Specialty Chemicals
+NHTC,Consumer Durables,Consumer Specialties
+NATR,Health Care,Major Pharmaceuticals
+BABY,Health Care,Biotechnology: Electromedical & Electrotherapeutic Apparatus
+JSM,Finance,Finance: Consumer Services
+NAVI,Finance,Investment Bankers/Brokers/Service
+NMCI,Transportation,Marine Transportation
+NBTB,Finance,Major Banks
+NCSM,Energy,Oilfield Services/Equipment
+NEBU,Finance,Business Services
+NEBUU,Finance,Business Services
+NEBUW,Finance,Business Services
+NKTR,Health Care,Major Pharmaceuticals
+NMRD,Health Care,Medical/Dental Instruments
+NEOG,Health Care,Biotechnology: In Vitro & In Vivo Diagnostic Substances
+NEO,Health Care,Precision Instruments
+NTGN,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+NEON,Capital Goods,Industrial Machinery/Components
+NEOS,Health Care,Major Pharmaceuticals
+NVCN,Health Care,Medical/Dental Instruments
+NEPT,Health Care,Major Pharmaceuticals
+UEPS,Finance,Investment Bankers/Brokers/Service
+NETE,Technology,EDP Services
+NTAP,Technology,Electronic Components
+NTES,Miscellaneous,Business Services
+NFLX,Consumer Services,Consumer Electronics/Video Chains
+NTGR,Public Utilities,Telecommunications Equipment
+NTCT,Technology,EDP Services
+NTWK,Technology,Computer Software: Prepackaged Software
+CUR,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+NBIX,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+NURO,Health Care,Medical/Dental Instruments
+NUROW,Health Care,Medical/Dental Instruments
+STIM,Health Care,Medical/Dental Instruments
+NTRP,Health Care,Major Pharmaceuticals
+NBEV,Consumer Non-Durables,Beverages (Production/Distribution)
+NFE,Public Utilities,Oil/Gas Transmission
+NYMT,Consumer Services,Real Estate Investment Trusts
+NYMTN,Consumer Services,Real Estate Investment Trusts
+NYMTO,Consumer Services,Real Estate Investment Trusts
+NYMTP,Finance,Finance: Consumer Services
+NEWA,Basic Industries,Miscellaneous
+NWL,Consumer Non-Durables,Plastic Products
+NLNK,Health Care,Major Pharmaceuticals
+NMRK,n/a,n/a
+NWS,Consumer Services,Newspapers/Magazines
+NWSA,Consumer Services,Newspapers/Magazines
+NEWT,n/a,n/a
+NEWTI,n/a,n/a
+NEWTZ,n/a,n/a
+NXEO,Consumer Durables,Specialty Chemicals
+NXEOU,Consumer Durables,Specialty Chemicals
+NXEOW,Consumer Durables,Specialty Chemicals
+NXST,Consumer Services,Broadcasting
+NEXT,Public Utilities,Oil & Gas Production
+NXGN,Technology,EDP Services
+BIMI,Capital Goods,Metal Fabrications
+NODK,Finance,Property-Casualty Insurers
+EGOV,Miscellaneous,Business Services
+NICE,Technology,Computer Manufacturing
+NICK,Finance,Finance Companies
+NCBS,Finance,Major Banks
+NITE,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+NIHD,Public Utilities,Telecommunications Equipment
+NIU,Capital Goods,Auto Manufacturing
+LASR,Technology,Semiconductors
+NMIH,Finance,Property-Casualty Insurers
+NNBR,Capital Goods,Metal Fabrications
+NDLS,Consumer Services,Restaurants
+NDSN,Capital Goods,Industrial Machinery/Components
+NSYS,Capital Goods,Industrial Machinery/Components
+NBN,Finance,Major Banks
+NTIC,Capital Goods,Industrial Specialties
+NTRS,Finance,Major Banks
+NTRSP,Finance,Major Banks
+NFBK,Finance,Savings Institutions
+NRIM,Finance,Savings Institutions
+NWBI,Finance,Major Banks
+NWPX,Basic Industries,Steel/Iron Ore
+NCLH,Consumer Services,Marine Transportation
+NWFL,Finance,Major Banks
+NVFY,Consumer Durables,Home Furnishings
+NVMI,Capital Goods,Electronic Components
+NOVN,Health Care,Major Pharmaceuticals
+NOVT,Miscellaneous,Industrial Machinery/Components
+NVAX,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+NVLN,Health Care,Major Pharmaceuticals
+NVCR,Health Care,Medical/Dental Instruments
+NVMM,Consumer Durables,Telecommunications Equipment
+NVUS,Health Care,Major Pharmaceuticals
+NUAN,Technology,Computer Software: Prepackaged Software
+NCNA,Health Care,Major Pharmaceuticals
+NTNX,Technology,Computer Software: Prepackaged Software
+NTRI,Consumer Services,Catalog/Specialty Distribution
+NUVA,Health Care,Medical/Dental Instruments
+NVTR,Health Care,Medical/Dental Instruments
+QQQX,n/a,n/a
+NVEE,Consumer Services,Other Consumer Services
+NVEC,Technology,Semiconductors
+NVDA,Technology,Semiconductors
+NXPI,Technology,Semiconductors
+NXTM,Health Care,Biotechnology: Electromedical & Electrotherapeutic Apparatus
+NXTD,Consumer Services,Diversified Commercial Services
+NXTDW,Consumer Services,Diversified Commercial Services
+NYMX,Health Care,Biotechnology: In Vitro & In Vivo Diagnostic Substances
+OIIM,Technology,Semiconductors
+OVLY,Finance,Major Banks
+OCSL,n/a,n/a
+OCSLL,n/a,n/a
+OCSI,n/a,n/a
+OASM,Health Care,Major Pharmaceuticals
+OBLN,Health Care,Medical/Dental Instruments
+OBSV,Health Care,Major Pharmaceuticals
+OBCI,Consumer Durables,Specialty Chemicals
+OPTT,Public Utilities,Electric Utilities: Central
+OCFC,Finance,Savings Institutions
+OFED,Finance,Savings Institutions
+OCUL,Health Care,Major Pharmaceuticals
+ODT,Health Care,Major Pharmaceuticals
+OMEX,Consumer Services,Marine Transportation
+ODP,Consumer Services,Other Specialty Stores
+OPI,Finance,Real Estate
+OPINI,Finance,Real Estate
+OFS,n/a,n/a
+OFSSL,n/a,n/a
+OFSSZ,n/a,n/a
+OCCI,n/a,n/a
+OHAI,n/a,n/a
+OVBC,Finance,Major Banks
+OHRP,Health Care,Major Pharmaceuticals
+OKTA,Technology,Computer Software: Prepackaged Software
+ODFL,Transportation,Trucking Freight/Courier Services
+OLBK,Finance,Major Banks
+ONB,Finance,Major Banks
+OPOF,Finance,Major Banks
+OSBC,Finance,Major Banks
+OSBCP,Finance,Major Banks
+OLLI,Consumer Services,Department/Specialty Retail Stores
+ZEUS,Basic Industries,Metal Fabrications
+OFLX,Capital Goods,Industrial Specialties
+OMER,Health Care,Major Pharmaceuticals
+OMCL,Technology,Computer Manufacturing
+ON,Technology,Semiconductors
+OTIV,Technology,Semiconductors
+ONCY,Health Care,Major Pharmaceuticals
+OMED,Health Care,Major Pharmaceuticals
+ONTX,Health Care,Major Pharmaceuticals
+ONTXW,Health Care,Major Pharmaceuticals
+ONCS,Health Care,Major Pharmaceuticals
+OHGI,Public Utilities,Telecommunications Equipment
+OSS,Technology,Computer Manufacturing
+OSPN,Technology,EDP Services
+OPBK,Finance,Major Banks
+OTEX,Technology,EDP Services
+OPRA,n/a,n/a
+OPES,Finance,Business Services
+OPESU,Finance,Business Services
+OPESW,Finance,Business Services
+OPGN,Health Care,Medical Specialities
+OPGNW,Health Care,Medical Specialities
+OPHT,Health Care,Major Pharmaceuticals
+OPNT,Basic Industries,Precious Metals
+OPK,Health Care,Major Pharmaceuticals
+OBAS,Finance,Real Estate
+OCC,Basic Industries,Telecommunications Equipment
+OPRX,Miscellaneous,Business Services
+OPHC,Finance,Major Banks
+OPTN,Health Care,Major Pharmaceuticals
+OPB,n/a,n/a
+ORMP,Health Care,Major Pharmaceuticals
+OSUR,Health Care,Medical/Dental Instruments
+ORBC,Consumer Services,Telecommunications Equipment
+ORBK,Capital Goods,Industrial Machinery/Components
+ORTX,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+ORLY,Consumer Services,Other Specialty Stores
+ORGO,Health Care,Major Pharmaceuticals
+ONVO,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+ORGS,Health Care,Major Pharmaceuticals
+SEED,Consumer Non-Durables,Farming/Seeds/Milling
+OBNK,Finance,Major Banks
+OESX,Consumer Durables,Building Products
+ORIT,Finance,Major Banks
+ORRF,Finance,Major Banks
+OFIX,Health Care,Medical/Dental Instruments
+KIDS,Health Care,Medical/Dental Instruments
+OSIS,Technology,Semiconductors
+OSIR,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+OSMT,Health Care,Major Pharmaceuticals
+OSN,Basic Industries,Steel/Iron Ore
+OTEL,Public Utilities,Telecommunications Equipment
+OTIC,Health Care,Major Pharmaceuticals
+OTTW,Finance,Savings Institutions
+OTTR,Public Utilities,Electric Utilities: Central
+OTLK,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+OTLKW,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+OSTK,Consumer Services,Catalog/Specialty Distribution
+OVID,Health Care,Major Pharmaceuticals
+OXBR,Finance,Property-Casualty Insurers
+OXBRW,Finance,Property-Casualty Insurers
+OXFD,Health Care,Biotechnology: In Vitro & In Vivo Diagnostic Substances
+OXLC,n/a,n/a
+OXLCM,n/a,n/a
+OXLCO,n/a,n/a
+OXSQ,n/a,n/a
+OXSQL,n/a,n/a
+PFIN,Technology,Industrial Machinery/Components
+PTSI,Transportation,Trucking Freight/Courier Services
+PCAR,Capital Goods,Auto Manufacturing
+VETS,n/a,n/a
+PACB,Capital Goods,Biotechnology: Laboratory Analytical Instruments
+PCB,Finance,Major Banks
+PEIX,Basic Industries,Major Chemicals
+PMBC,Finance,Major Banks
+PPBI,Finance,Major Banks
+PCRX,Health Care,Major Pharmaceuticals
+PACW,Finance,Major Banks
+PTIE,Health Care,Major Pharmaceuticals
+PAAS,Basic Industries,Precious Metals
+PANL,Transportation,Marine Transportation
+PZZA,Consumer Services,Restaurants
+FRSH,Consumer Services,Restaurants
+PRTK,Health Care,Major Pharmaceuticals
+TEUM,Technology,EDP Services
+PNRL,n/a,n/a
+PCYG,Technology,EDP Services
+PKBK,Finance,Major Banks
+PKOH,Capital Goods,Industrial Specialties
+PTNR,Public Utilities,Telecommunications Equipment
+PBHC,Finance,Major Banks
+PATK,Basic Industries,Forest Products
+PNBK,Finance,Major Banks
+PATI,Transportation,Trucking Freight/Courier Services
+PEGI,Public Utilities,Electric Utilities: Central
+PDCO,Health Care,Medical Specialities
+PTEN,Energy,Oil & Gas Production
+PAVM,Health Care,Medical/Dental Instruments
+PAVMW,Health Care,Medical/Dental Instruments
+PAVMZ,Health Care,Medical/Dental Instruments
+PAYX,Consumer Services,Diversified Commercial Services
+PCTY,Technology,Computer Software: Prepackaged Software
+PYDS,Finance,Investment Bankers/Brokers/Service
+PYPL,Miscellaneous,Business Services
+PBBI,Finance,Savings Institutions
+CNXN,Consumer Services,Catalog/Specialty Distribution
+PCMI,Consumer Services,Catalog/Specialty Distribution
+PCSB,Finance,Banks
+PCTI,Technology,Radio And Television Broadcasting And Communications Equipment
+PDCE,Energy,Oil & Gas Production
+PDFS,Technology,EDP Services
+PDLI,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+PDLB,Finance,Savings Institutions
+PDVW,Public Utilities,Telecommunications Equipment
+SKIS,Consumer Services,Hotels/Resorts
+PGC,Finance,Commercial Banks
+PEGA,Technology,EDP Services
+PENN,Consumer Services,Hotels/Resorts
+PVAC,Energy,Oil & Gas Production
+PFLT,n/a,n/a
+PNNT,n/a,n/a
+PWOD,Finance,Major Banks
+WRLS,Finance,Business Services
+WRLSR,Finance,Business Services
+WRLSU,Finance,Business Services
+WRLSW,Finance,Business Services
+PEBO,Finance,Major Banks
+PEBK,Finance,Major Banks
+PFIS,Finance,Major Banks
+PBCT,Finance,Savings Institutions
+PBCTP,Finance,Savings Institutions
+PUB,Finance,Major Banks
+KPFS,Consumer Services,Restaurants
+PEP,Consumer Non-Durables,Beverages (Production/Distribution)
+PRCP,Capital Goods,Electronic Components
+PRFT,Technology,EDP Services
+PFMT,Consumer Services,Other Consumer Services
+PERI,Technology,EDP Services
+PESI,Basic Industries,Environmental Services
+PPIH,Capital Goods,Pollution Control Equipment
+PTX,Health Care,Major Pharmaceuticals
+PGLC,Basic Industries,Precious Metals
+PETQ,Health Care,Other Pharmaceuticals
+PETS,Health Care,Medical/Nursing Services
+PFSW,Miscellaneous,Business Services
+PGTI,Capital Goods,Building Products
+PHAS,Health Care,Major Pharmaceuticals
+PHII,Transportation,Transportation Services
+PHIIK,Transportation,Transportation Services
+PAHC,Health Care,Major Pharmaceuticals
+PHIO,Health Care,Major Pharmaceuticals
+PHIOW,Health Care,Major Pharmaceuticals
+PLAB,Technology,Semiconductors
+PHUN,Technology,EDP Services
+PHUNW,Technology,EDP Services
+PICO,Finance,Real Estate
+PLL,n/a,n/a
+PIRS,Health Care,Biotechnology: Commercial Physical & Biological Resarch
+PPC,Consumer Non-Durables,Meat/Poultry/Fish
+PDD,Miscellaneous,Business Services
+PME,n/a,n/a
+PNFP,Finance,Major Banks
+PT,Technology,"Computer Software: Programming, Data Processing"
+PPSI,Consumer Durables,Electrical Products
+PXLW,Technology,Semiconductors
+EAGL,Consumer Services,Hotels/Resorts
+EAGLU,Consumer Services,Hotels/Resorts
+EAGLW,Consumer Services,Hotels/Resorts
+PLYA,Consumer Services,Hotels/Resorts
+PLXS,Technology,Electrical Products
+PLUG,Energy,Industrial Machinery/Components
+PLBC,Finance,Finance Companies
+PS,Technology,"Computer Software: Programming, Data Processing"
+PSTI,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+PLXP,Health Care,Major Pharmaceuticals
+PNTR,Technology,Radio And Television Broadcasting And Communications Equipment
+PCOM,Miscellaneous,Business Services
+POLA,Miscellaneous,Industrial Machinery/Components
+PTE,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+POOL,Consumer Durables,Industrial Specialties
+POPE,Consumer Non-Durables,Environmental Services
+BPOP,Finance,Major Banks
+BPOPM,Finance,Major Banks
+BPOPN,Finance,Major Banks
+PTLA,Health Care,Major Pharmaceuticals
+PBPB,Consumer Services,Restaurants
+PCH,Consumer Services,Real Estate Investment Trusts
+POWL,Consumer Durables,Electrical Products
+POWI,Technology,Semiconductors
+PRAA,Finance,Finance: Consumer Services
+PRAH,Health Care,Biotechnology: Commercial Physical & Biological Resarch
+PRAN,Health Care,Major Pharmaceuticals
+PRPO,Capital Goods,Biotechnology: Laboratory Analytical Instruments
+AIPT,Health Care,Industrial Specialties
+PFBC,n/a,n/a
+PLPC,Basic Industries,Water Supply
+PFBI,Finance,Major Banks
+PINC,Consumer Services,Other Consumer Services
+LENS,Health Care,Medical/Dental Instruments
+PSDO,Technology,Retail: Computer Software & Peripheral Equipment
+PRGX,Consumer Services,Diversified Commercial Services
+PSMT,Consumer Services,Department/Specialty Retail Stores
+PNRG,Energy,Oil & Gas Production
+PRMW,Consumer Non-Durables,Food Distributors
+PRIM,Basic Industries,Water Supply
+PVAL,n/a,n/a
+PFG,Finance,Accident &Health Insurance
+BTEC,n/a,n/a
+PXUS,n/a,n/a
+GENY,n/a,n/a
+PSET,n/a,n/a
+PY,n/a,n/a
+PMOM,n/a,n/a
+USMC,n/a,n/a
+PSC,n/a,n/a
+PRNB,Health Care,Major Pharmaceuticals
+PRTH,Miscellaneous,Business Services
+PRTHU,Miscellaneous,Business Services
+PRTHW,Miscellaneous,Business Services
+PDEX,Health Care,Medical/Dental Instruments
+IPDN,Technology,"Computer Software: Programming, Data Processing"
+PFIE,Energy,Metal Fabrications
+PGNX,Health Care,Major Pharmaceuticals
+PRGS,Technology,Computer Software: Prepackaged Software
+PFPT,Technology,EDP Services
+PRPH,Health Care,Major Pharmaceuticals
+PRQR,Health Care,Major Pharmaceuticals
+EQRR,n/a,n/a
+BIB,n/a,n/a
+UBIO,n/a,n/a
+TQQQ,n/a,n/a
+ZBIO,n/a,n/a
+SQQQ,n/a,n/a
+BIS,n/a,n/a
+PSEC,n/a,n/a
+PTGX,Health Care,Major Pharmaceuticals
+PTVCA,Finance,Property-Casualty Insurers
+PTVCB,Finance,Property-Casualty Insurers
+PRTO,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+PTI,Health Care,Major Pharmaceuticals
+PRTA,Health Care,Major Pharmaceuticals
+PRVB,Health Care,Major Pharmaceuticals
+PVBC,Finance,Savings Institutions
+PROV,Finance,Savings Institutions
+PBIP,Finance,Banks
+PMD,Health Care,Medical Specialities
+PTC,Technology,Computer Software: Prepackaged Software
+PTCT,Health Care,Major Pharmaceuticals
+PHCF,Finance,Investment Managers
+PULM,Health Care,Major Pharmaceuticals
+PLSE,Health Care,Medical/Dental Instruments
+PBYI,Health Care,Major Pharmaceuticals
+PACQ,Finance,Business Services
+PACQU,Finance,Business Services
+PACQW,Finance,Business Services
+PCYO,Public Utilities,Water Supply
+PRPL,Consumer Durables,Home Furnishings
+PXS,Transportation,Marine Transportation
+QADA,Technology,Computer Software: Prepackaged Software
+QADB,Technology,Computer Software: Prepackaged Software
+QCRH,Finance,Major Banks
+QGEN,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+QIWI,Miscellaneous,Business Services
+QRVO,Technology,Semiconductors
+QCOM,Technology,Radio And Television Broadcasting And Communications Equipment
+QBAK,Technology,Electronic Components
+QLYS,Technology,Computer Software: Prepackaged Software
+QTNA,Technology,Semiconductors
+QTRX,Capital Goods,Biotechnology: Laboratory Analytical Instruments
+QTRH,Miscellaneous,Multi-Sector Companies
+QRHC,Technology,Diversified Commercial Services
+QUIK,Technology,Semiconductors
+QDEL,Health Care,Biotechnology: In Vitro & In Vivo Diagnostic Substances
+QNST,Miscellaneous,Business Services
+QUMU,Technology,Computer Software: Prepackaged Software
+QTNT,Health Care,Biotechnology: In Vitro & In Vivo Diagnostic Substances
+QRTEA,Consumer Services,Catalog/Specialty Distribution
+QRTEB,Consumer Services,Catalog/Specialty Distribution
+QTT,n/a,n/a
+RRD,Miscellaneous,Publishing
+RCM,Consumer Services,Other Consumer Services
+RARX,Health Care,Major Pharmaceuticals
+RADA,Consumer Non-Durables,Electronic Components
+RDCM,Technology,Computer peripheral equipment
+RDUS,Health Care,Major Pharmaceuticals
+RDNT,Health Care,Medical Specialities
+RDWR,Miscellaneous,Business Services
+METC,Energy,Coal Mining
+RMBS,Technology,Semiconductors
+RAND,Consumer Non-Durables,Textiles
+RNDB,Finance,Major Banks
+RPD,Technology,Computer Software: Prepackaged Software
+RAVE,Consumer Non-Durables,Food Distributors
+RAVN,Capital Goods,Specialty Chemicals
+RBB,Finance,Major Banks
+ROLL,Capital Goods,Metal Fabrications
+RICK,Consumer Services,Restaurants
+RCMT,Technology,Professional Services
+RDI,Consumer Services,Movies/Entertainment
+RDIB,Consumer Services,Movies/Entertainment
+BCNA,n/a,n/a
+BLCN,n/a,n/a
+RLM,Health Care,Major Pharmaceuticals
+RNWK,Technology,EDP Services
+RP,Technology,Computer Software: Prepackaged Software
+RETA,Health Care,Major Pharmaceuticals
+RCON,Energy,Oilfield Services/Equipment
+REPH,Health Care,Major Pharmaceuticals
+RRGB,Consumer Services,Restaurants
+RRR,Consumer Services,Hotels/Resorts
+RDVT,Technology,Computer Software: Prepackaged Software
+RDFN,Finance,Real Estate
+RDHL,Health Care,Major Pharmaceuticals
+RBZ,Consumer Services,Other Specialty Stores
+RBZAW,Consumer Services,Other Specialty Stores
+REG,Consumer Services,Real Estate Investment Trusts
+REGN,Health Care,Major Pharmaceuticals
+RGNX,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+RGLS,Health Care,Major Pharmaceuticals
+RBNC,Finance,Major Banks
+RELV,Health Care,Major Pharmaceuticals
+MARK,Consumer Services,Telecommunications Equipment
+RNST,Finance,Major Banks
+REGI,Basic Industries,Major Chemicals
+BIQI,Consumer Non-Durables,Farming/Seeds/Milling
+RCII,Technology,Diversified Commercial Services
+RGEN,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+REPL,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+RBCAA,Finance,Major Banks
+FRBK,Finance,Major Banks
+REFR,Miscellaneous,Multi-Sector Companies
+RESN,Technology,Semiconductors
+RECN,Miscellaneous,Business Services
+HAIR,Health Care,Medical/Dental Instruments
+TORC,Health Care,Major Pharmaceuticals
+ROIC,Consumer Services,Real Estate Investment Trusts
+RETO,Capital Goods,Industrial Machinery/Components
+RTRX,Health Care,Major Pharmaceuticals
+RVNC,Health Care,Major Pharmaceuticals
+RVEN,Consumer Services,Real Estate Investment Trusts
+RVLT,Consumer Durables,Building Products
+RWLK,Health Care,Industrial Specialties
+RFIL,Capital Goods,Electrical Products
+RGCO,Public Utilities,Oil & Gas Production
+RBKB,Finance,Banks
+RYTM,Health Care,Major Pharmaceuticals
+RBBN,Technology,EDP Services
+RIBT,Consumer Non-Durables,Packaged Foods
+RELL,Consumer Non-Durables,Electronic Components
+RIGL,Health Care,Major Pharmaceuticals
+RNET,Consumer Services,Telecommunications Equipment
+RMNI,Miscellaneous,Business Services
+RIOT,Health Care,Biotechnology: In Vitro & In Vivo Diagnostic Substances
+REDU,Consumer Services,Other Consumer Services
+RTTR,Health Care,Major Pharmaceuticals
+RVSB,Finance,Savings Institutions
+RIVE,Finance,Major Banks
+RCKT,Health Care,Major Pharmaceuticals
+RMTI,Health Care,Biotechnology: Electromedical & Electrotherapeutic Apparatus
+RCKY,Consumer Non-Durables,Shoe Manufacturing
+RMCF,Consumer Non-Durables,Specialty Foods
+ROKU,Consumer Services,Television Services
+ROSE,Energy,Oil & Gas Production
+ROSEU,Energy,Oil & Gas Production
+ROSEW,Energy,Oil & Gas Production
+ROST,Consumer Services,Clothing/Shoe/Accessory Stores
+RGLD,Basic Industries,Precious Metals
+RTIX,Health Care,Industrial Specialties
+RBCN,Technology,Semiconductors
+RUBY,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+RMBL,Technology,EDP Services
+RUSHA,Consumer Durables,Automotive Aftermarket
+RUSHB,Consumer Durables,Automotive Aftermarket
+RUTH,Consumer Services,Restaurants
+RYAAY,Transportation,Air Freight/Delivery Services
+STBA,Finance,Major Banks
+SANW,Consumer Non-Durables,Farming/Seeds/Milling
+SCAC,Finance,Business Services
+SCACU,Finance,Business Services
+SCACW,Finance,Business Services
+SBRA,Consumer Services,Real Estate Investment Trusts
+SABR,Technology,"Computer Software: Programming, Data Processing"
+SAEX,Energy,Oil & Gas Production
+SFET,Technology,Computer Software: Prepackaged Software
+SAFT,Finance,Property-Casualty Insurers
+SGA,Consumer Services,Broadcasting
+SAGE,Health Care,Major Pharmaceuticals
+SAIA,Transportation,Trucking Freight/Courier Services
+SALM,Consumer Services,Broadcasting
+SAL,Finance,Savings Institutions
+SAFM,Consumer Non-Durables,Meat/Poultry/Fish
+SASR,Finance,Major Banks
+SGMO,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+SANM,Technology,Electrical Products
+GCVRZ,Health Care,Major Pharmaceuticals
+SNY,Health Care,Major Pharmaceuticals
+SPNS,Technology,Computer Software: Prepackaged Software
+SRPT,Health Care,Major Pharmaceuticals
+SVRA,Health Care,Major Pharmaceuticals
+SBFG,Finance,Major Banks
+SBFGP,Finance,Major Banks
+SBBX,Finance,Major Banks
+SBAC,Consumer Services,Real Estate Investment Trusts
+SCSC,Technology,Retail: Computer Software & Peripheral Equipment
+SMIT,Capital Goods,Industrial Machinery/Components
+SCHN,Consumer Durables,Industrial Specialties
+SRRK,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+SCHL,Consumer Services,Books
+SAMA,Finance,Business Services
+SAMAU,Finance,Business Services
+SAMAW,Finance,Business Services
+SGMS,Technology,EDP Services
+SCPH,Health Care,Major Pharmaceuticals
+WORX,Consumer Services,Services-Misc. Amusement & Recreation
+SCYX,Health Care,Major Pharmaceuticals
+SEAC,Technology,Radio And Television Broadcasting And Communications Equipment
+SBCF,Finance,Major Banks
+STX,Technology,Electronic Components
+SHIP,Transportation,Marine Transportation
+SHIPW,Transportation,Marine Transportation
+SHOS,Consumer Services,Department/Specialty Retail Stores
+SPNE,Health Care,Medical/Dental Instruments
+SGEN,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+EYES,Health Care,Biotechnology: Electromedical & Electrotherapeutic Apparatus
+EYESW,Health Care,Biotechnology: Electromedical & Electrotherapeutic Apparatus
+SECO,Consumer Services,Other Specialty Stores
+SCWX,Technology,Computer Software: Prepackaged Software
+SNFCA,Finance,Finance: Consumer Services
+SEEL,Health Care,Major Pharmaceuticals
+SEIC,Finance,Investment Bankers/Brokers/Service
+SLCT,Finance,Major Banks
+SIC,Basic Industries,Homebuilding
+SELB,Health Care,Major Pharmaceuticals
+SIGI,Finance,Property-Casualty Insurers
+SLS,Health Care,Major Pharmaceuticals
+LEDS,Technology,Semiconductors
+SMTC,Technology,Semiconductors
+SENEA,Consumer Non-Durables,Packaged Foods
+SENEB,Consumer Non-Durables,Packaged Foods
+SNES,Basic Industries,Agricultural Chemicals
+SNH,Consumer Services,Real Estate Investment Trusts
+SNHNI,Consumer Services,Real Estate Investment Trusts
+SNHNL,Consumer Services,Real Estate Investment Trusts
+AIHS,Finance,Finance: Consumer Services
+SRTS,Health Care,Medical/Dental Instruments
+SRTSW,Health Care,Medical/Dental Instruments
+STNL,Finance,Business Services
+STNLU,Finance,Business Services
+STNLW,Finance,Business Services
+SQBG,Consumer Non-Durables,Apparel
+MCRB,Health Care,Major Pharmaceuticals
+SREV,Miscellaneous,Business Services
+SFBS,Finance,Major Banks
+SESN,Health Care,Major Pharmaceuticals
+SVBI,Finance,Major Banks
+SGBX,Consumer Services,RETAIL: Building Materials
+SGOC,Technology,Radio And Television Broadcasting And Communications Equipment
+SMED,Basic Industries,Environmental Services
+SHSP,Technology,Computer Software: Prepackaged Software
+SHEN,Public Utilities,Telecommunications Equipment
+PIXY,Technology,Diversified Commercial Services
+SHLO,Capital Goods,Industrial Specialties
+TYHT,Consumer Non-Durables,Farming/Seeds/Milling
+SCVL,Consumer Services,Clothing/Shoe/Accessory Stores
+SHBI,Finance,Major Banks
+SSTI,Technology,Computer Software: Prepackaged Software
+SFLY,Miscellaneous,Other Consumer Services
+SIFI,Finance,Savings Institutions
+SIBN,Health Care,Medical/Dental Instruments
+SIEB,Finance,Investment Bankers/Brokers/Service
+SNNA,Health Care,Major Pharmaceuticals
+SIEN,Health Care,Industrial Specialties
+BSRR,Finance,Major Banks
+SRRA,Health Care,Major Pharmaceuticals
+SWIR,Technology,Radio And Television Broadcasting And Communications Equipment
+SIFY,Technology,"Computer Software: Programming, Data Processing"
+SIGA,Health Care,Major Pharmaceuticals
+SGLB,Consumer Durables,Miscellaneous manufacturing industries
+SGLBW,Consumer Durables,Miscellaneous manufacturing industries
+SGMA,Technology,Electrical Products
+SBNY,Finance,Major Banks
+SLGN,Consumer Durables,Containers/Packaging
+SILC,Technology,Computer Communications Equipment
+SLAB,Technology,Semiconductors
+SIMO,Technology,Semiconductors
+SAMG,Finance,Investment Managers
+SSNT,Miscellaneous,Business Services
+SFNC,Finance,Major Banks
+SLP,Technology,EDP Services
+SINA,Technology,Computer Software: Prepackaged Software
+SBGI,Consumer Services,Broadcasting
+SINO,Transportation,Oil Refining/Marketing
+SVA,Health Care,Major Pharmaceuticals
+SINT,Health Care,Medical/Dental Instruments
+SG,Finance,Property-Casualty Insurers
+SIRI,Consumer Services,Broadcasting
+SITO,Miscellaneous,Business Services
+SKYS,Public Utilities,Electric Utilities: Central
+SKYW,Transportation,Air Freight/Delivery Services
+SWKS,Technology,Semiconductors
+SNBR,Consumer Durables,Home Furnishings
+SLM,Finance,Finance: Consumer Services
+SLMBP,Finance,Finance: Consumer Services
+SGH,Technology,Semiconductors
+SND,Basic Industries,Mining & Quarrying of Nonmetallic Minerals (No Fuels)
+SMBK,Finance,Major Banks
+SMSI,Technology,Computer Software: Prepackaged Software
+SMTX,Technology,Electrical Products
+SRAX,Technology,Advertising
+SCKT,Technology,Computer Manufacturing
+SOHU,Technology,EDP Services
+SLRC,n/a,n/a
+SUNS,n/a,n/a
+SEDG,Technology,Semiconductors
+SLNO,Health Care,Biotechnology: Electromedical & Electrotherapeutic Apparatus
+SLNOW,Health Care,Biotechnology: Electromedical & Electrotherapeutic Apparatus
+SLGL,Health Care,Major Pharmaceuticals
+SLDB,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+SNGX,Health Care,Major Pharmaceuticals
+SNGXW,Health Care,Major Pharmaceuticals
+SOLY,n/a,n/a
+SNOA,Health Care,Major Pharmaceuticals
+SNOAW,Health Care,Major Pharmaceuticals
+SONO,Consumer Non-Durables,Consumer Electronics/Appliances
+SPHS,Health Care,Major Pharmaceuticals
+SORL,Capital Goods,Auto Parts:O.E.M.
+SRNE,Health Care,Biotechnology: Commercial Physical & Biological Resarch
+SOHO,Consumer Services,Real Estate Investment Trusts
+SOHOB,Consumer Services,Real Estate Investment Trusts
+SOHOO,Consumer Services,Real Estate Investment Trusts
+SOHOK,Consumer Services,Real Estate Investment Trusts
+SFBC,Finance,Savings Institutions
+SSB,Finance,Major Banks
+SFST,Finance,Major Banks
+SMBC,Finance,Banks
+SONA,Finance,Major Banks
+SBSI,Finance,Major Banks
+SP,Consumer Services,Rental/Leasing Companies
+SGRP,Miscellaneous,Business Services
+SPKE,Public Utilities,Power Generation
+SPKEP,Public Utilities,Power Generation
+ONCE,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+SPAR,Capital Goods,Auto Manufacturing
+SPTN,Consumer Non-Durables,Food Distributors
+DWFI,n/a,n/a
+SPPI,Health Care,Major Pharmaceuticals
+SPRO,Health Care,Major Pharmaceuticals
+ANY,Technology,EDP Services
+SPEX,Miscellaneous,Multi-Sector Companies
+SPI,Technology,Semiconductors
+SAVE,Transportation,Air Freight/Delivery Services
+STXB,Finance,Major Banks
+SPLK,Technology,Computer Software: Prepackaged Software
+SPOK,Public Utilities,Telecommunications Equipment
+SPWH,Consumer Services,Other Specialty Stores
+SBPH,Health Care,Major Pharmaceuticals
+FUND,Consumer Services,Miscellaneous
+SFM,Consumer Services,Food Chains
+SPSC,Technology,Computer Software: Prepackaged Software
+SSNC,Technology,Computer Software: Prepackaged Software
+SSLJ,Finance,Diversified Commercial Services
+SSRM,Basic Industries,Precious Metals
+STAA,Health Care,Ophthalmic Goods
+STAF,Technology,Professional Services
+STMP,Miscellaneous,Business Services
+STND,Finance,Major Banks
+SBLK,Transportation,Marine Transportation
+SBLKZ,Transportation,Marine Transportation
+SBUX,Consumer Services,Restaurants
+STFC,Finance,Property-Casualty Insurers
+MITO,Health Care,Major Pharmaceuticals
+GASS,Transportation,Marine Transportation
+STCN,Miscellaneous,Business Services
+STLD,Basic Industries,Steel/Iron Ore
+SMRT,Consumer Services,Clothing/Shoe/Accessory Stores
+SBOT,Health Care,Major Pharmaceuticals
+STML,Health Care,Major Pharmaceuticals
+SRCL,Basic Industries,Environmental Services
+SBT,Finance,Savings Institutions
+STRL,Basic Industries,Military/Government/Technical
+SHOO,Consumer Non-Durables,Shoe Manufacturing
+SSFN,Finance,Major Banks
+SFIX,Consumer Services,Catalog/Specialty Distribution
+SYBT,Finance,Major Banks
+BANX,n/a,n/a
+STNE,Technology,EDP Services
+SSKN,Health Care,Medical/Dental Instruments
+SSYS,Technology,Computer peripheral equipment
+STRA,Consumer Services,Other Consumer Services
+HNDL,n/a,n/a
+STRT,Capital Goods,Auto Parts:O.E.M.
+STRS,Consumer Services,Homebuilding
+STRM,Technology,EDP Services
+SBBP,Health Care,Major Pharmaceuticals
+SUMR,Consumer Durables,Miscellaneous manufacturing industries
+SMMF,Finance,Major Banks
+SSBI,n/a,n/a
+SMMT,Health Care,Major Pharmaceuticals
+WISA,Technology,Semiconductors
+SNHY,Capital Goods,Metal Fabrications
+SNDE,Energy,Oil & Gas Production
+SNSS,Health Care,Major Pharmaceuticals
+STKL,Consumer Services,Farming/Seeds/Milling
+SPWR,Technology,Semiconductors
+RUN,Capital Goods,Industrial Specialties
+SUNW,Public Utilities,Telecommunications Equipment
+SPCB,Technology,Semiconductors
+SCON,Technology,Radio And Television Broadcasting And Communications Equipment
+SGC,Consumer Non-Durables,Apparel
+SUPN,Health Care,Major Pharmaceuticals
+SPRT,Technology,EDP Services
+SURF,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+SGRY,Health Care,Hospital/Nursing Management
+SRDX,Health Care,Medical/Dental Instruments
+STRO,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+SIVB,Finance,Major Banks
+SVMK,Technology,"Computer Software: Programming, Data Processing"
+SYKE,Technology,EDP Services
+SYMC,Technology,Computer Software: Prepackaged Software
+SYNC,Technology,"Computer Software: Programming, Data Processing"
+SYNL,Basic Industries,Steel/Iron Ore
+SYNA,Technology,Semiconductors
+SNCR,Technology,EDP Services
+SNDX,Health Care,Major Pharmaceuticals
+SYNH,Health Care,Biotechnology: Commercial Physical & Biological Resarch
+SGYP,Health Care,Major Pharmaceuticals
+SYBX,n/a,n/a
+SNPS,Technology,Computer Software: Prepackaged Software
+SES,Basic Industries,Major Chemicals
+THOR,Health Care,Major Pharmaceuticals
+SYPR,Capital Goods,Industrial Machinery/Components
+SYRS,Health Care,Major Pharmaceuticals
+TROW,Finance,Investment Bankers/Brokers/Service
+TTOO,Health Care,Medical/Dental Instruments
+TRHC,Miscellaneous,Business Services
+TCMD,Health Care,Medical/Dental Instruments
+TAIT,Consumer Non-Durables,Electronic Components
+TLC,Health Care,Major Pharmaceuticals
+TTWO,Technology,Computer Software: Prepackaged Software
+TLND,Technology,Computer Software: Prepackaged Software
+TNDM,Health Care,Medical/Dental Instruments
+TLF,Consumer Non-Durables,Apparel
+TANH,Basic Industries,Major Chemicals
+TAOP,Technology,Computer Software: Prepackaged Software
+TEDU,Consumer Services,Other Consumer Services
+TATT,Capital Goods,Aerospace
+TAYD,Capital Goods,Industrial Machinery/Components
+CGBD,n/a,n/a
+TCRR,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+AMTD,Finance,Investment Bankers/Brokers/Service
+PETZ,Consumer Non-Durables,Packaged Foods
+TECD,Technology,Retail: Computer Software & Peripheral Equipment
+TCCO,Technology,Radio And Television Broadcasting And Communications Equipment
+TTGT,Miscellaneous,Business Services
+TGLS,Consumer Durables,Electronic Components
+TGEN,Capital Goods,Industrial Machinery/Components
+TNAV,Capital Goods,Industrial Machinery/Components
+TLGT,Health Care,Major Pharmaceuticals
+TELL,Energy,Oil & Gas Production
+TENB,Technology,Computer Software: Prepackaged Software
+TENX,Health Care,Biotechnology: Commercial Physical & Biological Resarch
+TZAC,Finance,Business Services
+TZACU,Finance,Business Services
+TZACW,Finance,Business Services
+TER,Capital Goods,Electrical Products
+TERP,Public Utilities,Electric Utilities: Central
+TBNK,Finance,Savings Institutions
+TSLA,Capital Goods,Auto Manufacturing
+TESS,Consumer Non-Durables,Electronic Components
+TTEK,Consumer Services,Military/Government/Technical
+TTPH,Health Care,Major Pharmaceuticals
+TCBI,Finance,Major Banks
+TCBIL,Finance,Major Banks
+TCBIP,Finance,Major Banks
+TXN,Technology,Semiconductors
+TXRH,Consumer Services,Restaurants
+TFSL,Finance,Savings Institutions
+TGTX,Health Care,Major Pharmaceuticals
+WTER,Consumer Non-Durables,Food Distributors
+ANDE,Consumer Services,Farming/Seeds/Milling
+TBBK,Finance,Major Banks
+BPRN,n/a,n/a
+CG,Finance,Investment Managers
+TCGP,Finance,Investment Managers
+CAKE,Consumer Services,Restaurants
+CHEF,Consumer Non-Durables,Food Distributors
+TCFC,Finance,Major Banks
+DSGX,Technology,Computer Software: Prepackaged Software
+DXYN,Consumer Durables,Home Furnishings
+ENSG,Health Care,Hospital/Nursing Management
+XONE,Capital Goods,Industrial Machinery/Components
+FBMS,Finance,Major Banks
+FLIC,Finance,Major Banks
+GT,Consumer Durables,Automotive Aftermarket
+HABT,Consumer Services,Restaurants
+HCKT,Consumer Services,Professional Services
+HAIN,Consumer Non-Durables,Packaged Foods
+CUBA,n/a,n/a
+INTG,Consumer Services,Building operators
+JYNT,Miscellaneous,Multi-Sector Companies
+KEYW,Technology,EDP Services
+KHC,Consumer Non-Durables,Packaged Foods
+OLD,n/a,n/a
+LOVE,Consumer Services,Other Specialty Stores
+MSG,Consumer Services,Services-Misc. Amusement & Recreation
+MDCO,Health Care,Major Pharmaceuticals
+MEET,Consumer Services,Advertising
+MIK,Consumer Services,Recreational Products/Toys
+MIDD,Technology,Industrial Machinery/Components
+NAVG,Finance,Property-Casualty Insurers
+SLIM,n/a,n/a
+STKS,Consumer Services,Restaurants
+ORG,n/a,n/a
+PRSC,Consumer Services,Transportation Services
+RMR,Consumer Services,Professional Services
+SMPL,Consumer Non-Durables,Packaged Foods
+TSG,Technology,"Computer Software: Programming, Data Processing"
+TTD,Technology,"Computer Software: Programming, Data Processing"
+ULTI,Technology,Computer Software: Prepackaged Software
+YORW,Public Utilities,Water Supply
+NCTY,Miscellaneous,Business Services
+TXMD,Health Care,Major Pharmaceuticals
+TRPX,Health Care,Major Pharmaceuticals
+TBPH,Health Care,Major Pharmaceuticals
+TST,Consumer Services,Newspapers/Magazines
+TCRD,n/a,n/a
+TBRG,Finance,Business Services
+TBRGU,Finance,Business Services
+TBRGW,Finance,Business Services
+TIBR,Finance,Business Services
+TIBRU,Finance,Business Services
+TIBRW,Finance,Business Services
+TTTN,n/a,n/a
+TTS,Consumer Services,Home Furnishings
+TLRY,Consumer Durables,Specialty Chemicals
+TSBK,Finance,Banks
+TIPT,Finance,Property-Casualty Insurers
+TITN,Consumer Services,Other Specialty Stores
+TMDI,Health Care,Medical/Dental Instruments
+TTNP,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+TVTY,Health Care,Hospital/Nursing Management
+TIVO,Miscellaneous,Multi-Sector Companies
+TLSA,Health Care,Major Pharmaceuticals
+TKKS,Finance,Business Services
+TKKSR,Finance,Business Services
+TKKSU,Finance,Business Services
+TKKSW,Finance,Business Services
+TMUS,Public Utilities,Telecommunications Equipment
+TMSR,Finance,Business Services
+TOCA,Health Care,Major Pharmaceuticals
+TNXP,Health Care,Major Pharmaceuticals
+TISA,Technology,Computer peripheral equipment
+TOPS,Transportation,Marine Transportation
+TRCH,Energy,Oil & Gas Production
+TRMD,Transportation,Marine Transportation
+TOTA,Finance,Business Services
+TOTAR,Finance,Business Services
+TOTAU,Finance,Business Services
+TOTAW,Finance,Business Services
+TBLT,Capital Goods,Industrial Machinery/Components
+TBLTU,Capital Goods,Industrial Machinery/Components
+TBLTW,Capital Goods,Industrial Machinery/Components
+TSEM,Technology,Semiconductors
+CLUB,Consumer Services,Hotels/Resorts
+TOWN,n/a,n/a
+TPIC,Energy,Industrial Machinery/Components
+TCON,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+TSCO,Consumer Services,RETAIL: Building Materials
+TWMC,Consumer Services,Consumer Electronics/Video Chains
+TACT,Technology,Computer peripheral equipment
+TRNS,Capital Goods,Electrical Products
+TGA,Energy,Oil & Gas Production
+TBIO,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+TA,Consumer Durables,Automotive Aftermarket
+TANNI,Consumer Durables,Automotive Aftermarket
+TANNL,Consumer Durables,Automotive Aftermarket
+TANNZ,Consumer Durables,Automotive Aftermarket
+TZOO,Technology,EDP Services
+TRMT,Consumer Services,Real Estate Investment Trusts
+TRVN,Health Care,Major Pharmaceuticals
+TPCO,Consumer Services,Newspapers/Magazines
+TCDA,Health Care,Major Pharmaceuticals
+TCBK,Finance,Major Banks
+TDAC,Finance,Business Services
+TDACU,Finance,Business Services
+TDACW,Finance,Business Services
+TRIL,Health Care,Major Pharmaceuticals
+TRS,Capital Goods,Industrial Specialties
+TRMB,Capital Goods,Industrial Machinery/Components
+TRIB,Health Care,Biotechnology: In Vitro & In Vivo Diagnostic Substances
+TMCX,Finance,Business Services
+TMCXU,Finance,Business Services
+TMCXW,Finance,Business Services
+TRIP,Technology,"Computer Software: Programming, Data Processing"
+TSC,Finance,Major Banks
+TSCAP,Finance,Major Banks
+TBK,Finance,Major Banks
+TRVG,Technology,EDP Services
+TROV,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+TRUE,Technology,"Computer Software: Programming, Data Processing"
+THST,Consumer Non-Durables,Beverages (Production/Distribution)
+TRUP,Health Care,Medical Specialities
+TRST,Finance,Major Banks
+TRMK,Finance,Major Banks
+TSRI,Technology,EDP Services
+TTEC,Technology,Professional Services
+TTMI,Technology,Electrical Products
+TC,Miscellaneous,Business Services
+TCX,Technology,EDP Services
+TUES,Consumer Services,Department/Specialty Retail Stores
+TOUR,Consumer Services,Transportation Services
+HEAR,Consumer Durables,Telecommunications Equipment
+TWLV,Finance,Business Services
+TWLVR,Finance,Business Services
+TWLVU,Finance,Business Services
+TWLVW,Finance,Business Services
+FOX,Consumer Services,Television Services
+FOXA,Consumer Services,Television Services
+TWIN,Technology,Industrial Machinery/Components
+TWST,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+TRCB,Finance,Major Banks
+TYME,Health Care,Major Pharmaceuticals
+USCR,Capital Goods,Building Materials
+PRTS,Consumer Services,Other Specialty Stores
+USEG,Energy,Oil & Gas Production
+GROW,Finance,Investment Managers
+USAU,n/a,n/a
+USWS,Energy,Oilfield Services/Equipment
+USWSW,Energy,Oilfield Services/Equipment
+UBNT,Technology,Radio And Television Broadcasting And Communications Equipment
+UFPT,Capital Goods,Containers/Packaging
+ULTA,Consumer Services,Other Specialty Stores
+UCTT,Technology,Semiconductors
+UPL,Energy,Oil & Gas Production
+RARE,Health Care,Major Pharmaceuticals
+ULBI,Miscellaneous,Industrial Machinery/Components
+UMBF,Finance,Major Banks
+UMPQ,Finance,Savings Institutions
+UNAM,Finance,Property-Casualty Insurers
+UBSH,Finance,Major Banks
+UNB,Finance,Major Banks
+QURE,Health Care,Major Pharmaceuticals
+UBCP,Finance,Major Banks
+UBOH,Finance,Major Banks
+UBSI,Finance,Major Banks
+UCBI,Finance,Major Banks
+UCFC,Finance,Banks
+UAL,Transportation,Air Freight/Delivery Services
+UBNK,Finance,Banks
+UFCS,Finance,Property-Casualty Insurers
+UIHC,Finance,Property-Casualty Insurers
+UNFI,Consumer Non-Durables,Food Distributors
+UBFO,Finance,Major Banks
+USLM,Basic Industries,Mining & Quarrying of Nonmetallic Minerals (No Fuels)
+UTHR,Health Care,Major Pharmaceuticals
+UG,Consumer Non-Durables,Package Goods/Cosmetics
+UNIT,Consumer Services,Real Estate Investment Trusts
+UNTY,Finance,Major Banks
+UBX,Health Care,Major Pharmaceuticals
+OLED,Capital Goods,Electrical Products
+UEIC,Consumer Non-Durables,Consumer Electronics/Appliances
+UFPI,Basic Industries,Forest Products
+ULH,Transportation,Trucking Freight/Courier Services
+USAP,Basic Industries,Steel/Iron Ore
+UVSP,Finance,Major Banks
+UMRX,Health Care,Major Pharmaceuticals
+UPLD,Technology,Computer Software: Prepackaged Software
+UPWK,Technology,EDP Services
+UONE,Consumer Services,Broadcasting
+UONEK,Consumer Services,Broadcasting
+URBN,Consumer Services,Clothing/Shoe/Accessory Stores
+MYT,n/a,n/a
+URGN,Health Care,Major Pharmaceuticals
+UROV,Health Care,Major Pharmaceuticals
+ECOL,Public Utilities,Environmental Services
+USAT,Miscellaneous,Office Equipment/Supplies/Services
+USATP,Miscellaneous,Office Equipment/Supplies/Services
+USAK,Transportation,Trucking Freight/Courier Services
+UTMD,Health Care,Medical/Dental Instruments
+UTSI,Consumer Durables,Telecommunications Equipment
+UXIN,Miscellaneous,Business Services
+VCNX,Health Care,Major Pharmaceuticals
+VLRX,Health Care,Medical/Dental Instruments
+VALX,n/a,n/a
+VLY,Finance,Major Banks
+VLYPO,Finance,Major Banks
+VLYPP,Finance,Major Banks
+VALU,Finance,Investment Managers
+VNDA,Health Care,Major Pharmaceuticals
+BBH,n/a,n/a
+GNRX,n/a,n/a
+PPH,n/a,n/a
+VWOB,n/a,n/a
+VNQI,n/a,n/a
+VCIT,n/a,n/a
+VGIT,n/a,n/a
+VIGI,n/a,n/a
+VYMI,n/a,n/a
+VCLT,n/a,n/a
+VGLT,n/a,n/a
+VMBS,n/a,n/a
+VONE,n/a,n/a
+VONG,n/a,n/a
+VONV,n/a,n/a
+VTWO,n/a,n/a
+VTWG,n/a,n/a
+VTWV,n/a,n/a
+VTHR,n/a,n/a
+VCSH,n/a,n/a
+VTIP,n/a,n/a
+VGSH,n/a,n/a
+BND,n/a,n/a
+VTC,n/a,n/a
+BNDX,n/a,n/a
+VXUS,n/a,n/a
+BNDW,n/a,n/a
+VEAC,Finance,Business Services
+VEACU,Finance,Business Services
+VEACW,Finance,Business Services
+VREX,Capital Goods,Industrial Machinery/Components
+VRNS,Technology,Computer Software: Prepackaged Software
+VBLT,Health Care,Major Pharmaceuticals
+VXRT,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+VBIV,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+VTIQ,Finance,Business Services
+VTIQU,Finance,Business Services
+VTIQW,Finance,Business Services
+VECO,Technology,Industrial Machinery/Components
+VEON,Public Utilities,Telecommunications Equipment
+VRA,Consumer Non-Durables,Apparel
+VCYT,Health Care,Medical Specialities
+VSTM,Health Care,Major Pharmaceuticals
+VCEL,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+VRNT,Technology,EDP Services
+VRSN,Technology,EDP Services
+VRSK,Technology,EDP Services
+VBTX,Finance,Major Banks
+VERI,Technology,EDP Services
+VRML,Health Care,Biotechnology: In Vitro & In Vivo Diagnostic Substances
+VRNA,Health Care,Major Pharmaceuticals
+VRRM,Consumer Services,Transportation Services
+VRCA,Health Care,Major Pharmaceuticals
+VTNR,Energy,Integrated oil Companies
+VRTX,Health Care,Major Pharmaceuticals
+VERU,Health Care,Major Pharmaceuticals
+VIA,Consumer Services,Television Services
+VIAB,Consumer Services,Television Services
+VSAT,Technology,Radio And Television Broadcasting And Communications Equipment
+VIAV,Technology,Semiconductors
+VICL,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+VICR,Capital Goods,Industrial Machinery/Components
+VCTR,Finance,Investment Managers
+CIZ,n/a,n/a
+VSDA,n/a,n/a
+CEY,n/a,n/a
+CEZ,n/a,n/a
+CID,n/a,n/a
+CIL,n/a,n/a
+CFO,n/a,n/a
+CFA,n/a,n/a
+CSF,n/a,n/a
+CDC,n/a,n/a
+CDL,n/a,n/a
+VSMV,n/a,n/a
+CSB,n/a,n/a
+CSA,n/a,n/a
+VRAY,Health Care,Biotechnology: Electromedical & Electrotherapeutic Apparatus
+VKTX,Health Care,Major Pharmaceuticals
+VKTXW,Health Care,Major Pharmaceuticals
+VBFC,Finance,Major Banks
+VLGEA,Consumer Services,Food Chains
+VIOT,Consumer Durables,Consumer Electronics/Appliances
+VNOM,Energy,Oil & Gas Production
+VIRC,Consumer Durables,Industrial Specialties
+VTSI,Consumer Services,Services-Misc. Amusement & Recreation
+VIRT,Finance,Investment Bankers/Brokers/Service
+VRTS,Finance,Investment Managers
+VRTSP,Finance,Investment Managers
+BBC,n/a,n/a
+BBP,n/a,n/a
+VRTU,Technology,EDP Services
+VTGN,Health Care,Major Pharmaceuticals
+VC,Capital Goods,Auto Parts:O.E.M.
+VTL,Health Care,Major Pharmaceuticals
+VIVE,Health Care,Biotechnology: Electromedical & Electrotherapeutic Apparatus
+VVPR,Public Utilities,Power Generation
+VVUS,Health Care,Major Pharmaceuticals
+VOD,Public Utilities,Telecommunications Equipment
+VOXX,Consumer Non-Durables,Electronic Components
+VYGR,Health Care,Biotechnology: Biological Products (No Diagnostic Substances)
+VSEC,Consumer Services,Military/Government/Technical
+VTVT,Health Care,Major Pharmaceuticals
+VUZI,Technology,Radio And Television Broadcasting And Communications Equipment
+WTRH,Miscellaneous,Business Services
+WBA,Health Care,Medical/Nursing Services
+WAFD,Finance,Major Banks
+WASH,Finance,Major Banks
+WSBF,Finance,Savings Institutions
+WVE,Health Care,Major Pharmaceuticals
+WSTG,Technology,Retail: Computer Software & Peripheral Equipment
+WCFB,Finance,Major Banks
+WDFC,Basic Industries,Major Chemicals
+HHHHU,Finance,Business Services
+WB,Technology,"Computer Software: Programming, Data Processing"
+WTW,Consumer Services,Other Consumer Services
+WEBK,Finance,Banks
+WEN,Consumer Services,Restaurants
+WERN,Transportation,Trucking Freight/Courier Services
+WSBC,Finance,Major Banks
+WTBA,Finance,Major Banks
+WABC,Finance,Major Banks
+WSTL,Public Utilities,Telecommunications Equipment
+WINC,n/a,n/a
+WBND,n/a,n/a
+WDC,Technology,Electronic Components
+WNEB,Finance,Savings Institutions
+WPRT,Energy,Industrial Machinery/Components
+WWR,Basic Industries,Precious Metals
+WEYS,Consumer Non-Durables,Apparel
+WHLR,Consumer Services,Real Estate Investment Trusts
+WHLRD,Consumer Services,Real Estate Investment Trusts
+WHLRP,Consumer Services,Real Estate Investment Trusts
+WHLRW,Consumer Services,Real Estate Investment Trusts
+WHF,n/a,n/a
+WHFBZ,n/a,n/a
+WHLM,Consumer Services,Professional Services
+WVVI,Consumer Non-Durables,Beverages (Production/Distribution)
+WVVIP,Consumer Non-Durables,Beverages (Production/Distribution)
+WLDN,Consumer Services,Military/Government/Technical
+WLFC,Consumer Durables,Industrial Specialties
+WLTW,Finance,Specialty Insurers
+WSC,n/a,n/a
+WIN,Public Utilities,Telecommunications Equipment
+WING,Consumer Services,Restaurants
+WINA,Consumer Services,Other Specialty Stores
+WINS,Finance,Finance: Consumer Services
+WTFC,Finance,Major Banks
+WTFCM,Finance,Major Banks
+AGND,n/a,n/a
+CXSE,n/a,n/a
+EMCG,n/a,n/a
+EMCB,n/a,n/a
+DGRE,n/a,n/a
+DXGE,n/a,n/a
+HYZD,n/a,n/a
+AGZD,n/a,n/a
+WETF,Finance,Investment Bankers/Brokers/Service
+DXJS,n/a,n/a
+GULF,n/a,n/a
+HYND,n/a,n/a
+DGRW,n/a,n/a
+DGRS,n/a,n/a
+WIX,Technology,"Computer Software: Programming, Data Processing"
+WWD,Energy,Industrial Machinery/Components
+WDAY,Technology,EDP Services
+WKHS,Capital Goods,Auto Manufacturing
+WRLD,Finance,Finance: Consumer Services
+WRTC,Capital Goods,Ordnance And Accessories
+WMGI,Health Care,Industrial Specialties
+WMGIZ,Health Care,Industrial Specialties
+WSFS,Finance,Major Banks
+WVFC,Finance,Banks
+WYNN,Consumer Services,Hotels/Resorts
+XBIT,Health Care,Major Pharmaceuticals
+XELB,Miscellaneous,Multi-Sector Companies
+XEL,Public Utilities,Power Generation
+XNCR,Health Care,Major Pharmaceuticals
+XBIO,Health Care,Major Pharmaceuticals
+XENE,Health Care,Major Pharmaceuticals
+XERS,Health Care,Major Pharmaceuticals
+XGTI,Consumer Durables,Telecommunications Equipment
+XLNX,Technology,Semiconductors
+XOMA,Health Care,Major Pharmaceuticals
+XPER,Technology,Semiconductors
+XSPA,Consumer Services,Other Consumer Services
+XTLB,Health Care,Major Pharmaceuticals
+XNET,Technology,Computer Software: Prepackaged Software
+YNDX,Technology,"Computer Software: Programming, Data Processing"
+YRIV,Finance,Real Estate
+YTRA,Consumer Services,Transportation Services
+YTEN,Basic Industries,Containers/Packaging
+YIN,Finance,Investment Bankers/Brokers/Service
+YMAB,Health Care,Major Pharmaceuticals
+YOGA,Consumer Services,Other Consumer Services
+YGYI,Consumer Services,Catalog/Specialty Distribution
+YRCW,Transportation,Trucking Freight/Courier Services
+YY,Technology,EDP Services
+ZFGN,Health Care,Major Pharmaceuticals
+ZAGG,Consumer Services,Other Specialty Stores
+ZLAB,Health Care,Major Pharmaceuticals
+ZEAL,Health Care,Major Pharmaceuticals
+ZBRA,Technology,Industrial Machinery/Components
+Z,Miscellaneous,Business Services
+ZG,Miscellaneous,Business Services
+ZN,Energy,Oil & Gas Production
+ZNWAA,Energy,Oil & Gas Production
+ZION,Finance,Major Banks
+ZIONW,Finance,Major Banks
+ZIOP,Health Care,Major Pharmaceuticals
+ZIXI,Technology,EDP Services
+ZKIN,Capital Goods,Metal Fabrications
+ZGNX,Health Care,Major Pharmaceuticals
+ZSAN,Health Care,Major Pharmaceuticals
+ZS,Technology,EDP Services
+ZUMZ,Consumer Services,Clothing/Shoe/Accessory Stores
+ZYNE,Health Care,Major Pharmaceuticals
+ZYXI,Health Care,Biotechnology: Electromedical & Electrotherapeutic Apparatus
+ZNGA,Technology,EDP Services
