@@ -1,157 +1,171 @@
 #!/usr/bin/env python3
 """
-FastAPI Backend with FULL ML Support via Docker
+FastAPI Backend with FULL ML Support and CSV Loading
 """
 
 import os
-import sys
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+import glob
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
-from typing import Optional, Dict, Any, List
 import pandas as pd
 import numpy as np
 import yfinance as yf
-from datetime import datetime, timedelta
-import json
-import asyncio
+from datetime import datetime
 import logging
 
-# Import your ACTUAL ML model
-try:
-    from quant_model import QuantFinanceMLModel, MarketConditionsAnalyzer, EnhancedValuation
-    ML_AVAILABLE = True
-    print("✅ ML Models loaded successfully!")
-except ImportError as e:
-    print(f"⚠️ ML Models not available: {e}")
-    ML_AVAILABLE = False
+# Import your FULL ML model
+from quant_model import QuantFinanceMLModel, MarketConditionsAnalyzer, EnhancedValuation
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+app = FastAPI(title="AutoAnalyst API - Full Version", version="2.0.0")
 
-app = FastAPI(title="AutoAnalyst API - Full ML Version", version="2.0.0")
-
-# Configure CORS
+# CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "https://autoanalyst.onrender.com",
-        "https://*.onrender.com",
-        "*"
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Initialize ML models if available
-if ML_AVAILABLE:
-    ml_model = QuantFinanceMLModel()
-    market_analyzer = MarketConditionsAnalyzer()
-    valuator = EnhancedValuation()
-    logger.info("ML models initialized successfully")
-else:
-    # Fallback mock models
-    class MockModel:
-        def predict_stocks(self, sector):
-            return {"prediction": "mock", "confidence": 0.75}
-    
-    ml_model = MockModel()
-    market_analyzer = None
-    valuator = None
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# Load your CSV data
-def load_stock_data():
-    try:
-        # Try to load from data folder
-        csv_files = [f for f in os.listdir('data') if f.endswith('.csv')]
-        if csv_files:
-            df = pd.read_csv(f'data/{csv_files[0]}')
-            logger.info(f"Loaded {len(df)} stocks from {csv_files[0]}")
-            return df
-    except:
-        pass
-    
-    # Fallback to sample data
-    sample_stocks = {
-        'Symbol': ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA'],
-        'GICS Sector': ['Technology', 'Technology', 'Technology', 'Consumer Discretionary', 
-                        'Technology', 'Technology', 'Consumer Discretionary'],
-        'GICS Sub-Industry': ['Hardware', 'Software', 'Internet', 'E-Commerce', 
-                              'Semiconductors', 'Social Media', 'Automobiles']
-    }
-    return pd.DataFrame(sample_stocks)
+# Initialize ML models
+ml_model = QuantFinanceMLModel()
+market_analyzer = MarketConditionsAnalyzer()
+valuator = EnhancedValuation()
 
-stocks_data = load_stock_data()
+# Global storage for CSV data
+stocks_data = None
+
+def load_csv_files():
+    """Load all CSV files from data directory"""
+    global stocks_data
+    
+    data_dir = "/app/data" if os.path.exists("/app/data") else "./data"
+    
+    # Create data directory if it doesn't exist
+    os.makedirs(data_dir, exist_ok=True)
+    
+    # Find all CSV files
+    csv_files = glob.glob(f"{data_dir}/*.csv")
+    
+    if csv_files:
+        # Load and combine all CSV files
+        dfs = []
+        for file in csv_files:
+            try:
+                df = pd.read_csv(file)
+                dfs.append(df)
+                logger.info(f"Loaded {len(df)} stocks from {file}")
+            except Exception as e:
+                logger.error(f"Error loading {file}: {e}")
+        
+        if dfs:
+            stocks_data = pd.concat(dfs, ignore_index=True)
+            logger.info(f"Total stocks loaded: {len(stocks_data)}")
+            return True
+    
+    # If no CSV files, create sample data
+    logger.warning("No CSV files found, creating sample data")
+    stocks_data = pd.DataFrame({
+        'Symbol': ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA'],
+        'GICS Sector': ['Technology'] * 5,
+        'GICS Sub-Industry': ['Hardware', 'Software', 'Internet', 'E-Commerce', 'Semiconductors']
+    })
+    return False
+
+# Load CSV files on startup
+csv_loaded = load_csv_files()
+
+@app.on_event("startup")
+async def startup_event():
+    """Load data on startup"""
+    load_csv_files()
+    logger.info("AutoAnalyst API started with full ML support")
+    logger.info(f"CSV data loaded: {csv_loaded}")
+    logger.info(f"Total stocks available: {len(stocks_data) if stocks_data is not None else 0}")
 
 @app.get("/")
 async def root():
     return {
         "name": "AutoAnalyst API",
         "version": "2.0.0",
-        "ml_enabled": ML_AVAILABLE,
-        "status": "running",
-        "models": {
-            "ml_model": "QuantFinanceMLModel" if ML_AVAILABLE else "Mock",
-            "market_analyzer": "MarketConditionsAnalyzer" if ML_AVAILABLE else "Mock",
-            "valuator": "EnhancedValuation" if ML_AVAILABLE else "Mock"
-        }
+        "ml_enabled": True,
+        "csv_loaded": csv_loaded,
+        "total_stocks": len(stocks_data) if stocks_data is not None else 0,
+        "status": "running"
     }
 
-@app.get("/api/health")
-async def health_check():
+@app.post("/api/upload-csv")
+async def upload_csv(file: UploadFile = File(...)):
+    """Upload new CSV file"""
+    try:
+        contents = await file.read()
+        df = pd.read_csv(pd.io.common.BytesIO(contents))
+        
+        # Save to data directory
+        data_dir = "/app/data" if os.path.exists("/app/data") else "./data"
+        file_path = f"{data_dir}/{file.filename}"
+        
+        with open(file_path, "wb") as f:
+            f.write(contents)
+        
+        # Reload all data
+        load_csv_files()
+        
+        return {
+            "status": "success",
+            "filename": file.filename,
+            "rows": len(df),
+            "total_stocks": len(stocks_data)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/api/stocks/list")
+async def get_stocks_list():
+    if stocks_data is None or len(stocks_data) == 0:
+        return {
+            "sectors": [],
+            "sub_industries": [],
+            "total_stocks": 0,
+            "error": "No data loaded"
+        }
+    
     return {
-        "status": "healthy",
-        "ml_available": ML_AVAILABLE,
-        "timestamp": datetime.now().isoformat()
+        "sectors": stocks_data['GICS Sector'].unique().tolist() if 'GICS Sector' in stocks_data.columns else [],
+        "sub_industries": stocks_data['GICS Sub-Industry'].unique().tolist() if 'GICS Sub-Industry' in stocks_data.columns else [],
+        "total_stocks": len(stocks_data),
+        "csv_files_loaded": csv_loaded
     }
 
 @app.get("/api/market-conditions")
 async def get_market_conditions():
+    """Get market conditions using your ML model"""
     try:
-        if ML_AVAILABLE and market_analyzer:
-            # Use real ML model
-            regime = market_analyzer.get_market_regime()
-            fed_data = market_analyzer.get_federal_reserve_stance()
-            yield_curve = market_analyzer.analyze_yield_curve()
-            economic_data = market_analyzer.fetch_economic_data()
-            
-            return {
-                "regime": regime,
-                "fed_stance": fed_data.get("stance", "Neutral"),
-                "vix": economic_data.get("Volatility Index", {}).get("current", 20),
-                "recession_risk": yield_curve.get("recession_risk", "Medium"),
-                "yield_curve": yield_curve.get("curve_shape", "Normal"),
-                "ml_powered": True
-            }
-        else:
-            # Fallback to basic yfinance data
-            vix = yf.Ticker("^VIX")
-            vix_data = vix.history(period="1d")
-            current_vix = float(vix_data['Close'].iloc[-1]) if len(vix_data) > 0 else 20
-            
-            return {
-                "regime": "Neutral",
-                "fed_stance": "Neutral",
-                "vix": current_vix,
-                "recession_risk": "Low" if current_vix < 20 else "Medium",
-                "ml_powered": False
-            }
+        regime = market_analyzer.get_market_regime()
+        fed_data = market_analyzer.get_federal_reserve_stance()
+        yield_curve = market_analyzer.analyze_yield_curve()
+        economic_data = market_analyzer.fetch_economic_data()
+        
+        return {
+            "regime": regime,
+            "fed_stance": fed_data.get("stance"),
+            "vix": economic_data.get("Volatility Index", {}).get("current", 20),
+            "recession_risk": yield_curve.get("recession_risk"),
+            "ml_powered": True
+        }
     except Exception as e:
         logger.error(f"Market conditions error: {e}")
-        return {"regime": "Unknown", "fed_stance": "Neutral", "vix": 20, "recession_risk": "Medium"}
-
-@app.get("/api/stocks/list")
-async def get_stocks_list():
-    return {
-        "sectors": stocks_data['GICS Sector'].unique().tolist(),
-        "sub_industries": stocks_data['GICS Sub-Industry'].unique().tolist(),
-        "total_stocks": len(stocks_data),
-        "ml_enabled": ML_AVAILABLE
-    }
+        return {
+            "regime": "Neutral",
+            "fed_stance": "Neutral",
+            "vix": 20,
+            "recession_risk": "Low",
+            "ml_powered": False
+        }
 
 class AnalysisRequest(BaseModel):
     analysis_type: str
@@ -159,56 +173,67 @@ class AnalysisRequest(BaseModel):
 
 @app.post("/api/analysis")
 async def run_analysis(request: AnalysisRequest):
+    """Run full ML analysis using your model"""
     try:
+        if stocks_data is None or len(stocks_data) == 0:
+            raise HTTPException(status_code=400, detail="No stock data loaded")
+        
         # Filter stocks based on request
         if request.analysis_type == "sector":
             filtered = stocks_data[stocks_data['GICS Sector'] == request.target]
         else:
             filtered = stocks_data[stocks_data['GICS Sub-Industry'] == request.target]
         
-        if ML_AVAILABLE and ml_model:
-            # USE YOUR REAL ML MODEL
-            logger.info(f"Running ML analysis for {request.target}")
+        if len(filtered) == 0:
+            raise HTTPException(status_code=404, detail=f"No stocks found for {request.target}")
+        
+        # Run your ACTUAL ML model
+        results = []
+        for _, stock in filtered.iterrows():
+            symbol = stock['Symbol']
             
-            # Call your actual model methods
-            predictions = ml_model.predict_stocks(filtered['Symbol'].tolist())
-            market_conditions = market_analyzer.analyze_sector_conditions(request.target)
+            # Use your real ML model methods
+            ml_result = ml_model.analyze_stock(symbol)
+            sentiment = ml_model.get_sentiment_score(symbol)
+            valuation = valuator.calculate_intrinsic_value(symbol)
             
-            # Get top 3 predictions
-            top_stocks = []
-            for symbol in filtered['Symbol'].head(3):
-                # Run your actual ML prediction
-                ml_score = ml_model.calculate_ml_score(symbol)
-                sentiment = ml_model.get_sentiment_score(symbol)
-                target_price = valuator.calculate_intrinsic_value(symbol)
-                
-                top_stocks.append({
-                    "symbol": symbol,
-                    "metrics": {
-                        "current_price": ml_model.get_current_price(symbol),
-                        "target_price": target_price,
-                        "upside_potential": ((target_price / ml_model.get_current_price(symbol)) - 1) * 100,
-                        "confidence_score": ml_score * 100,
-                        "sentiment_score": sentiment,
-                        "ml_score": ml_score
-                    }
-                })
-            
-            return {
-                "status": "completed",
-                "ml_powered": True,
-                "analysis_type": request.analysis_type,
-                "target": request.target,
-                "results": {
-                    "top_stocks": top_stocks,
-                    "market_conditions": market_conditions
+            results.append({
+                "symbol": symbol,
+                "ml_score": ml_result['score'],
+                "target_price": valuation['target'],
+                "sentiment": sentiment
+            })
+        
+        # Sort by ML score and get top 3
+        results.sort(key=lambda x: x['ml_score'], reverse=True)
+        top_3 = results[:3]
+        
+        # Format response
+        top_stocks = []
+        for stock in top_3:
+            top_stocks.append({
+                "symbol": stock['symbol'],
+                "metrics": {
+                    "current_price": ml_model.get_current_price(stock['symbol']),
+                    "target_price": stock['target_price'],
+                    "upside_potential": ((stock['target_price'] / ml_model.get_current_price(stock['symbol'])) - 1) * 100,
+                    "confidence_score": int(stock['ml_score'] * 100),
+                    "sentiment_score": stock['sentiment'],
+                    "ml_score": stock['ml_score']
                 }
-            }
-        else:
-            # Fallback without ML
-            logger.warning("ML not available, using basic analysis")
-            # ... basic analysis code ...
-            
+            })
+        
+        return {
+            "status": "completed",
+            "analysis_type": request.analysis_type,
+            "target": request.target,
+            "results": {
+                "top_stocks": top_stocks,
+                "market_conditions": market_analyzer.analyze_sector_conditions(request.target)
+            },
+            "ml_powered": True
+        }
+        
     except Exception as e:
         logger.error(f"Analysis error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -216,6 +241,4 @@ async def run_analysis(request: AnalysisRequest):
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))
-    logger.info(f"Starting server on port {port}")
-    logger.info(f"ML Available: {ML_AVAILABLE}")
     uvicorn.run(app, host="0.0.0.0", port=port)
