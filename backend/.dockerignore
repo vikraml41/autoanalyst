@@ -1,3 +1,4 @@
+# backend/.dockerignore
 venv/
 env/
 __pycache__/
@@ -15,3 +16,9 @@ build/
 Miniforge3.sh
 Miniconda3*.sh
 *.log
+.git/
+.gitignore
+README.md
+*.md
+.vscode/
+.idea/
