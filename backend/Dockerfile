@@ -1,24 +1,38 @@
-# Use official Jupyter image with scipy pre-installed
-FROM jupyter/scipy-notebook:python-3.9.13
+# Use official Python image instead of jupyter to avoid conflicts
+FROM python:3.9-slim
 
-# Switch to root to install packages
-USER root
-
-# Set working directory
-WORKDIR /app
-
-# Install system dependencies if needed
+# Install system dependencies for scipy/sklearn
 RUN apt-get update && apt-get install -y \
     gcc \
+    g++ \
+    gfortran \
+    libopenblas-dev \
+    liblapack-dev \
+    pkg-config \
+    python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
-COPY requirements.txt .
+WORKDIR /app
 
-# Install additional packages (scipy/sklearn already in base image!)
+# Upgrade pip
+RUN pip install --upgrade pip
+
+# Install scipy and sklearn FIRST (most likely to fail)
+RUN pip install --no-cache-dir numpy==1.24.3
+RUN pip install --no-cache-dir scipy==1.10.1
+RUN pip install --no-cache-dir scikit-learn==1.3.0
+
+# Install pandas
+RUN pip install --no-cache-dir pandas==2.1.3
+
+# Install FastAPI with specific anyio version to avoid conflicts
 RUN pip install --no-cache-dir \
-    fastapi \
-    uvicorn[standard] \
+    "anyio<4.0.0,>=3.1.0" \
+    fastapi==0.104.1 \
+    "uvicorn[standard]==0.24.0"
+
+# Install other packages
+RUN pip install --no-cache-dir \
     yfinance \
     beautifulsoup4 \
     textblob \
@@ -30,19 +44,12 @@ RUN pip install --no-cache-dir \
     matplotlib \
     seaborn
 
-# Copy all your backend files
+# Copy application files
 COPY . .
 
-# Create data directory for CSV files
+# Create data directory
 RUN mkdir -p /app/data
 
-# Set permissions
-RUN chown -R jovyan:users /app
-
-# Switch back to non-root user
-USER jovyan
-
-# Expose port
 EXPOSE 8000
 
 # Run the application
