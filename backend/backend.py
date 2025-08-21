@@ -152,20 +152,55 @@ async def health_check():
 @app.get("/api/stocks/list")
 async def get_stocks_list():
     """Get list of available stocks, sectors, and sub-industries"""
-    if stocks_data is None or len(stocks_data) == 0:
+    try:
+        if stocks_data is None:
+            logger.error("stocks_data is None!")
+            return {
+                "sectors": [],
+                "sub_industries": [],
+                "total_stocks": 0,
+                "error": "No data loaded - stocks_data is None"
+            }
+        
+        if len(stocks_data) == 0:
+            logger.error("stocks_data is empty!")
+            return {
+                "sectors": [],
+                "sub_industries": [],
+                "total_stocks": 0,
+                "error": "No data loaded - stocks_data is empty"
+            }
+        
+        # Safely check for columns
+        sectors = []
+        sub_industries = []
+        symbols = []
+        
+        if 'GICS Sector' in stocks_data.columns:
+            sectors = stocks_data['GICS Sector'].unique().tolist()
+        
+        if 'GICS Sub-Industry' in stocks_data.columns:
+            sub_industries = stocks_data['GICS Sub-Industry'].unique().tolist()
+        
+        if 'Symbol' in stocks_data.columns:
+            symbols = stocks_data['Symbol'].tolist()
+        
+        return {
+            "sectors": sectors,
+            "sub_industries": sub_industries,
+            "total_stocks": len(stocks_data),
+            "symbols": symbols,
+            "columns_available": stocks_data.columns.tolist()
+        }
+    except Exception as e:
+        logger.error(f"Error in get_stocks_list: {str(e)}")
         return {
             "sectors": [],
             "sub_industries": [],
             "total_stocks": 0,
-            "error": "No data loaded"
+            "error": f"Exception: {str(e)}"
         }
     
-    return {
-        "sectors": stocks_data['GICS Sector'].unique().tolist() if 'GICS Sector' in stocks_data.columns else [],
-        "sub_industries": stocks_data['GICS Sub-Industry'].unique().tolist() if 'GICS Sub-Industry' in stocks_data.columns else [],
-        "total_stocks": len(stocks_data),
-        "csv_files_loaded": csv_loaded
-    }
 
 @app.get("/api/market-conditions")
 async def get_market_conditions():
