@@ -47,6 +47,11 @@ RUN pip install --no-cache-dir \
 # Copy application files
 COPY . .
 
+# Debug: List what was copied
+RUN echo "=== Contents of /app ===" && ls -la /app/
+RUN echo "=== Contents of /app/data (if exists) ===" && ls -la /app/data/ 2>/dev/null || echo "No /app/data directory"
+RUN echo "=== Looking for CSV files ===" && find /app -name "*.csv" -type f 2>/dev/null || echo "No CSV files found"
+
 # Create data directory
 RUN mkdir -p /app/data
 
