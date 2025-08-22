@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Terminal, Database, Download, Loader2, Cpu, Signal } from 'lucide-react';
 
-const API_URL = 'http://localhost:8000';
+const API_URL = window.location.hostname === 'localhost' 
+  ? 'http://localhost:8000'
+  : 'https://autoanalyst-dz11.onrender.com';  // Replace with YOUR backend URL
 
 export default function App() {
   const [dataLoaded, setDataLoaded] = useState(false);
