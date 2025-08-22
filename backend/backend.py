@@ -18,6 +18,15 @@ import numpy as np
 import yfinance as yf
 from datetime import datetime
 
+print("=== DEBUG: Current directory:", os.getcwd())
+print("=== DEBUG: Files in current directory:", os.listdir('.'))
+if os.path.exists('data'):
+    print("=== DEBUG: Files in data/:", os.listdir('data'))
+else:
+    print("=== DEBUG: No data/ directory found")
+
+
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
