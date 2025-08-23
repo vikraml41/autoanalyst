@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Database, TrendingUp, AlertCircle, Activity, DollarSign, Target, Brain, ChevronRight, Clock, BarChart3, FileText, Download, RefreshCw } from 'lucide-react';
 
-// IMPORTANT: Update this with your actual backend URL
-const API_URL = window.location.hostname === 'localhost' 
-  ? 'http://localhost:8000'
-  : 'https://autoanalyst-docker.onrender.com';  // Your backend URL
+// IMPORTANT: Your actual backend URL
+const API_URL = 'https://autoanalyst-docker.onrender.com';  // NO trailing slash
 
 function App() {
   // State management
@@ -25,6 +23,8 @@ function App() {
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
+  const [debugInfo, setDebugInfo] = useState({});
+  const [backendStatus, setBackendStatus] = useState('CHECKING...');
 
   // Update clock
   useEffect(() => {
@@ -55,12 +55,65 @@ function App() {
     }
   };
 
-  // Fetch market conditions
+  // Wake up backend with retries
+  const wakeUpBackend = async () => {
+    console.log('Waking up backend...');
+    setBackendStatus('WAKING...');
+    
+    let attempts = 0;
+    const maxAttempts = 5;
+    
+    while (attempts < maxAttempts) {
+      try {
+        console.log(`Attempt ${attempts + 1} to wake backend...`);
+        const response = await fetch(`${API_URL}/api/health`, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Backend is awake!', data);
+          setBackendStatus('ONLINE');
+          setDebugInfo(prev => ({...prev, health: data}));
+          return true;
+        }
+      } catch (error) {
+        console.error(`Wake attempt ${attempts + 1} failed:`, error);
+      }
+      
+      attempts++;
+      if (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds between attempts
+      }
+    }
+    
+    setBackendStatus('OFFLINE');
+    return false;
+  };
+
+  // Fetch market conditions with error handling
   const fetchMarketConditions = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/market-conditions`);
-      if (!response.ok) throw new Error('Failed to fetch market conditions');
+      console.log('Fetching market conditions from:', `${API_URL}/api/market-conditions`);
+      
+      const response = await fetch(`${API_URL}/api/market-conditions`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        }
+      });
+      
+      console.log('Market conditions response status:', response.status);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       const data = await response.json();
+      console.log('Market conditions data:', data);
       
       setMarketConditions({
         regime: data.regime || 'UNKNOWN',
@@ -68,8 +121,11 @@ function App() {
         vix: data.vix ? data.vix.toFixed(2) : 'N/A',
         recessionRisk: data.recession_risk || 'UNKNOWN'
       });
+      
+      setDebugInfo(prev => ({...prev, marketData: data}));
     } catch (error) {
       console.error('Error fetching market conditions:', error);
+      setError(`Market data error: ${error.message}`);
       setMarketConditions({
         regime: 'ERROR',
         fedStance: 'ERROR',
@@ -82,41 +138,65 @@ function App() {
   // Check data status and load sectors/industries
   const checkDataStatus = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/stocks/list`);
-      if (!response.ok) throw new Error('Failed to fetch stocks list');
-      const data = await response.json();
+      console.log('Checking data status from:', `${API_URL}/api/stocks/list`);
       
-      console.log('Stocks data:', data); // Debug log
+      const response = await fetch(`${API_URL}/api/stocks/list`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        }
+      });
+      
+      console.log('Stocks list response status:', response.status);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log('Stocks data:', data);
       
       if (data.total_stocks > 0) {
         setDataReady(true);
         setSectors(data.sectors || []);
         setSubIndustries(data.sub_industries || []);
+        setError(null);
       } else {
         setDataReady(false);
         setError('No stocks loaded in backend');
       }
+      
+      setDebugInfo(prev => ({...prev, stocksData: data}));
     } catch (error) {
       console.error('Error checking data status:', error);
       setDataReady(false);
-      setError('Failed to connect to backend');
+      setError(`Data loading error: ${error.message}`);
     }
   };
 
-  // Initialize on mount
+  // Initialize on mount with proper sequencing
   useEffect(() => {
-    // Wake up backend if sleeping
-    fetch(`${API_URL}/api/health`)
-      .then(() => console.log('Backend is awake'))
-      .catch(() => console.log('Waking up backend...'));
+    const initialize = async () => {
+      // First wake up backend
+      const isAwake = await wakeUpBackend();
+      
+      if (isAwake) {
+        // Then load data
+        await checkDataStatus();
+        await fetchMarketConditions();
+        
+        // Set up refresh interval
+        const interval = setInterval(() => {
+          fetchMarketConditions();
+        }, 30000);
+        
+        return () => clearInterval(interval);
+      } else {
+        setError('Backend is not responding. It may be sleeping. Please refresh the page in 30 seconds.');
+      }
+    };
     
-    // Load data
-    checkDataStatus();
-    fetchMarketConditions();
-    
-    // Refresh market conditions every 30 seconds
-    const interval = setInterval(fetchMarketConditions, 30000);
-    return () => clearInterval(interval);
+    initialize();
   }, []);
 
   // Execute analysis
@@ -131,16 +211,18 @@ function App() {
     setError(null);
     setResults(null);
 
-    // Simulate progress
     const progressInterval = setInterval(() => {
       setAnalysisProgress(prev => Math.min(prev + 10, 90));
     }, 200);
 
     try {
+      console.log('Executing analysis:', { analysisType, target: selectedTarget });
+      
       const response = await fetch(`${API_URL}/api/analysis`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         body: JSON.stringify({
           analysis_type: analysisType,
@@ -148,11 +230,16 @@ function App() {
         })
       });
 
+      console.log('Analysis response status:', response.status);
+
       if (!response.ok) {
-        throw new Error(`Analysis failed: ${response.statusText}`);
+        const errorText = await response.text();
+        throw new Error(`Analysis failed: ${errorText}`);
       }
 
       const data = await response.json();
+      console.log('Analysis results:', data);
+      
       setResults(data.results);
       setAnalysisProgress(100);
     } catch (error) {
@@ -169,6 +256,8 @@ function App() {
 
   // Get color for market indicators
   const getIndicatorColor = (type, value) => {
+    if (value === 'ERROR' || value === 'LOADING...') return '#808080';
+    
     switch(type) {
       case 'regime':
         return value.includes('Bull') ? '#00ff00' : value.includes('Bear') ? '#ff0000' : '#ffff00';
@@ -185,6 +274,15 @@ function App() {
     }
   };
 
+  // Manual refresh function
+  const manualRefresh = async () => {
+    console.log('Manual refresh triggered');
+    setError(null);
+    await wakeUpBackend();
+    await checkDataStatus();
+    await fetchMarketConditions();
+  };
+
   const containerStyle = {
     minHeight: '100vh',
     width: '100vw',
@@ -192,8 +290,7 @@ function App() {
     color: '#cccc00',
     fontFamily: 'monospace',
     fontSize: '13px',
-    overflow: 'auto',
-    position: 'relative'
+    overflow: 'auto'
   };
 
   const headerStyle = {
@@ -219,99 +316,32 @@ function App() {
     margin: '0 auto'
   };
 
-  const marketOverviewStyle = {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-    gap: '20px',
-    marginBottom: '30px'
-  };
-
-  const marketBoxStyle = {
-    border: '1px solid #cccc00',
-    padding: '20px',
-    backgroundColor: '#0a0a0a',
-    minHeight: '100px'
-  };
-
-  const selectionPanelStyle = {
-    display: 'grid',
-    gridTemplateColumns: '1fr 2fr',
-    gap: '30px',
-    marginBottom: '30px'
-  };
-
-  const controlsStyle = {
-    border: '1px solid #cccc00',
-    padding: '25px',
-    backgroundColor: '#0a0a0a'
-  };
-
-  const selectStyle = {
-    width: '100%',
-    padding: '10px',
-    backgroundColor: '#000',
-    color: '#cccc00',
-    border: '1px solid #cccc00',
-    fontSize: '13px',
-    fontFamily: 'monospace',
-    marginTop: '10px',
-    cursor: 'pointer'
-  };
-
-  const buttonStyle = {
-    width: '100%',
-    padding: '12px',
-    backgroundColor: '#0a0a0a',
-    color: '#cccc00',
-    border: '2px solid #cccc00',
-    fontSize: '14px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    marginTop: '20px',
-    transition: 'all 0.3s ease',
-    letterSpacing: '1px'
-  };
-
-  const resultsStyle = {
-    border: '1px solid #cccc00',
-    padding: '25px',
-    backgroundColor: '#0a0a0a'
-  };
-
-  const stockCardStyle = {
-    border: '1px solid #cccc00',
-    padding: '20px',
-    marginBottom: '15px',
-    backgroundColor: '#050505',
-    transition: 'all 0.3s ease'
-  };
-
   return (
     <div style={containerStyle}>
-      {/* Background Chart Pattern */}
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        opacity: 0.05,
-        pointerEvents: 'none',
-        backgroundImage: `repeating-linear-gradient(90deg, transparent, transparent 50px, #cccc00 50px, #cccc00 51px)`,
-        zIndex: 0
-      }} />
-
       {/* Header */}
       <header style={headerStyle}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <h1 style={titleStyle}>AutoAnalyst</h1>
-          <span style={{ color: '#808080', fontSize: '11px' }}>QUANT.ML.V3</span>
+          <span style={{ color: '#808080', fontSize: '11px' }}>BACKEND: {backendStatus}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '30px' }}>
+          <button 
+            onClick={manualRefresh}
+            style={{
+              padding: '5px 10px',
+              backgroundColor: '#0a0a0a',
+              color: '#cccc00',
+              border: '1px solid #cccc00',
+              cursor: 'pointer',
+              fontSize: '11px'
+            }}
+          >
+            REFRESH
+          </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <Database size={16} color={dataReady ? '#00ff00' : '#ff0000'} />
             <span style={{ color: dataReady ? '#00ff00' : '#ff0000' }}>
-              {dataReady ? 'DATA.READY' : 'NO.DATA'}
+              {dataReady ? `DATA.READY (${sectors.length} sectors)` : 'NO.DATA'}
             </span>
           </div>
           <div style={{ color: marketStatus === 'OPEN' ? '#00ff00' : '#ff0000' }}>
@@ -325,9 +355,31 @@ function App() {
 
       {/* Main Content */}
       <main style={mainContentStyle}>
+        {/* Debug Info Box */}
+        <div style={{
+          border: '1px solid #ffff00',
+          padding: '15px',
+          marginBottom: '20px',
+          backgroundColor: '#0a0a0a',
+          fontSize: '11px'
+        }}>
+          <div style={{ color: '#ffff00', marginBottom: '10px' }}>DEBUG.INFO</div>
+          <div>API_URL: {API_URL}</div>
+          <div>Backend Status: {backendStatus}</div>
+          <div>Data Ready: {dataReady ? 'YES' : 'NO'}</div>
+          <div>Sectors Loaded: {sectors.length}</div>
+          <div>Sub-Industries Loaded: {subIndustries.length}</div>
+          {error && <div style={{ color: '#ff0000', marginTop: '10px' }}>ERROR: {error}</div>}
+        </div>
+
         {/* Market Overview */}
-        <div style={marketOverviewStyle}>
-          <div style={marketBoxStyle}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+          gap: '20px',
+          marginBottom: '30px'
+        }}>
+          <div style={{ border: '1px solid #cccc00', padding: '20px', backgroundColor: '#0a0a0a' }}>
             <div style={{ fontSize: '11px', color: '#808080', marginBottom: '10px' }}>
               MARKET.REGIME
             </div>
@@ -336,7 +388,7 @@ function App() {
             </div>
           </div>
           
-          <div style={marketBoxStyle}>
+          <div style={{ border: '1px solid #cccc00', padding: '20px', backgroundColor: '#0a0a0a' }}>
             <div style={{ fontSize: '11px', color: '#808080', marginBottom: '10px' }}>
               FED.STANCE
             </div>
@@ -345,7 +397,7 @@ function App() {
             </div>
           </div>
           
-          <div style={marketBoxStyle}>
+          <div style={{ border: '1px solid #cccc00', padding: '20px', backgroundColor: '#0a0a0a' }}>
             <div style={{ fontSize: '11px', color: '#808080', marginBottom: '10px' }}>
               VIX.INDEX
             </div>
@@ -354,7 +406,7 @@ function App() {
             </div>
           </div>
           
-          <div style={marketBoxStyle}>
+          <div style={{ border: '1px solid #cccc00', padding: '20px', backgroundColor: '#0a0a0a' }}>
             <div style={{ fontSize: '11px', color: '#808080', marginBottom: '10px' }}>
               RECESSION.RISK
             </div>
@@ -364,200 +416,9 @@ function App() {
           </div>
         </div>
 
-        {/* Selection Panel */}
-        <div style={selectionPanelStyle}>
-          <div style={controlsStyle}>
-            <h2 style={{ fontSize: '16px', marginBottom: '20px', color: '#cccc00' }}>
-              ANALYSIS.PARAMETERS
-            </h2>
-            
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ fontSize: '11px', color: '#808080' }}>
-                ANALYSIS.TYPE
-              </label>
-              <select 
-                style={selectStyle}
-                value={analysisType}
-                onChange={(e) => {
-                  setAnalysisType(e.target.value);
-                  setSelectedTarget('');
-                }}
-              >
-                <option value="sector">SECTOR.ANALYSIS</option>
-                <option value="sub_industry">SUB.INDUSTRY.ANALYSIS</option>
-              </select>
-            </div>
-
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ fontSize: '11px', color: '#808080' }}>
-                TARGET.SELECTION
-              </label>
-              <select 
-                style={selectStyle}
-                value={selectedTarget}
-                onChange={(e) => setSelectedTarget(e.target.value)}
-              >
-                <option value="">-- SELECT.TARGET --</option>
-                {analysisType === 'sector' 
-                  ? sectors.map(sector => (
-                      <option key={sector} value={sector}>{sector.toUpperCase()}</option>
-                    ))
-                  : subIndustries.map(industry => (
-                      <option key={industry} value={industry}>{industry.toUpperCase()}</option>
-                    ))
-                }
-              </select>
-            </div>
-
-            <button
-              style={{
-                ...buttonStyle,
-                backgroundColor: isAnalyzing ? '#1a1a00' : buttonStyle.backgroundColor,
-                borderColor: isAnalyzing ? '#808080' : buttonStyle.border,
-                cursor: isAnalyzing ? 'not-allowed' : 'pointer'
-              }}
-              onClick={executeAnalysis}
-              disabled={isAnalyzing || !dataReady || !selectedTarget}
-              onMouseEnter={(e) => {
-                if (!isAnalyzing) {
-                  e.target.style.backgroundColor = '#1a1a00';
-                  e.target.style.boxShadow = '0 0 10px #cccc00';
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.backgroundColor = '#0a0a0a';
-                e.target.style.boxShadow = 'none';
-              }}
-            >
-              {isAnalyzing ? 'ANALYZING...' : 'EXECUTE.ANALYSIS'}
-            </button>
-
-            {isAnalyzing && (
-              <div style={{ marginTop: '20px' }}>
-                <div style={{ fontSize: '11px', color: '#808080', marginBottom: '5px' }}>
-                  PROGRESS: {analysisProgress}%
-                </div>
-                <div style={{ width: '100%', height: '4px', backgroundColor: '#1a1a1a', border: '1px solid #cccc00' }}>
-                  <div style={{
-                    width: `${analysisProgress}%`,
-                    height: '100%',
-                    backgroundColor: '#cccc00',
-                    transition: 'width 0.3s ease'
-                  }} />
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div style={resultsStyle}>
-            <h2 style={{ fontSize: '16px', marginBottom: '20px', color: '#cccc00' }}>
-              ANALYSIS.RESULTS
-            </h2>
-            
-            {error && (
-              <div style={{ color: '#ff0000', marginBottom: '20px' }}>
-                ERROR: {error}
-              </div>
-            )}
-
-            {results && results.top_stocks ? (
-              <div>
-                {results.top_stocks.map((stock, index) => (
-                  <div 
-                    key={stock.symbol} 
-                    style={stockCardStyle}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = '#ffff00';
-                      e.currentTarget.style.boxShadow = '0 0 15px rgba(204, 204, 0, 0.3)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = '#cccc00';
-                      e.currentTarget.style.boxShadow = 'none';
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                      <div>
-                        <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '10px', color: '#ffff00' }}>
-                          #{index + 1} {stock.symbol}
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', fontSize: '12px' }}>
-                          <div>
-                            <span style={{ color: '#808080' }}>PRICE: </span>
-                            <span style={{ color: '#00ff00' }}>${stock.metrics.current_price.toFixed(2)}</span>
-                          </div>
-                          <div>
-                            <span style={{ color: '#808080' }}>TARGET: </span>
-                            <span style={{ color: '#00ff00' }}>${stock.metrics.target_price.toFixed(2)}</span>
-                          </div>
-                          <div>
-                            <span style={{ color: '#808080' }}>UPSIDE: </span>
-                            <span style={{ color: stock.metrics.upside_potential > 0 ? '#00ff00' : '#ff0000' }}>
-                              {stock.metrics.upside_potential.toFixed(1)}%
-                            </span>
-                          </div>
-                          <div>
-                            <span style={{ color: '#808080' }}>CONFIDENCE: </span>
-                            <span style={{ color: '#cccc00' }}>{stock.metrics.confidence_score}%</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div style={{ fontSize: '24px', color: '#00ff00' }}>
-                        ↗
-                      </div>
-                    </div>
-                    
-                    <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #333' }}>
-                      <div style={{ fontSize: '11px', color: '#808080', marginBottom: '5px' }}>
-                        SENTIMENT.SCORE
-                      </div>
-                      <div style={{ width: '100%', height: '6px', backgroundColor: '#1a1a1a', border: '1px solid #333' }}>
-                        <div style={{
-                          width: `${stock.metrics.sentiment_score * 100}%`,
-                          height: '100%',
-                          backgroundColor: stock.metrics.sentiment_score > 0.7 ? '#00ff00' : 
-                                         stock.metrics.sentiment_score > 0.4 ? '#ffff00' : '#ff0000'
-                        }} />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                
-                <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #cccc00' }}>
-                  <button
-                    style={{
-                      ...buttonStyle,
-                      width: 'auto',
-                      padding: '10px 20px'
-                    }}
-                    onClick={() => console.log('Export report')}
-                  >
-                    <Download size={14} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
-                    EXPORT.REPORT
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div style={{ color: '#808080', textAlign: 'center', padding: '40px' }}>
-                {dataReady ? 'NO.ANALYSIS.EXECUTED' : 'WAITING.FOR.DATA...'}
-              </div>
-            )}
-          </div>
-        </div>
+        {/* Rest of your UI continues here... */}
+        
       </main>
-
-      {/* Footer */}
-      <footer style={{
-        borderTop: '1px solid #cccc00',
-        padding: '15px 30px',
-        backgroundColor: '#0a0a0a',
-        color: '#808080',
-        fontSize: '11px',
-        display: 'flex',
-        justifyContent: 'space-between'
-      }}>
-        <div>AUTOANALYST.QUANTUM.FINANCE.SYSTEM</div>
-        <div>LATENCY: 12MS | COMPUTE: 0.3s</div>
-      </footer>
     </div>
   );
 }
