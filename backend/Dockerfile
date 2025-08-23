@@ -44,18 +44,30 @@ RUN pip install --no-cache-dir \
     matplotlib \
     seaborn
 
-# Copy application files
-COPY . .
+# Copy application files INCLUDING data folder
+COPY . /app/
 
-# Debug: List what was copied
+# Debug: List what was copied - ENHANCED VERSION
 RUN echo "=== Contents of /app ===" && ls -la /app/
 RUN echo "=== Contents of /app/data (if exists) ===" && ls -la /app/data/ 2>/dev/null || echo "No /app/data directory"
 RUN echo "=== Looking for CSV files ===" && find /app -name "*.csv" -type f 2>/dev/null || echo "No CSV files found"
 
-# Create data directory
-RUN mkdir -p /app/data
+# CRITICAL FIX: If data exists in the build context, ensure it's in the right place
+RUN if [ -d "/app/data" ]; then \
+        echo "✓ Data folder exists with contents:" && \
+        ls -la /app/data/ && \
+        echo "CSV files in data folder:" && \
+        ls -la /app/data/*.csv 2>/dev/null || echo "No CSV files in data folder"; \
+    else \
+        echo "✗ Creating data directory" && \
+        mkdir -p /app/data; \
+    fi
+
+# Set environment variable to help the app find data
+ENV DATA_PATH=/app/data
+ENV PORT=8000
 
 EXPOSE 8000
 
-# Run the application
-CMD ["uvicorn", "backend:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run the application with explicit port from environment
+CMD ["sh", "-c", "uvicorn backend:app --host 0.0.0.0 --port $PORT"]

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 FastAPI Backend - Docker Version with Full ML Support
-Fixed: NaN/Inf handling, proper initialization, error handling
+Fixed: CSV loading with environment variables and proper paths
 """
 
 import os
@@ -17,15 +17,6 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 from datetime import datetime
-
-print("=== DEBUG: Current directory:", os.getcwd())
-print("=== DEBUG: Files in current directory:", os.listdir('.'))
-if os.path.exists('data'):
-    print("=== DEBUG: Files in data/:", os.listdir('data'))
-else:
-    print("=== DEBUG: No data/ directory found")
-
-
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -46,53 +37,71 @@ app.add_middleware(
 # ============ DATA LOADING FUNCTIONS ============
 
 def load_csv_files():
-    """Load CSV files and clean NaN values"""
-    data_dirs = ["/app/data", "./data", "data", "../data"]
+    """Load CSV files from data directory"""
+    # Use environment variable or fallback
+    data_path = os.environ.get('DATA_PATH', '/app/data')
     
-    for data_dir in data_dirs:
-        if os.path.exists(data_dir):
-            logger.info(f"Found data directory: {data_dir}")
-            csv_files = glob.glob(f"{data_dir}/*.csv")
-            
-            if csv_files:
-                dfs = []
-                for file in csv_files:
-                    try:
-                        df = pd.read_csv(file)
-                        # Clean the data - replace inf with NaN, then fill NaN
-                        df = df.replace([np.inf, -np.inf], np.nan)
-                        # For string columns, fill NaN with empty string
-                        for col in df.select_dtypes(include=['object']).columns:
-                            df[col] = df[col].fillna('')
-                        # For numeric columns, fill NaN with 0
-                        for col in df.select_dtypes(include=['float64', 'int64']).columns:
-                            df[col] = df[col].fillna(0)
-                        dfs.append(df)
-                        logger.info(f"Loaded and cleaned {len(df)} stocks from {file}")
-                    except Exception as e:
-                        logger.error(f"Error loading {file}: {e}")
-                
-                if dfs:
-                    combined_df = pd.concat(dfs, ignore_index=True)
-                    logger.info(f"✅ Total stocks loaded: {len(combined_df)}")
-                    return combined_df
-            break
+    # Fallback to local data if not in Docker
+    if not os.path.exists(data_path):
+        data_path = 'data'
     
-    # Sample data if no CSV files found
-    logger.warning("No CSV files found, creating sample data")
-    sample_data = pd.DataFrame({
-        'Symbol': ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA',
-                  'BRK.B', 'V', 'JNJ', 'WMT', 'JPM', 'PG', 'MA', 'UNH'],
-        'GICS Sector': ['Technology', 'Technology', 'Technology', 'Consumer Discretionary',
-                       'Technology', 'Technology', 'Consumer Discretionary',
-                       'Financials', 'Financials', 'Healthcare', 'Consumer Staples',
-                       'Financials', 'Consumer Staples', 'Financials', 'Healthcare'],
-        'GICS Sub-Industry': ['Hardware', 'Software', 'Internet', 'E-Commerce',
-                             'Semiconductors', 'Social Media', 'Automobiles',
-                             'Insurance', 'Payments', 'Pharma', 'Retail',
-                             'Banks', 'Consumer', 'Payments', 'Healthcare']
-    })
-    return sample_data
+    logger.info(f"Loading CSV files from: {data_path}")
+    
+    # Get all CSV files
+    csv_pattern = os.path.join(data_path, "*.csv")
+    csv_files = glob.glob(csv_pattern)
+    
+    if not csv_files:
+        logger.error(f"No CSV files found in {data_path}")
+        if os.path.exists(data_path):
+            logger.error(f"Contents of {data_path}: {os.listdir(data_path)}")
+        else:
+            logger.error(f"Directory {data_path} does not exist")
+        
+        # Return sample data as fallback
+        logger.warning("Using sample data as fallback")
+        return pd.DataFrame({
+            'Symbol': ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA',
+                      'BRK.B', 'V', 'JNJ', 'WMT', 'JPM', 'PG', 'MA', 'UNH'],
+            'GICS Sector': ['Technology', 'Technology', 'Technology', 'Consumer Discretionary',
+                           'Technology', 'Technology', 'Consumer Discretionary',
+                           'Financials', 'Financials', 'Healthcare', 'Consumer Staples',
+                           'Financials', 'Consumer Staples', 'Financials', 'Healthcare'],
+            'GICS Sub-Industry': ['Hardware', 'Software', 'Internet', 'E-Commerce',
+                                 'Semiconductors', 'Social Media', 'Automobiles',
+                                 'Insurance', 'Payments', 'Pharma', 'Retail',
+                                 'Banks', 'Consumer Products', 'Payments', 'Healthcare Services']
+        })
+    
+    # Load all CSV files and combine
+    all_dfs = []
+    for csv_file in csv_files:
+        try:
+            logger.info(f"Loading: {csv_file}")
+            df = pd.read_csv(csv_file)
+            # Clean data
+            df = df.replace([np.inf, -np.inf], np.nan)
+            # Fill NaN values
+            for col in df.select_dtypes(include=['object']).columns:
+                df[col] = df[col].fillna('')
+            for col in df.select_dtypes(include=['float64', 'int64']).columns:
+                df[col] = df[col].fillna(0)
+            all_dfs.append(df)
+            logger.info(f"Successfully loaded {len(df)} rows from {csv_file}")
+        except Exception as e:
+            logger.error(f"Error loading {csv_file}: {e}")
+    
+    if all_dfs:
+        combined_df = pd.concat(all_dfs, ignore_index=True)
+        logger.info(f"✅ Loaded {len(combined_df)} total stocks from {len(csv_files)} files")
+        return combined_df
+    else:
+        logger.error("No CSV files could be loaded successfully")
+        return pd.DataFrame({
+            'Symbol': ['AAPL', 'MSFT', 'GOOGL'],
+            'GICS Sector': ['Technology', 'Technology', 'Technology'],
+            'GICS Sub-Industry': ['Hardware', 'Software', 'Internet']
+        })
 
 # ============ INITIALIZE GLOBAL VARIABLES ============
 
@@ -287,6 +296,31 @@ async def get_stocks_list():
             "error": f"Data processing error: {str(e)}"
         }
 
+@app.get("/api/data-status")
+async def data_status():
+    """Debug endpoint to check data loading"""
+    import os
+    
+    status = {
+        "current_directory": os.getcwd(),
+        "files_in_current": os.listdir('.'),
+        "data_directory_exists": os.path.exists('data'),
+        "app_data_directory_exists": os.path.exists('/app/data'),
+        "env_data_path": os.environ.get('DATA_PATH', 'Not set'),
+        "stocks_data_loaded": stocks_data is not None,
+        "stocks_count": len(stocks_data) if stocks_data is not None else 0
+    }
+    
+    if os.path.exists('data'):
+        status["files_in_data"] = os.listdir('data')
+        status["csv_files"] = glob.glob('data/*.csv')
+    
+    if os.path.exists('/app/data'):
+        status["files_in_app_data"] = os.listdir('/app/data')
+        status["csv_files_in_app_data"] = glob.glob('/app/data/*.csv')
+        
+    return status
+
 @app.get("/api/market-conditions")
 async def get_market_conditions():
     """Get current market conditions"""
@@ -436,8 +470,9 @@ async def upload_csv(file: UploadFile = File(...)):
             df[col] = df[col].fillna(0)
         
         # Save to data directory
-        os.makedirs("/app/data", exist_ok=True)
-        file_path = f"/app/data/{file.filename}"
+        data_path = os.environ.get('DATA_PATH', '/app/data')
+        os.makedirs(data_path, exist_ok=True)
+        file_path = os.path.join(data_path, file.filename)
         
         with open(file_path, "wb") as f:
             f.write(contents)
