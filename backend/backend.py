@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 FastAPI Backend - Docker Version with Full ML Support
-Fixed: CSV loading with environment variables and proper paths
+Fixed: CORS for frontend connection
 """
 
 import os
@@ -25,13 +25,14 @@ logger = logging.getLogger(__name__)
 # Initialize FastAPI
 app = FastAPI(title="AutoAnalyst API - Docker Edition", version="2.0.0")
 
-# CORS configuration
+# CRITICAL: Fixed CORS configuration for frontend connection
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Allow ALL origins to ensure frontend can connect
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],  # Allow all methods
+    allow_headers=["*"],  # Allow all headers
+    expose_headers=["*"]  # Expose all headers
 )
 
 # ============ DATA LOADING FUNCTIONS ============
@@ -148,7 +149,8 @@ except ImportError as e:
         def get_current_price(self, symbol):
             try:
                 ticker = yf.Ticker(symbol)
-                return ticker.info.get('currentPrice', 100)
+                info = ticker.info
+                return info.get('currentPrice', info.get('regularMarketPrice', 100))
             except:
                 return 100
     
@@ -164,7 +166,8 @@ except ImportError as e:
                     elif change < -0.02:
                         return "Bear Market - High Volatility"
                 return "Neutral Market"
-            except:
+            except Exception as e:
+                logger.error(f"Error getting market regime: {e}")
                 return "Neutral Market"
         
         def get_federal_reserve_stance(self):
@@ -189,7 +192,8 @@ except ImportError as e:
         def calculate_intrinsic_value(self, symbol):
             try:
                 ticker = yf.Ticker(symbol)
-                current = ticker.info.get('currentPrice', 100)
+                info = ticker.info
+                current = info.get('currentPrice', info.get('regularMarketPrice', 100))
                 return current * 1.15
             except:
                 return 115
@@ -218,6 +222,7 @@ async def startup_event():
     """Additional startup tasks"""
     logger.info("FastAPI startup event triggered")
     logger.info(f"Current stocks in memory: {len(stocks_data) if stocks_data is not None else 0}")
+    logger.info("CORS configured for all origins")
 
 @app.get("/")
 async def root():
@@ -227,6 +232,7 @@ async def root():
         "version": "2.0.0 Docker",
         "status": "running",
         "ml_enabled": ML_AVAILABLE,
+        "cors": "enabled_for_all_origins",
         "data_status": {
             "stocks_loaded": len(stocks_data) if stocks_data is not None else 0,
             "stocks_data_exists": stocks_data is not None,
@@ -252,7 +258,8 @@ async def health_check():
         "components": components_status,
         "ml_available": ML_AVAILABLE,
         "stocks_count": len(stocks_data) if stocks_data is not None else 0,
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
+        "cors_enabled": True
     }
 
 @app.get("/api/stocks/list")
@@ -281,10 +288,13 @@ async def get_stocks_list():
         
         total_stocks = len(stocks_data.dropna(how='all'))
         
+        logger.info(f"Returning {len(sectors)} sectors and {len(sub_industries)} sub-industries")
+        
         return {
             "sectors": sectors,
             "sub_industries": sub_industries,
-            "total_stocks": total_stocks
+            "total_stocks": total_stocks,
+            "success": True
         }
         
     except Exception as e:
@@ -308,7 +318,8 @@ async def data_status():
         "app_data_directory_exists": os.path.exists('/app/data'),
         "env_data_path": os.environ.get('DATA_PATH', 'Not set'),
         "stocks_data_loaded": stocks_data is not None,
-        "stocks_count": len(stocks_data) if stocks_data is not None else 0
+        "stocks_count": len(stocks_data) if stocks_data is not None else 0,
+        "cors_enabled": True
     }
     
     if os.path.exists('data'):
@@ -324,7 +335,10 @@ async def data_status():
 @app.get("/api/market-conditions")
 async def get_market_conditions():
     """Get current market conditions"""
+    logger.info("Market conditions requested")
+    
     if market_analyzer is None:
+        logger.warning("Market analyzer is None, returning defaults")
         return {
             "regime": "Neutral Market",
             "fed_stance": "Neutral",
@@ -341,7 +355,7 @@ async def get_market_conditions():
             yield_curve = market_analyzer.analyze_yield_curve()
             economic_data = market_analyzer.fetch_economic_data()
             
-            return {
+            result = {
                 "regime": regime,
                 "fed_stance": fed_data.get("stance", "Neutral"),
                 "vix": economic_data.get("Volatility Index", {}).get("current", 20),
@@ -350,13 +364,16 @@ async def get_market_conditions():
             }
         else:
             economic_data = market_analyzer.fetch_economic_data()
-            return {
+            result = {
                 "regime": regime,
                 "fed_stance": fed_data.get("stance", "Neutral"),
                 "vix": economic_data.get("Volatility Index", {}).get("current", 20),
                 "recession_risk": "Low",
                 "ml_powered": False
             }
+        
+        logger.info(f"Returning market conditions: {result}")
+        return result
             
     except Exception as e:
         logger.error(f"Market conditions error: {e}")
@@ -365,8 +382,45 @@ async def get_market_conditions():
             "fed_stance": "Neutral",
             "vix": 20.0,
             "recession_risk": "Low",
-            "error": str(e)
+            "error": str(e),
+            "ml_powered": False
         }
+
+@app.options("/api/market-conditions")
+async def market_conditions_options():
+    """Handle OPTIONS request for CORS preflight"""
+    return JSONResponse(
+        content={"message": "OK"},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
+
+@app.options("/api/stocks/list")
+async def stocks_options():
+    """Handle OPTIONS request for CORS preflight"""
+    return JSONResponse(
+        content={"message": "OK"},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
+
+@app.options("/api/analysis")
+async def analysis_options():
+    """Handle OPTIONS request for CORS preflight"""
+    return JSONResponse(
+        content={"message": "OK"},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
 
 class AnalysisRequest(BaseModel):
     analysis_type: str
@@ -495,4 +549,5 @@ if __name__ == "__main__":
     logger.info(f"Starting server on port {port}")
     logger.info(f"Final check - stocks_data: {stocks_data is not None}")
     logger.info(f"Final check - ml_model: {ml_model is not None}")
+    logger.info("CORS enabled for all origins")
     uvicorn.run(app, host="0.0.0.0", port=port)
