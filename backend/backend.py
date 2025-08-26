@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-FastAPI Backend - Fixed CORS with manual headers
+FastAPI Backend - Using the ACTUAL quant_model.py
 """
 
 import os
@@ -22,9 +22,9 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Initialize FastAPI
-app = FastAPI(title="AutoAnalyst API", version="2.0.0")
+app = FastAPI(title="AutoAnalyst API", version="3.0.0")
 
-# Try CORS middleware (might not work on Render)
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -33,7 +33,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# CRITICAL: Manually add CORS headers to EVERY response
+# Add CORS headers manually
 @app.middleware("http")
 async def add_cors_headers(request: Request, call_next):
     response = await call_next(request)
@@ -43,7 +43,7 @@ async def add_cors_headers(request: Request, call_next):
     response.headers["Access-Control-Allow-Headers"] = "*"
     return response
 
-# ============ DATA LOADING (keeping your existing code) ============
+# ============ DATA LOADING ============
 
 def load_csv_files():
     """Load CSV files from data directory"""
@@ -58,9 +58,11 @@ def load_csv_files():
     if not csv_files:
         logger.warning("No CSV files found, using sample data")
         return pd.DataFrame({
-            'Symbol': ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA'],
-            'GICS Sector': ['Technology'] * 5,
-            'GICS Sub-Industry': ['Hardware', 'Software', 'Internet', 'E-Commerce', 'Semiconductors']
+            'Symbol': ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA'],
+            'GICS Sector': ['Technology', 'Technology', 'Technology', 'Consumer Discretionary', 
+                           'Technology', 'Technology', 'Consumer Discretionary'],
+            'GICS Sub-Industry': ['Hardware', 'Software', 'Internet', 'E-Commerce',
+                                 'Semiconductors', 'Social Media', 'Automobiles']
         })
     
     all_dfs = []
@@ -73,81 +75,120 @@ def load_csv_files():
             for col in df.select_dtypes(include=['float64', 'int64']).columns:
                 df[col] = df[col].fillna(0)
             all_dfs.append(df)
+            logger.info(f"Loaded {len(df)} rows from {csv_file}")
         except Exception as e:
             logger.error(f"Error loading {csv_file}: {e}")
     
     if all_dfs:
-        return pd.concat(all_dfs, ignore_index=True)
+        combined = pd.concat(all_dfs, ignore_index=True)
+        logger.info(f"Total stocks loaded: {len(combined)}")
+        return combined
     return pd.DataFrame()
 
-# Load data
+# ============ IMPORT YOUR ACTUAL QUANT MODEL ============
+
+# Load data first
 stocks_data = load_csv_files()
-logger.info(f"Loaded {len(stocks_data)} stocks")
+logger.info(f"Stocks data initialized: {len(stocks_data)} stocks")
 
-# Simplified ML models (no imports needed)
-class SimpleMLModel:
-    def calculate_ml_score(self, symbol):
-        return 0.75
-    
-    def get_sentiment_score(self, symbol):
-        return 0.7
-    
-    def get_current_price(self, symbol):
-        try:
-            ticker = yf.Ticker(symbol)
-            info = ticker.info
-            return info.get('currentPrice', 100)
-        except:
-            return 100
+# Now import your ACTUAL quant_model.py
+ML_AVAILABLE = False
+ml_model = None
+market_analyzer = None
+valuator = None
 
-class SimpleMarketAnalyzer:
-    def get_market_regime(self):
-        try:
-            spy = yf.Ticker("SPY")
-            hist = spy.history(period="1mo")
-            if len(hist) > 0:
-                change = (hist['Close'].iloc[-1] - hist['Close'].iloc[0]) / hist['Close'].iloc[0]
-                if change > 0.02:
-                    return "Bull Market"
-                elif change < -0.02:
-                    return "Bear Market"
-            return "Neutral Market"
-        except:
-            return "Neutral Market"
+try:
+    logger.info("Importing YOUR quant_model.py...")
     
-    def get_federal_reserve_stance(self):
-        return {"stance": "Neutral"}
+    # Import your actual model classes
+    from quant_model import (
+        QuantFinanceMLModel, 
+        MarketConditionsAnalyzer, 
+        EnhancedValuation
+    )
     
-    def fetch_economic_data(self):
-        try:
-            vix = yf.Ticker("^VIX")
-            vix_hist = vix.history(period="1d")
-            current_vix = float(vix_hist['Close'].iloc[-1]) if len(vix_hist) > 0 else 20
-        except:
-            current_vix = 20
-        return {"Volatility Index": {"current": current_vix}}
+    # Initialize YOUR models
+    logger.info("Initializing QuantFinanceMLModel...")
+    ml_model = QuantFinanceMLModel()
+    
+    logger.info("Initializing MarketConditionsAnalyzer...")
+    market_analyzer = MarketConditionsAnalyzer()
+    
+    logger.info("Initializing EnhancedValuation...")
+    valuator = EnhancedValuation()
+    
+    ML_AVAILABLE = True
+    logger.info("✅ YOUR quant_model.py loaded successfully!")
+    
+except Exception as e:
+    logger.error(f"❌ Error loading quant_model.py: {e}")
+    logger.error(f"Error type: {type(e).__name__}")
+    logger.error(f"Error details: {str(e)}")
+    
+    # Only use fallback if YOUR model fails to load
+    logger.info("Creating minimal fallback...")
+    
+    class MinimalFallback:
+        def calculate_ml_score(self, symbol):
+            logger.warning(f"Using fallback for {symbol}")
+            return 0.5
+        
+        def get_sentiment_score(self, symbol):
+            return 0.5
+        
+        def get_current_price(self, symbol):
+            try:
+                ticker = yf.Ticker(symbol)
+                info = ticker.info
+                return info.get('currentPrice', info.get('regularMarketPrice', 100))
+            except:
+                return 100
+        
+        def calculate_intrinsic_value(self, symbol):
+            price = self.get_current_price(symbol)
+            return price * 1.1
+        
+        def get_market_regime(self):
+            return "Model Not Loaded"
+        
+        def get_federal_reserve_stance(self):
+            return {"stance": "Unknown"}
+        
+        def fetch_economic_data(self):
+            return {"Volatility Index": {"current": 20}}
+        
+        def analyze_yield_curve(self):
+            return {"recession_risk": "Unknown"}
+    
+    # Create minimal fallback instances
+    ml_model = MinimalFallback()
+    market_analyzer = MinimalFallback()
+    valuator = MinimalFallback()
+    ML_AVAILABLE = False
 
-ml_model = SimpleMLModel()
-market_analyzer = SimpleMarketAnalyzer()
-valuator = SimpleMLModel()
-ML_AVAILABLE = True
+# Log what we're using
+logger.info("=" * 50)
+logger.info("Model Status:")
+logger.info(f"  - ML Available: {ML_AVAILABLE}")
+logger.info(f"  - ML Model Type: {type(ml_model).__name__}")
+logger.info(f"  - Market Analyzer Type: {type(market_analyzer).__name__}")
+logger.info(f"  - Valuator Type: {type(valuator).__name__}")
+logger.info("=" * 50)
 
-# ============ API ENDPOINTS with MANUAL CORS ============
+# ============ API ENDPOINTS ============
 
 @app.get("/")
 async def root():
     return JSONResponse(
         content={
             "name": "AutoAnalyst API",
+            "version": "3.0.0",
             "status": "running",
-            "cors": "enabled",
+            "ml_enabled": ML_AVAILABLE,
+            "model_type": type(ml_model).__name__,
             "stocks_loaded": len(stocks_data)
         },
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-            "Access-Control-Allow-Headers": "*"
-        }
+        headers={"Access-Control-Allow-Origin": "*"}
     )
 
 @app.get("/api/health")
@@ -157,32 +198,36 @@ async def health_check():
             "status": "healthy",
             "components": {
                 "stocks_data": "✅" if len(stocks_data) > 0 else "❌",
-                "ml_model": "✅",
-                "market_analyzer": "✅",
-                "valuator": "✅"
+                "ml_model": "✅" if ML_AVAILABLE else "❌",
+                "market_analyzer": "✅" if ML_AVAILABLE else "❌",
+                "valuator": "✅" if ML_AVAILABLE else "❌"
             },
             "ml_available": ML_AVAILABLE,
+            "model_type": type(ml_model).__name__,
             "stocks_count": len(stocks_data),
-            "timestamp": datetime.now().isoformat(),
-            "cors_enabled": True
+            "timestamp": datetime.now().isoformat()
         },
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-            "Access-Control-Allow-Headers": "*"
-        }
+        headers={"Access-Control-Allow-Origin": "*"}
     )
 
-@app.options("/api/health")
-async def health_options():
-    return Response(
-        content="",
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-            "Access-Control-Allow-Headers": "*"
-        }
-    )
+@app.get("/api/debug-ml")
+async def debug_ml():
+    """Debug endpoint to check ML status"""
+    import os
+    import importlib.util
+    
+    # Check if quant_model.py exists
+    quant_model_path = '/app/quant_model.py'
+    local_path = 'quant_model.py'
+    
+    return {
+        "ml_available": ML_AVAILABLE,
+        "model_type": type(ml_model).__name__,
+        "quant_model_exists_app": os.path.exists(quant_model_path),
+        "quant_model_exists_local": os.path.exists(local_path),
+        "files_in_app": os.listdir('/app') if os.path.exists('/app') else [],
+        "can_import": importlib.util.find_spec("quant_model") is not None
+    }
 
 @app.get("/api/stocks/list")
 async def get_stocks_list():
@@ -203,71 +248,40 @@ async def get_stocks_list():
             "sub_industries": sub_industries,
             "total_stocks": len(stocks_data)
         },
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-            "Access-Control-Allow-Headers": "*"
-        }
-    )
-
-@app.options("/api/stocks/list")
-async def stocks_options():
-    return Response(
-        content="",
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-            "Access-Control-Allow-Headers": "*"
-        }
+        headers={"Access-Control-Allow-Origin": "*"}
     )
 
 @app.get("/api/market-conditions")
 async def get_market_conditions():
     try:
-        regime = market_analyzer.get_market_regime()
-        fed_data = market_analyzer.get_federal_reserve_stance()
-        economic_data = market_analyzer.fetch_economic_data()
+        # Use YOUR MarketConditionsAnalyzer
+        regime = market_analyzer.get_market_regime() if hasattr(market_analyzer, 'get_market_regime') else "Unknown"
+        fed_data = market_analyzer.get_federal_reserve_stance() if hasattr(market_analyzer, 'get_federal_reserve_stance') else {"stance": "Unknown"}
+        economic_data = market_analyzer.fetch_economic_data() if hasattr(market_analyzer, 'fetch_economic_data') else {"Volatility Index": {"current": 20}}
+        yield_curve = market_analyzer.analyze_yield_curve() if hasattr(market_analyzer, 'analyze_yield_curve') else {"recession_risk": "Unknown"}
         
         return JSONResponse(
             content={
                 "regime": regime,
-                "fed_stance": fed_data.get("stance", "Neutral"),
+                "fed_stance": fed_data.get("stance", "Unknown"),
                 "vix": economic_data.get("Volatility Index", {}).get("current", 20),
-                "recession_risk": "Low",
-                "ml_powered": True
+                "recession_risk": yield_curve.get("recession_risk", "Unknown"),
+                "ml_powered": ML_AVAILABLE
             },
-            headers={
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-                "Access-Control-Allow-Headers": "*"
-            }
+            headers={"Access-Control-Allow-Origin": "*"}
         )
     except Exception as e:
+        logger.error(f"Market conditions error: {e}")
         return JSONResponse(
             content={
-                "regime": "Neutral",
-                "fed_stance": "Neutral",
+                "regime": "Error",
+                "fed_stance": "Error",
                 "vix": 20.0,
-                "recession_risk": "Low",
+                "recession_risk": "Error",
                 "error": str(e)
             },
-            headers={
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-                "Access-Control-Allow-Headers": "*"
-            }
+            headers={"Access-Control-Allow-Origin": "*"}
         )
-
-@app.options("/api/market-conditions")
-async def market_options():
-    return Response(
-        content="",
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-            "Access-Control-Allow-Headers": "*"
-        }
-    )
 
 class AnalysisRequest(BaseModel):
     analysis_type: str
@@ -275,86 +289,124 @@ class AnalysisRequest(BaseModel):
 
 @app.post("/api/analysis")
 async def run_analysis(request: AnalysisRequest):
-    if stocks_data is None:
+    """Run analysis using YOUR QuantFinanceMLModel"""
+    logger.info(f"Analysis requested: {request.analysis_type} - {request.target}")
+    
+    if stocks_data is None or len(stocks_data) == 0:
         raise HTTPException(status_code=500, detail="Stock data not initialized")
     
-    # Filter stocks
-    if request.analysis_type == "sector":
-        filtered = stocks_data[stocks_data['GICS Sector'] == request.target]
-    else:
-        filtered = stocks_data[stocks_data['GICS Sub-Industry'] == request.target]
+    if not ML_AVAILABLE:
+        logger.warning("ML model not available, using fallback")
     
-    if len(filtered) == 0:
-        raise HTTPException(status_code=404, detail=f"No stocks found for {request.target}")
-    
-    results = []
-    for _, stock in filtered.iterrows():
-        symbol = stock['Symbol']
-        ml_score = ml_model.calculate_ml_score(symbol)
-        sentiment = ml_model.get_sentiment_score(symbol)
-        current = ml_model.get_current_price(symbol)
-        target_price = current * 1.15
+    try:
+        # Filter stocks
+        if request.analysis_type == "sector":
+            filtered = stocks_data[stocks_data['GICS Sector'] == request.target]
+        else:
+            filtered = stocks_data[stocks_data['GICS Sub-Industry'] == request.target]
         
-        results.append({
-            "symbol": symbol,
-            "ml_score": ml_score,
-            "sentiment": sentiment,
-            "target_price": target_price,
-            "current_price": current
-        })
-    
-    # Sort and get top 3
-    results.sort(key=lambda x: x['ml_score'], reverse=True)
-    top_3 = results[:3]
-    
-    # Format response
-    top_stocks = []
-    for stock in top_3:
-        top_stocks.append({
-            "symbol": stock['symbol'],
-            "metrics": {
-                "current_price": stock['current_price'],
-                "target_price": stock['target_price'],
-                "upside_potential": 15.0,
-                "confidence_score": int(stock['ml_score'] * 100),
-                "sentiment_score": stock['sentiment'],
-                "ml_score": stock['ml_score']
-            }
-        })
-    
-    return JSONResponse(
-        content={
-            "status": "completed",
-            "analysis_type": request.analysis_type,
-            "target": request.target,
-            "results": {
-                "top_stocks": top_stocks,
-                "market_conditions": {
-                    "regime": market_analyzer.get_market_regime(),
-                    "adjustment_factor": 1.05
+        if len(filtered) == 0:
+            raise HTTPException(status_code=404, detail=f"No stocks found for {request.target}")
+        
+        logger.info(f"Analyzing {len(filtered)} stocks using {type(ml_model).__name__}")
+        
+        # Use YOUR model's methods
+        results = []
+        for _, stock in filtered.iterrows():
+            symbol = stock['Symbol']
+            
+            if not symbol or pd.isna(symbol) or symbol == '':
+                continue
+            
+            try:
+                # Use YOUR QuantFinanceMLModel methods
+                ml_score = ml_model.calculate_ml_score(symbol)
+                sentiment = ml_model.get_sentiment_score(symbol)
+                
+                # Get current price
+                if hasattr(ml_model, 'get_current_price'):
+                    current_price = ml_model.get_current_price(symbol)
+                else:
+                    ticker = yf.Ticker(symbol)
+                    info = ticker.info
+                    current_price = info.get('currentPrice', info.get('regularMarketPrice', 100))
+                
+                # Use YOUR EnhancedValuation
+                if valuator and hasattr(valuator, 'calculate_intrinsic_value'):
+                    target_price = valuator.calculate_intrinsic_value(symbol)
+                else:
+                    target_price = current_price * 1.15
+                
+                # Skip if we couldn't get valid prices
+                if not current_price or not target_price:
+                    continue
+                
+                results.append({
+                    "symbol": symbol,
+                    "ml_score": ml_score,
+                    "sentiment": sentiment,
+                    "current_price": current_price,
+                    "target_price": target_price
+                })
+                
+                logger.info(f"Analyzed {symbol}: ML Score={ml_score:.2f}, Price=${current_price:.2f}")
+                
+            except Exception as e:
+                logger.error(f"Error analyzing {symbol}: {e}")
+                continue
+        
+        if not results:
+            raise HTTPException(status_code=500, detail="No valid analysis results")
+        
+        # Sort by ML score
+        results.sort(key=lambda x: x['ml_score'], reverse=True)
+        
+        # Get top 3
+        top_3 = results[:3]
+        
+        # Format response
+        top_stocks = []
+        for stock in top_3:
+            upside = ((stock['target_price'] / stock['current_price']) - 1) * 100 if stock['current_price'] > 0 else 0
+            
+            top_stocks.append({
+                "symbol": stock['symbol'],
+                "metrics": {
+                    "current_price": round(stock['current_price'], 2),
+                    "target_price": round(stock['target_price'], 2),
+                    "upside_potential": round(upside, 1),
+                    "confidence_score": int(stock['ml_score'] * 100),
+                    "sentiment_score": stock['sentiment'],
+                    "ml_score": stock['ml_score']
                 }
-            }
-        },
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-            "Access-Control-Allow-Headers": "*"
-        }
-    )
-
-@app.options("/api/analysis")
-async def analysis_options():
-    return Response(
-        content="",
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-            "Access-Control-Allow-Headers": "*"
-        }
-    )
+            })
+        
+        return JSONResponse(
+            content={
+                "status": "completed",
+                "analysis_type": request.analysis_type,
+                "target": request.target,
+                "results": {
+                    "top_stocks": top_stocks,
+                    "market_conditions": {
+                        "regime": market_analyzer.get_market_regime() if hasattr(market_analyzer, 'get_market_regime') else "Unknown",
+                        "adjustment_factor": 1.0
+                    },
+                    "total_analyzed": len(results),
+                    "model_used": type(ml_model).__name__
+                },
+                "ml_powered": ML_AVAILABLE
+            },
+            headers={"Access-Control-Allow-Origin": "*"}
+        )
+        
+    except Exception as e:
+        logger.error(f"Analysis error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))
-    logger.info(f"Starting server with manual CORS headers on port {port}")
+    logger.info(f"Starting server on port {port}")
+    logger.info(f"Using ML Model: {type(ml_model).__name__}")
     uvicorn.run(app, host="0.0.0.0", port=port)
