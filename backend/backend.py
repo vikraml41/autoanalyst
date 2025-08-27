@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-FastAPI Backend - Using the ACTUAL quant_model.py
+FastAPI Backend - Using the ACTUAL quant_model.py with diagnostics
 """
 
 import os
@@ -16,6 +16,8 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 from datetime import datetime
+import warnings
+warnings.filterwarnings('ignore')
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -448,27 +450,133 @@ async def run_analysis(request: AnalysisRequest):
         logger.error(traceback.format_exc())
         
         return JSONResponse(content=response_data, status_code=200, headers={"Access-Control-Allow-Origin": "*"})
-        content={
-                "status": "completed",
-                "analysis_type": request.analysis_type,
-                "target": request.target,
-                "results": {
-                    "top_stocks": top_stocks,
-                    "market_conditions": {
-                        "regime": market_analyzer.get_market_regime() if hasattr(market_analyzer, 'get_market_regime') else "Unknown",
-                        "adjustment_factor": 1.0
-                    },
-                    "total_analyzed": len(results),
-                    "model_used": type(ml_model).__name__
-                },
-                "ml_powered": ML_AVAILABLE
-            },
-        headers={"Access-Control-Allow-Origin": "*"}
-                
-        
+
+@app.get("/api/test-analysis/{symbol}")
+async def test_single_stock(symbol: str):
+    """Test analysis on a single stock"""
+    results = {}
+    
+    try:
+        results['ml_score'] = ml_model.calculate_ml_score(symbol)
     except Exception as e:
-        logger.error(f"Analysis error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        results['ml_score_error'] = str(e)
+    
+    try:
+        results['sentiment'] = ml_model.get_sentiment_score(symbol)
+    except Exception as e:
+        results['sentiment_error'] = str(e)
+    
+    try:
+        if hasattr(ml_model, 'get_current_price'):
+            results['current_price'] = ml_model.get_current_price(symbol)
+        else:
+            ticker = yf.Ticker(symbol)
+            results['current_price'] = ticker.info.get('currentPrice')
+    except Exception as e:
+        results['price_error'] = str(e)
+    
+    try:
+        if valuator:
+            results['target_price'] = valuator.calculate_intrinsic_value(symbol)
+    except Exception as e:
+        results['target_error'] = str(e)
+    
+    results['model_type'] = type(ml_model).__name__
+    results['ml_available'] = ML_AVAILABLE
+    
+    return results
+
+@app.get("/api/diagnose")
+async def diagnose_system():
+    """Complete system diagnostic"""
+    import inspect
+    
+    diagnosis = {
+        "ml_model": {
+            "exists": ml_model is not None,
+            "type": type(ml_model).__name__ if ml_model else "None",
+            "methods": []
+        },
+        "test_results": {},
+        "imports": {},
+        "errors": []
+    }
+    
+    # Check what methods the ML model has
+    if ml_model:
+        diagnosis["ml_model"]["methods"] = [m for m in dir(ml_model) if not m.startswith('_')]
+    
+    # Test if we can import quant_model
+    try:
+        import quant_model
+        diagnosis["imports"]["quant_model"] = "Success"
+        diagnosis["imports"]["classes"] = [name for name in dir(quant_model) if not name.startswith('_')]
+    except Exception as e:
+        diagnosis["imports"]["quant_model"] = f"Failed: {str(e)}"
+    
+    # Test ML model methods with a real stock
+    test_symbol = "AAPL"
+    
+    # Test calculate_ml_score
+    try:
+        if ml_model and hasattr(ml_model, 'calculate_ml_score'):
+            result = ml_model.calculate_ml_score(test_symbol)
+            diagnosis["test_results"]["calculate_ml_score"] = {
+                "success": True,
+                "result": result
+            }
+    except Exception as e:
+        diagnosis["test_results"]["calculate_ml_score"] = {
+            "success": False,
+            "error": str(e)[:200]
+        }
+    
+    # Test get_sentiment_score
+    try:
+        if ml_model and hasattr(ml_model, 'get_sentiment_score'):
+            result = ml_model.get_sentiment_score(test_symbol)
+            diagnosis["test_results"]["get_sentiment_score"] = {
+                "success": True,
+                "result": result
+            }
+    except Exception as e:
+        diagnosis["test_results"]["get_sentiment_score"] = {
+            "success": False,
+            "error": str(e)[:200]
+        }
+    
+    # Test get_current_price
+    try:
+        if ml_model and hasattr(ml_model, 'get_current_price'):
+            result = ml_model.get_current_price(test_symbol)
+            diagnosis["test_results"]["get_current_price"] = {
+                "success": True,
+                "result": result
+            }
+    except Exception as e:
+        diagnosis["test_results"]["get_current_price"] = {
+            "success": False,
+            "error": str(e)[:200]
+        }
+    
+    # Test basic yfinance
+    try:
+        import yfinance as yf
+        ticker = yf.Ticker(test_symbol)
+        info = ticker.info
+        price = info.get('currentPrice') or info.get('regularMarketPrice')
+        diagnosis["test_results"]["yfinance"] = {
+            "success": True,
+            "price": price,
+            "info_keys": list(info.keys())[:10]  # First 10 keys
+        }
+    except Exception as e:
+        diagnosis["test_results"]["yfinance"] = {
+            "success": False,
+            "error": str(e)[:200]
+        }
+    
+    return diagnosis
 
 if __name__ == "__main__":
     import uvicorn
