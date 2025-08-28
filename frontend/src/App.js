@@ -1,22 +1,19 @@
-
-
-
-
 import React, { useState, useEffect } from 'react';
-import { Database, TrendingUp, AlertCircle, Activity, DollarSign, Target, Brain, ChevronRight, Clock, BarChart3, FileText, Download, RefreshCw } from 'lucide-react';
+import { Database, TrendingUp, Activity, BarChart3, ChevronRight, RefreshCw } from 'lucide-react';
 
-// Your backend URL
-const API_URL = 'https://autoanalyst-dz11.onrender.com';
+const API_URL = window.location.hostname === 'localhost' 
+  ? 'http://localhost:8000'
+  : 'https://autoanalyst-dz11.onrender.com';
 
 function App() {
   // State management
   const [currentTime, setCurrentTime] = useState(new Date());
   const [marketStatus, setMarketStatus] = useState('CHECKING...');
   const [marketConditions, setMarketConditions] = useState({
-    regime: 'LOADING...',
-    fedStance: 'LOADING...',
-    vix: 'LOADING...',
-    recessionRisk: 'LOADING...'
+    regime: 'Loading...',
+    fedStance: 'Loading...',
+    vix: 'Loading...',
+    recessionRisk: 'Loading...'
   });
   const [dataReady, setDataReady] = useState(false);
   const [sectors, setSectors] = useState([]);
@@ -27,10 +24,9 @@ function App() {
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
-  const [debugInfo, setDebugInfo] = useState({});
   const [backendStatus, setBackendStatus] = useState('CHECKING...');
 
-  // Update clock
+  // Clock update
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
@@ -39,192 +35,89 @@ function App() {
     return () => clearInterval(timer);
   }, []);
 
-  // Update market status based on time
   const updateMarketStatus = () => {
     const now = new Date();
-    const hours = now.getUTCHours() - 5; // Convert to EST
-    const minutes = now.getMinutes();
+    const hours = now.getUTCHours() - 5;
     const day = now.getDay();
     
     if (day === 0 || day === 6) {
       setMarketStatus('WEEKEND');
-    } else if (hours < 9 || (hours === 9 && minutes < 30)) {
+    } else if (hours < 9 || hours === 9) {
       setMarketStatus('PRE-MARKET');
     } else if (hours >= 16) {
       setMarketStatus('AFTER-HOURS');
-    } else if (hours >= 9 && hours < 16) {
-      setMarketStatus('OPEN');
     } else {
-      setMarketStatus('CLOSED');
+      setMarketStatus('OPEN');
     }
   };
 
-  // Wake up backend with longer timeout and better retries
+  // Wake backend
   const wakeUpBackend = async () => {
-    console.log('Waking up backend...');
-    setBackendStatus('WAKING...');
-    setError(null);
-    
-    let attempts = 0;
-    const maxAttempts = 10; // More attempts for sleepy backend
-    
-    while (attempts < maxAttempts) {
-      try {
-        console.log(`Attempt ${attempts + 1} to wake backend...`);
-        setBackendStatus(`WAKING... (attempt ${attempts + 1}/${maxAttempts})`);
-        
-        // Longer timeout for sleepy backend
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-        
-        const response = await fetch(`${API_URL}/api/health`, {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-          },
-          signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        
-        if (response.ok) {
-          const data = await response.json();
-          console.log('Backend is awake!', data);
-          setBackendStatus('ONLINE');
-          setDebugInfo(prev => ({...prev, health: data}));
-          return true;
-        }
-      } catch (error) {
-        console.error(`Wake attempt ${attempts + 1} failed:`, error);
+    setBackendStatus('Waking...');
+    try {
+      const response = await fetch(`${API_URL}/api/health`);
+      if (response.ok) {
+        setBackendStatus('Online');
+        return true;
       }
-      
-      attempts++;
-      if (attempts < maxAttempts) {
-        // Wait longer between attempts (5 seconds)
-        await new Promise(resolve => setTimeout(resolve, 5000));
-      }
+    } catch (error) {
+      setBackendStatus('Offline');
     }
-    
-    setBackendStatus('OFFLINE - Click RETRY');
-    setError('Backend took too long to wake up. Click RETRY to try again.');
     return false;
   };
 
-  // Fetch market conditions with error handling
+  // Fetch market conditions
   const fetchMarketConditions = async () => {
     try {
-      console.log('Fetching market conditions...');
-      
-      const response = await fetch(`${API_URL}/api/market-conditions`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      
-      const data = await response.json();
-      console.log('Market conditions:', data);
-      
-      setMarketConditions({
-        regime: data.regime || 'UNKNOWN',
-        fedStance: data.fed_stance || 'NEUTRAL',
-        vix: data.vix ? data.vix.toFixed(2) : 'N/A',
-        recessionRisk: data.recession_risk || 'UNKNOWN'
-      });
-      
-      setDebugInfo(prev => ({...prev, marketData: data}));
-    } catch (error) {
-      console.error('Error fetching market conditions:', error);
-      // Don't overwrite with ERROR if still loading
-      if (marketConditions.regime !== 'LOADING...') {
+      const response = await fetch(`${API_URL}/api/market-conditions`);
+      if (response.ok) {
+        const data = await response.json();
         setMarketConditions({
-          regime: 'OFFLINE',
-          fedStance: 'OFFLINE',
-          vix: 'N/A',
-          recessionRisk: 'OFFLINE'
+          regime: data.regime || 'Unknown',
+          fedStance: data.fed_stance || 'Neutral',
+          vix: data.vix ? data.vix.toFixed(2) : 'N/A',
+          recessionRisk: data.recession_risk || 'Unknown'
         });
       }
+    } catch (error) {
+      console.error('Error fetching market conditions:', error);
     }
   };
 
-  // Check data status and load sectors/industries
+  // Check data status
   const checkDataStatus = async () => {
     try {
-      console.log('Checking data status...');
-      
-      const response = await fetch(`${API_URL}/api/stocks/list`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
+      const response = await fetch(`${API_URL}/api/stocks/list`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.total_stocks > 0) {
+          setDataReady(true);
+          setSectors(data.sectors || []);
+          setSubIndustries(data.sub_industries || []);
         }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
       }
-      
-      const data = await response.json();
-      console.log('Stocks data:', data);
-      
-      if (data.total_stocks > 0) {
-        setDataReady(true);
-        setSectors(data.sectors || []);
-        setSubIndustries(data.sub_industries || []);
-        setError(null);
-      } else {
-        setDataReady(false);
-      }
-      
-      setDebugInfo(prev => ({...prev, stocksData: data}));
     } catch (error) {
-      console.error('Error checking data status:', error);
-      setDataReady(false);
+      console.error('Error checking data:', error);
     }
   };
 
-  // Initialize on mount with proper sequencing
+  // Initialize
   useEffect(() => {
     const initialize = async () => {
-      // First wake up backend
       const isAwake = await wakeUpBackend();
-      
       if (isAwake) {
-        // Then load data
         await checkDataStatus();
         await fetchMarketConditions();
-        
-        // Set up refresh interval for market conditions
-        const interval = setInterval(() => {
-          fetchMarketConditions();
-        }, 30000);
-        
-        return () => clearInterval(interval);
+        setInterval(fetchMarketConditions, 30000);
       }
     };
-    
     initialize();
   }, []);
-
-  // Manual refresh function
-  const manualRefresh = async () => {
-    console.log('Manual refresh triggered');
-    setError(null);
-    setBackendStatus('REFRESHING...');
-    const isAwake = await wakeUpBackend();
-    if (isAwake) {
-      await checkDataStatus();
-      await fetchMarketConditions();
-    }
-  };
 
   // Execute analysis
   const executeAnalysis = async () => {
     if (!selectedTarget) {
-      setError('Please select a target for analysis');
+      setError('Please select a target');
       return;
     }
 
@@ -240,26 +133,19 @@ function App() {
     try {
       const response = await fetch(`${API_URL}/api/analysis`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           analysis_type: analysisType,
           target: selectedTarget
         })
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Analysis failed: ${errorText}`);
+      if (response.ok) {
+        const data = await response.json();
+        setResults(data.results);
+        setAnalysisProgress(100);
       }
-
-      const data = await response.json();
-      setResults(data.results);
-      setAnalysisProgress(100);
     } catch (error) {
-      console.error('Analysis error:', error);
       setError(`Analysis failed: ${error.message}`);
     } finally {
       clearInterval(progressInterval);
@@ -270,372 +156,318 @@ function App() {
     }
   };
 
-  // Get color for market indicators
-  const getIndicatorColor = (type, value) => {
-    if (value === 'LOADING...' || value === 'OFFLINE') return '#808080';
+  // Styles
+  const styles = `
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
     
-    switch(type) {
-      case 'regime':
-        return value.includes('Bull') ? '#00ff00' : value.includes('Bear') ? '#ff0000' : '#ffff00';
-      case 'vix':
-        const vixNum = parseFloat(value);
-        if (isNaN(vixNum)) return '#808080';
-        return vixNum < 20 ? '#00ff00' : vixNum > 30 ? '#ff0000' : '#ffff00';
-      case 'fedStance':
-        return value.includes('Dovish') ? '#00ff00' : value.includes('Hawkish') ? '#ff0000' : '#ffff00';
-      case 'recessionRisk':
-        return value.includes('Low') ? '#00ff00' : value.includes('High') ? '#ff0000' : '#ffff00';
-      default:
-        return '#cccc00';
+    * {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
-  };
 
-  const containerStyle = {
-    minHeight: '100vh',
-    width: '100vw',
-    backgroundColor: '#000000',
-    color: '#cccc00',
-    fontFamily: 'monospace',
-    fontSize: '13px',
-    overflow: 'auto'
-  };
+    @keyframes holographic {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
 
-  const headerStyle = {
-    borderBottom: '2px solid #cccc00',
-    padding: '15px 30px',
-    backgroundColor: '#0a0a0a',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center'
-  };
+    @keyframes glow {
+      0% { box-shadow: 0 0 20px rgba(255, 255, 255, 0.1); }
+      50% { box-shadow: 0 0 30px rgba(255, 255, 255, 0.2), 0 0 60px rgba(255, 255, 255, 0.1); }
+      100% { box-shadow: 0 0 20px rgba(255, 255, 255, 0.1); }
+    }
 
-  const titleStyle = {
-    fontSize: '28px',
-    fontWeight: 'bold',
-    letterSpacing: '2px',
-    fontFamily: "'Instrument Serif', serif",
-    color: '#cccc00'
-  };
+    .glass-card {
+      background: rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      transition: all 0.3s ease;
+    }
 
-  const mainContentStyle = {
-    padding: '30px',
-    maxWidth: '1400px',
-    margin: '0 auto'
-  };
+    .glass-card:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    }
 
-  const marketBoxStyle = {
-    border: '1px solid #cccc00',
-    padding: '20px',
-    backgroundColor: '#0a0a0a',
-    minHeight: '100px'
-  };
+    .holographic-text {
+      background: linear-gradient(135deg, #ffffff 0%, #e0e0e0 25%, #ffffff 50%, #f0f0f0 75%, #ffffff 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      background-size: 200% 200%;
+      animation: holographic 3s ease infinite;
+    }
 
-  const selectStyle = {
-    width: '100%',
-    padding: '10px',
-    backgroundColor: '#000',
-    color: '#cccc00',
-    border: '1px solid #cccc00',
-    fontSize: '13px',
-    fontFamily: 'monospace',
-    marginTop: '10px',
-    cursor: 'pointer'
-  };
+    .glass-button {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      color: white;
+      padding: 14px 28px;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
 
-  const buttonStyle = {
-    padding: '10px 20px',
-    backgroundColor: '#0a0a0a',
-    color: '#cccc00',
-    border: '2px solid #cccc00',
-    fontSize: '14px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    transition: 'all 0.3s ease'
-  };
+    .glass-button:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.3);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(255, 255, 255, 0.1);
+    }
+
+    .glass-button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .glass-select {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      color: white;
+      padding: 12px;
+      width: 100%;
+      outline: none;
+      transition: all 0.3s ease;
+    }
+
+    .glass-select:focus {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .glass-select option {
+      background: #1a1a1a;
+      color: white;
+    }
+
+    .progress-bar {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      overflow: hidden;
+      height: 6px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, rgba(255,255,255,0.3), rgba(255,255,255,0.6));
+      border-radius: 10px;
+      transition: width 0.3s ease;
+    }
+  `;
 
   return (
-    <div style={containerStyle}>
-      {/* Header */}
-      <header style={headerStyle}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <h1 style={titleStyle}>AutoAnalyst</h1>
-          <span style={{ 
-            color: backendStatus === 'ONLINE' ? '#00ff00' : '#ff0000', 
-            fontSize: '11px' 
-          }}>
-            BACKEND: {backendStatus}
-          </span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '30px' }}>
-          <button 
-            onClick={manualRefresh}
-            style={{
-              padding: '5px 10px',
-              backgroundColor: '#0a0a0a',
-              color: '#cccc00',
-              border: '1px solid #cccc00',
-              cursor: 'pointer',
-              fontSize: '11px'
-            }}
-          >
-            RETRY CONNECTION
-          </button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Database size={16} color={dataReady ? '#00ff00' : '#ff0000'} />
-            <span style={{ color: dataReady ? '#00ff00' : '#ff0000' }}>
-              {dataReady ? `DATA.READY` : 'NO.DATA'}
-            </span>
-          </div>
-          <div style={{ color: marketStatus === 'OPEN' ? '#00ff00' : '#ff0000' }}>
-            MARKET.{marketStatus}
-          </div>
-          <div>
-            {currentTime.toLocaleTimeString('en-US', { hour12: false })}
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main style={mainContentStyle}>
-        {/* Debug Info Box */}
+    <>
+      <style>{styles}</style>
+      <div style={{
+        minHeight: '100vh',
+        background: 'radial-gradient(ellipse at top, #1a1a1a 0%, #000000 100%)',
+        color: 'white',
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
+        {/* Background gradient orbs */}
         <div style={{
-          border: '1px solid #ffff00',
-          padding: '15px',
-          marginBottom: '20px',
-          backgroundColor: '#0a0a0a',
-          fontSize: '11px'
-        }}>
-          <div style={{ color: '#ffff00', marginBottom: '10px' }}>DEBUG.INFO</div>
-          <div>API_URL: {API_URL}</div>
-          <div>Backend Status: {backendStatus}</div>
-          <div>Data Ready: {dataReady ? 'YES' : 'NO'}</div>
-          <div>Sectors Loaded: {sectors.length}</div>
-          <div>Sub-Industries Loaded: {subIndustries.length}</div>
-          {error && <div style={{ color: '#ff0000', marginTop: '10px' }}>ERROR: {error}</div>}
-        </div>
-
-        {/* Wake up message */}
-        {(backendStatus.includes('WAKING') || backendStatus.includes('OFFLINE')) && (
-          <div style={{
-            border: '1px solid #ffff00',
-            padding: '15px',
-            marginBottom: '20px',
-            backgroundColor: '#1a1a00',
-            textAlign: 'center'
-          }}>
-            <div style={{ color: '#ffff00', marginBottom: '10px' }}>
-              {backendStatus.includes('WAKING') 
-                ? 'BACKEND IS WAKING UP FROM SLEEP MODE' 
-                : 'BACKEND IS OFFLINE'}
-            </div>
-            <div style={{ fontSize: '11px', color: '#cccc00' }}>
-              Free tier sleeps after 15 minutes. This can take 30-60 seconds...
-            </div>
-            <button
-              onClick={manualRefresh}
-              style={{
-                marginTop: '10px',
-                padding: '8px 16px',
-                backgroundColor: '#000',
-                color: '#ffff00',
-                border: '1px solid #ffff00',
-                cursor: 'pointer'
-              }}
-            >
-              RETRY CONNECTION
-            </button>
-          </div>
-        )}
-
-        {/* Market Overview */}
+          position: 'absolute',
+          width: '600px',
+          height: '600px',
+          background: 'radial-gradient(circle, rgba(255,255,255,0.02) 0%, transparent 70%)',
+          borderRadius: '50%',
+          top: '-300px',
+          left: '-300px',
+          pointerEvents: 'none'
+        }} />
         <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-          gap: '20px',
-          marginBottom: '30px'
-        }}>
-          <div style={marketBoxStyle}>
-            <div style={{ fontSize: '11px', color: '#808080', marginBottom: '10px' }}>
-              MARKET.REGIME
-            </div>
-            <div style={{ 
-              fontSize: '20px', 
-              fontWeight: 'bold', 
-              color: getIndicatorColor('regime', marketConditions.regime) 
-            }}>
-              {marketConditions.regime}
-            </div>
-          </div>
-          
-          <div style={marketBoxStyle}>
-            <div style={{ fontSize: '11px', color: '#808080', marginBottom: '10px' }}>
-              FED.STANCE
-            </div>
-            <div style={{ 
-              fontSize: '20px', 
-              fontWeight: 'bold', 
-              color: getIndicatorColor('fedStance', marketConditions.fedStance) 
-            }}>
-              {marketConditions.fedStance}
-            </div>
-          </div>
-          
-          <div style={marketBoxStyle}>
-            <div style={{ fontSize: '11px', color: '#808080', marginBottom: '10px' }}>
-              VIX.INDEX
-            </div>
-            <div style={{ 
-              fontSize: '20px', 
-              fontWeight: 'bold', 
-              color: getIndicatorColor('vix', marketConditions.vix) 
-            }}>
-              {marketConditions.vix}
-            </div>
-          </div>
-          
-          <div style={marketBoxStyle}>
-            <div style={{ fontSize: '11px', color: '#808080', marginBottom: '10px' }}>
-              RECESSION.RISK
-            </div>
-            <div style={{ 
-              fontSize: '20px', 
-              fontWeight: 'bold', 
-              color: getIndicatorColor('recessionRisk', marketConditions.recessionRisk) 
-            }}>
-              {marketConditions.recessionRisk}
-            </div>
-          </div>
-        </div>
+          position: 'absolute',
+          width: '800px',
+          height: '800px',
+          background: 'radial-gradient(circle, rgba(255,255,255,0.01) 0%, transparent 70%)',
+          borderRadius: '50%',
+          bottom: '-400px',
+          right: '-400px',
+          pointerEvents: 'none'
+        }} />
 
-        {/* Analysis Controls */}
-        {dataReady && (
+        {/* Header */}
+        <header className="glass-card" style={{
+          margin: '20px',
+          padding: '24px 32px',
+          borderRadius: '20px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h1 className="holographic-text" style={{
+              fontSize: '32px',
+              fontWeight: '700',
+              letterSpacing: '-1px',
+              margin: 0
+            }}>
+              doDiligence
+            </h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Database size={18} color={dataReady ? '#4ade80' : '#ef4444'} />
+                <span style={{ fontSize: '13px', opacity: 0.8 }}>
+                  {backendStatus}
+                </span>
+              </div>
+              <div style={{ fontSize: '13px', opacity: 0.8 }}>
+                Market {marketStatus}
+              </div>
+              <div style={{ fontSize: '13px', opacity: 0.6 }}>
+                {currentTime.toLocaleTimeString()}
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Main Content */}
+        <main style={{ padding: '0 20px 20px', maxWidth: '1400px', margin: '0 auto' }}>
+          {/* Market Overview */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: '1fr 2fr',
-            gap: '30px',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: '20px',
             marginBottom: '30px'
           }}>
-            <div style={{
-              border: '1px solid #cccc00',
-              padding: '25px',
-              backgroundColor: '#0a0a0a'
-            }}>
-              <h2 style={{ fontSize: '16px', marginBottom: '20px', color: '#cccc00' }}>
-                ANALYSIS.PARAMETERS
+            {[
+              { label: 'Market Regime', value: marketConditions.regime, icon: <TrendingUp size={18} /> },
+              { label: 'Fed Stance', value: marketConditions.fedStance, icon: <Activity size={18} /> },
+              { label: 'VIX Index', value: marketConditions.vix, icon: <BarChart3 size={18} /> },
+              { label: 'Recession Risk', value: marketConditions.recessionRisk, icon: <Activity size={18} /> }
+            ].map((item, idx) => (
+              <div key={idx} className="glass-card" style={{ padding: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                  <div style={{ opacity: 0.6 }}>{item.icon}</div>
+                  <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px', opacity: 0.6 }}>
+                    {item.label}
+                  </div>
+                </div>
+                <div className="holographic-text" style={{ fontSize: '24px', fontWeight: '600' }}>
+                  {item.value}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Analysis Section */}
+          <div style={{ display: 'grid', gridTemplateColumns: '400px 1fr', gap: '20px' }}>
+            {/* Controls */}
+            <div className="glass-card" style={{ padding: '32px' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '24px', opacity: 0.9 }}>
+                Analysis Parameters
               </h2>
               
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ fontSize: '11px', color: '#808080' }}>
-                  ANALYSIS.TYPE
+              <div style={{ marginBottom: '24px' }}>
+                <label style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px', opacity: 0.6 }}>
+                  Analysis Type
                 </label>
                 <select 
-                  style={selectStyle}
+                  className="glass-select"
                   value={analysisType}
-                  onChange={(e) => {
-                    setAnalysisType(e.target.value);
-                    setSelectedTarget('');
-                  }}
+                  onChange={(e) => setAnalysisType(e.target.value)}
+                  style={{ marginTop: '8px' }}
                 >
-                  <option value="sector">SECTOR.ANALYSIS</option>
-                  <option value="sub_industry">SUB.INDUSTRY.ANALYSIS</option>
+                  <option value="sector">Sector Analysis</option>
+                  <option value="sub_industry">Sub-Industry Analysis</option>
                 </select>
               </div>
 
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ fontSize: '11px', color: '#808080' }}>
-                  TARGET.SELECTION
+              <div style={{ marginBottom: '32px' }}>
+                <label style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px', opacity: 0.6 }}>
+                  Target Selection
                 </label>
                 <select 
-                  style={selectStyle}
+                  className="glass-select"
                   value={selectedTarget}
                   onChange={(e) => setSelectedTarget(e.target.value)}
+                  style={{ marginTop: '8px' }}
                 >
-                  <option value="">-- SELECT.TARGET --</option>
+                  <option value="">Select Target</option>
                   {analysisType === 'sector' 
-                    ? sectors.map(sector => (
-                        <option key={sector} value={sector}>{sector.toUpperCase()}</option>
-                      ))
-                    : subIndustries.map(industry => (
-                        <option key={industry} value={industry}>{industry.toUpperCase()}</option>
-                      ))
+                    ? sectors.map(s => <option key={s} value={s}>{s}</option>)
+                    : subIndustries.map(s => <option key={s} value={s}>{s}</option>)
                   }
                 </select>
               </div>
 
               <button
-                style={{
-                  ...buttonStyle,
-                  width: '100%',
-                  marginTop: '20px'
-                }}
+                className="glass-button"
                 onClick={executeAnalysis}
                 disabled={isAnalyzing || !selectedTarget}
+                style={{ width: '100%' }}
               >
-                {isAnalyzing ? 'ANALYZING...' : 'EXECUTE.ANALYSIS'}
+                {isAnalyzing ? 'Analyzing...' : 'Execute Analysis'}
               </button>
 
               {isAnalyzing && (
                 <div style={{ marginTop: '20px' }}>
-                  <div style={{ fontSize: '11px', color: '#808080', marginBottom: '5px' }}>
-                    PROGRESS: {analysisProgress}%
-                  </div>
-                  <div style={{ 
-                    width: '100%', 
-                    height: '4px', 
-                    backgroundColor: '#1a1a1a', 
-                    border: '1px solid #cccc00' 
-                  }}>
-                    <div style={{
-                      width: `${analysisProgress}%`,
-                      height: '100%',
-                      backgroundColor: '#cccc00',
-                      transition: 'width 0.3s ease'
-                    }} />
+                  <div className="progress-bar">
+                    <div className="progress-fill" style={{ width: `${analysisProgress}%` }} />
                   </div>
                 </div>
               )}
             </div>
 
-            <div style={{
-              border: '1px solid #cccc00',
-              padding: '25px',
-              backgroundColor: '#0a0a0a'
-            }}>
-              <h2 style={{ fontSize: '16px', marginBottom: '20px', color: '#cccc00' }}>
-                ANALYSIS.RESULTS
+            {/* Results */}
+            <div className="glass-card" style={{ padding: '32px' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '24px', opacity: 0.9 }}>
+                Analysis Results
               </h2>
               
               {results && results.top_stocks ? (
-                <div>
-                  {results.top_stocks.map((stock, index) => (
-                    <div key={stock.symbol} style={{
-                      border: '1px solid #cccc00',
-                      padding: '15px',
-                      marginBottom: '10px',
-                      backgroundColor: '#050505'
-                    }}>
-                      <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#ffff00' }}>
-                        #{index + 1} {stock.symbol}
-                      </div>
-                      <div style={{ marginTop: '10px', fontSize: '12px' }}>
-                        <div>PRICE: ${stock.metrics.current_price.toFixed(2)}</div>
-                        <div>TARGET: ${stock.metrics.target_price.toFixed(2)}</div>
-                        <div>UPSIDE: {stock.metrics.upside_potential.toFixed(1)}%</div>
-                        <div>CONFIDENCE: {stock.metrics.confidence_score}%</div>
+                <div style={{ display: 'grid', gap: '16px' }}>
+                  {results.top_stocks.map((stock, idx) => (
+                    <div key={stock.symbol} className="glass-card" style={{ padding: '20px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                        <div>
+                          <div className="holographic-text" style={{ fontSize: '20px', fontWeight: '600' }}>
+                            {stock.symbol}
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginTop: '12px' }}>
+                            <div>
+                              <div style={{ fontSize: '11px', opacity: 0.6 }}>Current Price</div>
+                              <div style={{ fontSize: '16px', fontWeight: '500' }}>${stock.metrics.current_price}</div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '11px', opacity: 0.6 }}>Target Price</div>
+                              <div style={{ fontSize: '16px', fontWeight: '500' }}>${stock.metrics.target_price}</div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '11px', opacity: 0.6 }}>Upside</div>
+                              <div style={{ fontSize: '16px', fontWeight: '500', color: stock.metrics.upside_potential > 0 ? '#4ade80' : '#ef4444' }}>
+                                {stock.metrics.upside_potential}%
+                              </div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '11px', opacity: 0.6 }}>Confidence</div>
+                              <div style={{ fontSize: '16px', fontWeight: '500' }}>{stock.metrics.confidence_score}%</div>
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{ fontSize: '24px', opacity: 0.3 }}>
+                          #{idx + 1}
+                        </div>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div style={{ color: '#808080', textAlign: 'center', padding: '40px' }}>
-                  NO.ANALYSIS.EXECUTED
+                <div style={{ textAlign: 'center', padding: '60px', opacity: 0.4 }}>
+                  {error || 'No analysis executed'}
                 </div>
               )}
             </div>
           </div>
-        )}
-      </main>
-    </div>
+        </main>
+      </div>
+    </>
   );
 }
 
