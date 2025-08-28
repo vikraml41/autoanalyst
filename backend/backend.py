@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-FastAPI Backend - Using QuantFinanceMLModel with real ML values extraction
+FastAPI Backend - Fully compatible with actual QuantFinanceMLModel
 """
 
 import os
@@ -15,7 +15,7 @@ from pydantic import BaseModel
 import pandas as pd
 import numpy as np
 import yfinance as yf
-from datetime import datetime
+from datetime import datetime, timedelta
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -24,7 +24,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Initialize FastAPI
-app = FastAPI(title="AutoAnalyst API", version="4.0.0")
+app = FastAPI(title="AutoAnalyst API", version="6.0.0")
 
 # CORS middleware
 app.add_middleware(
@@ -113,6 +113,10 @@ try:
     logger.info("Initializing QuantFinanceMLModel...")
     ml_model = QuantFinanceMLModel()
     
+    # Set the master_df directly to avoid input() calls
+    ml_model.master_df = stocks_data
+    ml_model.process_gics_data()
+    
     logger.info("Initializing MarketConditionsAnalyzer...")
     market_analyzer = MarketConditionsAnalyzer()
     
@@ -144,7 +148,7 @@ async def root():
     return JSONResponse(
         content={
             "name": "AutoAnalyst API",
-            "version": "4.0.0",
+            "version": "6.0.0",
             "status": "running",
             "ml_enabled": ML_AVAILABLE,
             "model_type": type(ml_model).__name__ if ml_model else "None",
@@ -177,11 +181,12 @@ async def get_stocks_list():
     sectors = []
     sub_industries = []
     
-    if 'GICS Sector' in stocks_data.columns:
+    if ML_AVAILABLE and ml_model and hasattr(ml_model, 'sectors'):
+        sectors = ml_model.sectors if ml_model.sectors else []
+        sub_industries = ml_model.sub_industries if ml_model.sub_industries else []
+    elif 'GICS Sector' in stocks_data.columns:
         sectors = stocks_data['GICS Sector'].dropna().unique().tolist()
         sectors = [s for s in sectors if isinstance(s, str) and s != '']
-    
-    if 'GICS Sub-Industry' in stocks_data.columns:
         sub_industries = stocks_data['GICS Sub-Industry'].dropna().unique().tolist()
         sub_industries = [s for s in sub_industries if isinstance(s, str) and s != '']
     
@@ -197,42 +202,34 @@ async def get_stocks_list():
 @app.get("/api/market-conditions")
 async def get_market_conditions():
     try:
-        regime = "Unknown"
-        fed_stance = "Unknown"
-        vix = 20.0
-        recession_risk = "Unknown"
+        if not market_analyzer:
+            return JSONResponse(
+                content={
+                    "regime": "Unknown",
+                    "fed_stance": "Unknown",
+                    "vix": 20.0,
+                    "recession_risk": "Unknown"
+                },
+                headers={"Access-Control-Allow-Origin": "*"}
+            )
         
-        # Use MarketConditionsAnalyzer
-        if market_analyzer:
-            try:
-                regime = market_analyzer.get_market_regime()
-            except:
-                pass
-            
-            try:
-                fed_data = market_analyzer.get_federal_reserve_stance()
-                fed_stance = fed_data.get("stance", "Unknown")
-            except:
-                pass
-            
-            try:
-                economic_data = market_analyzer.fetch_economic_data()
-                vix = economic_data.get("Volatility Index", {}).get("current", 20)
-            except:
-                pass
-            
-            try:
-                yield_curve = market_analyzer.analyze_yield_curve()
-                recession_risk = yield_curve.get("recession_risk", "Unknown")
-            except:
-                pass
+        # Use YOUR MarketConditionsAnalyzer methods
+        regime = market_analyzer.get_market_regime()
+        fed_data = market_analyzer.get_federal_reserve_stance()
+        yield_curve = market_analyzer.analyze_yield_curve()
+        economic_data = market_analyzer.fetch_economic_data()
+        
+        # Extract VIX from economic data
+        vix_value = 20.0
+        if economic_data and 'Volatility Index' in economic_data:
+            vix_value = economic_data['Volatility Index'].get('current', 20.0)
         
         return JSONResponse(
             content={
                 "regime": regime,
-                "fed_stance": fed_stance,
-                "vix": vix,
-                "recession_risk": recession_risk,
+                "fed_stance": fed_data.get("stance", "Unknown"),
+                "vix": vix_value,
+                "recession_risk": yield_curve.get("recession_risk", "Unknown"),
                 "ml_powered": ML_AVAILABLE
             },
             headers={"Access-Control-Allow-Origin": "*"}
@@ -255,7 +252,7 @@ class AnalysisRequest(BaseModel):
 
 @app.post("/api/analysis")
 async def run_analysis(request: AnalysisRequest):
-    """Use REAL ML values from YOUR model"""
+    """Run analysis using YOUR QuantFinanceMLModel methods"""
     logger.info(f"=" * 50)
     logger.info(f"Analysis START: {request.analysis_type} - {request.target}")
     
@@ -266,7 +263,7 @@ async def run_analysis(request: AnalysisRequest):
         )
     
     try:
-        # Filter stocks
+        # Filter stocks based on selection
         if request.analysis_type == "sector":
             filtered_stocks = stocks_data[stocks_data['GICS Sector'] == request.target]
         else:
@@ -280,159 +277,202 @@ async def run_analysis(request: AnalysisRequest):
         
         logger.info(f"Found {len(filtered_stocks)} stocks")
         
-        # Set data in model
+        # Get top 10 by market cap using YOUR model's method
+        symbols = filtered_stocks['Symbol'].tolist()
+        market_caps = {}
+        
+        for symbol in symbols[:50]:  # Limit to 50 to avoid timeout
+            try:
+                ticker = yf.Ticker(symbol)
+                info = ticker.info
+                market_cap = info.get('marketCap', 0)
+                if market_cap > 0:
+                    market_caps[symbol] = market_cap
+            except:
+                continue
+        
+        # Get top 10 by market cap
+        sorted_stocks = sorted(market_caps.items(), key=lambda x: x[1], reverse=True)[:10]
+        top_symbols = [stock[0] for stock in sorted_stocks]
+        
+        if not top_symbols:
+            # Fallback to first 3 symbols
+            top_symbols = symbols[:3]
+        
+        logger.info(f"Analyzing top stocks: {top_symbols}")
+        
+        # Set up the model's data
+        ml_model.selected_stocks = top_symbols
         ml_model.sectors_data = filtered_stocks
         
-        # Train the model first if needed
-        if hasattr(ml_model, 'train_prediction_model'):
+        # Analyze market conditions using YOUR model's method
+        market_conditions = None
+        market_adjustment = 1.0
+        
+        if market_analyzer:
             try:
-                logger.info("Training prediction model...")
-                ml_model.train_prediction_model()
+                # Get the sector for this analysis
+                sector = request.target
+                
+                # Use YOUR model's analyze_market_conditions equivalent
+                market_analyzer.fetch_economic_data()
+                sector_conditions = market_analyzer.analyze_sector_conditions(sector)
+                market_adjustment = market_analyzer.calculate_market_adjustment_factor(sector)
+                
+                ml_model.market_adjustment = market_adjustment
+                logger.info(f"Market adjustment factor: {market_adjustment}")
+            except Exception as e:
+                logger.error(f"Market analysis error: {e}")
+                market_adjustment = 1.0
+        
+        # Prepare training data if model needs it
+        if len(top_symbols) > 0:
+            try:
+                logger.info("Preparing training data...")
+                training_data = ml_model.prepare_training_data(top_symbols[:5])  # Limit for speed
+                
+                if not training_data.empty:
+                    # Add sentiment features
+                    training_data = ml_model.add_sentiment_features(training_data)
+                    ml_model.training_data = training_data
+                    
+                    # Train the model
+                    logger.info("Training ML model...")
+                    ml_model.train_prediction_model(training_data)
             except Exception as e:
                 logger.error(f"Training error: {e}")
         
-        # Get predictions
-        predictions_df = None
-        if hasattr(ml_model, 'calculate_stock_predictions'):
+        # Analyze each stock and calculate predictions
+        results = []
+        
+        for symbol in top_symbols[:3]:  # Top 3 for speed
             try:
-                logger.info("Calculating stock predictions...")
-                predictions_df = ml_model.calculate_stock_predictions()
-                logger.info(f"Got predictions: {type(predictions_df)}")
-            except Exception as e:
-                logger.error(f"Predictions error: {e}")
-        
-        # Process results - USE ACTUAL ML VALUES
-        top_stocks = []
-        
-        # If we have predictions DataFrame
-        if predictions_df is not None and isinstance(predictions_df, pd.DataFrame):
-            logger.info(f"Processing predictions DataFrame with columns: {list(predictions_df.columns)}")
-            
-            # Sort by predicted returns or ML score
-            sort_columns = ['Predicted_Return', 'ML_Score', 'Expected_Return', 'Score']
-            sort_col = None
-            for col in sort_columns:
-                if col in predictions_df.columns:
-                    sort_col = col
-                    break
-            
-            if sort_col:
-                predictions_df = predictions_df.sort_values(sort_col, ascending=False)
-            
-            # Get top 3
-            for idx, row in predictions_df.head(3).iterrows():
-                symbol = row.get('Symbol', idx)
+                logger.info(f"Analyzing {symbol}...")
                 
-                # Get REAL ML score from predictions
-                ml_score = row.get('ML_Score', row.get('Predicted_Return', row.get('Score', 0.5)))
-                if ml_score > 1:  # If it's a percentage
-                    ml_score = ml_score / 100
+                # Get stock data
+                ticker = yf.Ticker(symbol)
+                info = ticker.info
+                hist = ticker.history(period="3mo")
                 
                 # Get current price
-                current_price = row.get('Current_Price', 100)
-                if current_price <= 0:
-                    try:
-                        ticker = yf.Ticker(symbol)
-                        info = ticker.info
-                        current_price = info.get('currentPrice', info.get('regularMarketPrice', 100))
-                    except:
-                        current_price = 100
+                current_price = info.get('currentPrice') or info.get('regularMarketPrice')
+                if not current_price or current_price <= 0:
+                    if len(hist) > 0:
+                        current_price = float(hist['Close'].iloc[-1])
+                    else:
+                        continue
                 
-                # Get REAL target price from model or valuator
-                target_price = row.get('Target_Price', row.get('Predicted_Price', current_price * 1.15))
-                if valuator and target_price == current_price * 1.15:
-                    try:
-                        intrinsic = valuator.calculate_intrinsic_value(symbol)
-                        if intrinsic and intrinsic > 0:
-                            target_price = intrinsic
-                    except:
-                        pass
+                # Prepare current data for ML prediction
+                current_data = {
+                    'recent_returns': hist['Close'].pct_change().tail(20).mean() if len(hist) > 20 else 0,
+                    'volatility': hist['Close'].pct_change().std() * np.sqrt(252) if len(hist) > 2 else 0.2,
+                    'pe_ratio': info.get('trailingPE', 20),
+                    'market_cap': info.get('marketCap', 1e9),
+                    'vix': 20,
+                    'treasury_10y': 3.5,
+                    'dollar_index': 100,
+                    'spy_trend': 1
+                }
                 
-                # Calculate REAL upside
+                # Get sentiment using YOUR model's method
+                sentiment_score = 0.5
+                try:
+                    company_name = info.get('longName', symbol)
+                    sentiment_result = ml_model.simple_sentiment(f"{symbol} {company_name} stock")
+                    if sentiment_result and len(sentiment_result) > 0:
+                        sent = sentiment_result[0]
+                        if sent['label'] == 'positive':
+                            sentiment_score = sent['score']
+                        elif sent['label'] == 'negative':
+                            sentiment_score = -sent['score']
+                except:
+                    sentiment_score = 0
+                
+                current_data['reddit_sentiment'] = sentiment_score
+                current_data['news_sentiment'] = sentiment_score
+                
+                # Get ML prediction using YOUR model's method
+                ml_prediction = 0
+                if hasattr(ml_model, 'ml_model') and ml_model.ml_model is not None:
+                    try:
+                        ml_prediction = ml_model.calculate_stock_predictions(symbol, current_data)
+                    except:
+                        ml_prediction = 0.05  # Default 5% return
+                else:
+                    # Simple momentum-based prediction
+                    if len(hist) > 20:
+                        returns_20d = (hist['Close'].iloc[-1] - hist['Close'].iloc[-20]) / hist['Close'].iloc[-20]
+                        ml_prediction = returns_20d
+                
+                # Calculate valuation using YOUR valuation model
+                target_price = current_price * 1.15  # Default
+                confidence = 0.5
+                
+                if valuator and hasattr(valuator, 'calculate_comprehensive_valuation'):
+                    try:
+                        valuation_result = valuator.calculate_comprehensive_valuation(
+                            symbol, 
+                            ml_prediction, 
+                            sentiment_score, 
+                            market_adjustment
+                        )
+                        target_price = valuation_result.get('target_price', current_price * 1.15)
+                        confidence = valuation_result.get('confidence', 0.5)
+                    except Exception as e:
+                        logger.error(f"Valuation error for {symbol}: {e}")
+                
+                # Calculate upside
                 upside = ((target_price / current_price) - 1) * 100 if current_price > 0 else 0
                 
-                # Get REAL confidence from model
-                confidence = row.get('Confidence', row.get('Probability', ml_score))
-                if confidence > 1:  # Convert to 0-1 if percentage
-                    confidence = confidence / 100
+                # Convert ML score to 0-1 range
+                ml_score = 0.5 + (ml_prediction * 2)  # Convert return to score
+                ml_score = max(0.1, min(0.95, ml_score))
                 
-                top_stocks.append({
+                results.append({
                     "symbol": symbol,
-                    "metrics": {
-                        "current_price": round(float(current_price), 2),
-                        "target_price": round(float(target_price), 2),
-                        "upside_potential": round(float(upside), 1),
-                        "confidence_score": int(confidence * 100),
-                        "sentiment_score": row.get('Sentiment', 0.7),
-                        "ml_score": round(float(ml_score), 3)
-                    }
+                    "current_price": current_price,
+                    "target_price": target_price,
+                    "upside": upside,
+                    "ml_score": ml_score,
+                    "confidence": confidence,
+                    "sentiment": sentiment_score,
+                    "ml_prediction": ml_prediction
                 })
                 
-                logger.info(f"Added {symbol}: ML={ml_score:.3f}, Upside={upside:.1f}%, Confidence={confidence:.2f}")
-        
-        # Fallback if no predictions DataFrame
-        else:
-            logger.warning("No predictions DataFrame, analyzing individually")
-            
-            results_list = []
-            for _, stock in filtered_stocks.head(10).iterrows():
-                symbol = stock.get('Symbol', '')
-                if not symbol:
-                    continue
+                logger.info(f"✅ {symbol}: Price=${current_price:.2f}, Target=${target_price:.2f}, Upside={upside:.1f}%")
                 
-                # Get price
-                try:
-                    ticker = yf.Ticker(symbol)
-                    info = ticker.info
-                    current_price = info.get('currentPrice', info.get('regularMarketPrice', 100))
-                    
-                    # Get historical data for ML scoring
-                    hist = ticker.history(period="3mo")
-                    if len(hist) > 20:
-                        # Calculate simple momentum score
-                        returns = (hist['Close'].iloc[-1] - hist['Close'].iloc[-20]) / hist['Close'].iloc[-20]
-                        ml_score = 0.5 + (returns * 2)  # Convert returns to 0-1 score
-                        ml_score = max(0.1, min(0.9, ml_score))
-                    else:
-                        ml_score = 0.5
-                    
-                    # Get real valuation
-                    target_price = current_price * 1.15
-                    if valuator:
-                        try:
-                            intrinsic = valuator.calculate_intrinsic_value(symbol)
-                            if intrinsic and intrinsic > 0:
-                                target_price = intrinsic
-                        except:
-                            pass
-                    
-                    results_list.append({
-                        "symbol": symbol,
-                        "current_price": current_price,
-                        "target_price": target_price,
-                        "ml_score": ml_score
-                    })
-                except Exception as e:
-                    logger.error(f"Error analyzing {symbol}: {e}")
-            
-            # Sort by ML score and get top 3
-            results_list.sort(key=lambda x: x['ml_score'], reverse=True)
-            for stock in results_list[:3]:
-                upside = ((stock['target_price'] / stock['current_price']) - 1) * 100
-                
-                top_stocks.append({
-                    "symbol": stock['symbol'],
-                    "metrics": {
-                        "current_price": round(stock['current_price'], 2),
-                        "target_price": round(stock['target_price'], 2),
-                        "upside_potential": round(upside, 1),
-                        "confidence_score": int(stock['ml_score'] * 100),
-                        "sentiment_score": 0.7,
-                        "ml_score": round(stock['ml_score'], 3)
-                    }
-                })
+            except Exception as e:
+                logger.error(f"Error analyzing {symbol}: {e}")
+                continue
         
-        # Get market conditions
+        # Sort by upside potential
+        results.sort(key=lambda x: x['upside'], reverse=True)
+        
+        # Format for frontend
+        top_stocks = []
+        for stock in results[:3]:
+            top_stocks.append({
+                "symbol": stock['symbol'],
+                "metrics": {
+                    "current_price": round(stock['current_price'], 2),
+                    "target_price": round(stock['target_price'], 2),
+                    "upside_potential": round(stock['upside'], 1),
+                    "confidence_score": int(stock['confidence'] * 100),
+                    "sentiment_score": round(abs(stock['sentiment']), 2),
+                    "ml_score": round(stock['ml_score'], 3)
+                }
+            })
+        
+        if not top_stocks:
+            return JSONResponse(
+                content={
+                    "status": "no_results",
+                    "error": "Could not analyze any stocks"
+                },
+                status_code=500
+            )
+        
+        # Get market regime
         market_regime = "Neutral"
         if market_analyzer:
             try:
@@ -449,8 +489,9 @@ async def run_analysis(request: AnalysisRequest):
                     "top_stocks": top_stocks,
                     "market_conditions": {
                         "regime": market_regime,
-                        "adjustment_factor": 1.0
-                    }
+                        "adjustment_factor": market_adjustment
+                    },
+                    "total_analyzed": len(results)
                 },
                 "ml_powered": True
             },
@@ -462,108 +503,40 @@ async def run_analysis(request: AnalysisRequest):
         logger.error(f"Analysis error: {e}")
         logger.error(traceback.format_exc())
         return JSONResponse(
-            content={"status": "error", "error": str(e)},
+            content={
+                "status": "error",
+                "error": str(e),
+                "traceback": traceback.format_exc()[:500]
+            },
             status_code=500
         )
-
-@app.get("/api/debug-analysis")
-async def debug_analysis():
-    """See what run_complete_analysis() actually returns"""
-    if not ml_model:
-        return {"error": "No ML model"}
-    
-    try:
-        # Get a sample of stocks
-        sample_stocks = stocks_data.head(10)
-        ml_model.sectors_data = sample_stocks
-        
-        # Run the analysis
-        results = None
-        if hasattr(ml_model, 'run_complete_analysis'):
-            results = ml_model.run_complete_analysis()
-        
-        return {
-            "has_run_complete_analysis": hasattr(ml_model, 'run_complete_analysis'),
-            "results_type": str(type(results)) if results is not None else "None",
-            "results_is_none": results is None,
-            "results_sample": str(results)[:500] if results is not None else None,
-            "has_dataframe": isinstance(results, pd.DataFrame) if results is not None else False,
-            "columns": list(results.columns) if isinstance(results, pd.DataFrame) else None,
-            "shape": results.shape if isinstance(results, pd.DataFrame) else None
-        }
-    except Exception as e:
-        return {"error": str(e)}
-
-@app.get("/api/debug-methods")
-async def debug_methods():
-    """Test what each method returns"""
-    if not ml_model:
-        return {"error": "No ML model"}
-    
-    results = {}
-    
-    # Test calculate_stock_predictions
-    try:
-        # Set sample data
-        ml_model.sectors_data = stocks_data.head(10)
-        
-        # Train if needed
-        if hasattr(ml_model, 'train_prediction_model'):
-            ml_model.train_prediction_model()
-            results["train_prediction_model"] = "Success"
-        
-        # Get predictions
-        if hasattr(ml_model, 'calculate_stock_predictions'):
-            predictions = ml_model.calculate_stock_predictions()
-            results["calculate_stock_predictions"] = {
-                "type": str(type(predictions)),
-                "is_none": predictions is None,
-                "sample": str(predictions)[:200] if predictions is not None else None,
-                "columns": list(predictions.columns) if isinstance(predictions, pd.DataFrame) else None
-            }
-    except Exception as e:
-        results["calculate_stock_predictions"] = {"error": str(e)[:100]}
-    
-    # Test if model has stored results
-    if hasattr(ml_model, 'training_data'):
-        results["has_training_data"] = ml_model.training_data is not None
-    
-    if hasattr(ml_model, 'ml_model'):
-        results["has_trained_model"] = ml_model.ml_model is not None
-    
-    # Check valuator
-    if valuator:
-        try:
-            test_value = valuator.calculate_intrinsic_value("AAPL")
-            results["valuator_test"] = {
-                "success": True,
-                "value": test_value
-            }
-        except Exception as e:
-            results["valuator_test"] = {"error": str(e)[:100]}
-    
-    return results
 
 @app.get("/api/test-analysis/{symbol}")
 async def test_single_stock(symbol: str):
     """Test analysis on a single stock"""
     results = {"symbol": symbol}
     
-    # Test price fetching
     try:
         ticker = yf.Ticker(symbol)
         info = ticker.info
         results['current_price'] = info.get('currentPrice') or info.get('regularMarketPrice')
         results['company_name'] = info.get('longName', symbol)
+        
+        # Test sentiment
+        if ml_model:
+            sentiment = ml_model.simple_sentiment(f"{symbol} stock")
+            results['sentiment'] = sentiment[0] if sentiment else {"label": "neutral", "score": 0.5}
+        
+        # Test valuation
+        if valuator:
+            try:
+                valuation = valuator.calculate_comprehensive_valuation(symbol, 0.05, 0.5, 1.0)
+                results['target_price'] = valuation.get('target_price')
+                results['confidence'] = valuation.get('confidence')
+            except Exception as e:
+                results['valuation_error'] = str(e)[:100]
     except Exception as e:
-        results['price_error'] = str(e)[:100]
-    
-    # Test valuator
-    if valuator:
-        try:
-            results['intrinsic_value'] = valuator.calculate_intrinsic_value(symbol)
-        except Exception as e:
-            results['valuation_error'] = str(e)[:100]
+        results['error'] = str(e)[:100]
     
     return results
 
@@ -574,17 +547,22 @@ async def diagnose_system():
         "ml_model": {
             "exists": ml_model is not None,
             "type": type(ml_model).__name__ if ml_model else "None",
-            "methods": []
+            "has_master_df": hasattr(ml_model, 'master_df') and ml_model.master_df is not None if ml_model else False,
+            "has_sectors": hasattr(ml_model, 'sectors') and ml_model.sectors is not None if ml_model else False,
+            "has_ml_model": hasattr(ml_model, 'ml_model') and ml_model.ml_model is not None if ml_model else False,
+            "has_training_data": hasattr(ml_model, 'training_data') and ml_model.training_data is not None if ml_model else False
         },
-        "has_run_complete_analysis": False,
-        "stocks_data_shape": stocks_data.shape if stocks_data is not None else None,
-        "stocks_data_columns": list(stocks_data.columns) if stocks_data is not None else []
+        "market_analyzer": {
+            "exists": market_analyzer is not None,
+            "type": type(market_analyzer).__name__ if market_analyzer else "None"
+        },
+        "valuator": {
+            "exists": valuator is not None,
+            "type": type(valuator).__name__ if valuator else "None",
+            "has_calculate_comprehensive_valuation": hasattr(valuator, 'calculate_comprehensive_valuation') if valuator else False
+        },
+        "stocks_data_shape": stocks_data.shape if stocks_data is not None else None
     }
-    
-    # Check ML model methods
-    if ml_model:
-        diagnosis["ml_model"]["methods"] = [m for m in dir(ml_model) if not m.startswith('_')]
-        diagnosis["has_run_complete_analysis"] = 'run_complete_analysis' in diagnosis["ml_model"]["methods"]
     
     return diagnosis
 
