@@ -1,40 +1,8 @@
 {
-  "name": "autoanalyst-frontend",
-  "version": "1.0.0",
-  "private": true,
-  
   "dependencies": {
-    "expo": "53.0.20",
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
-    "react-native": "0.76.3",
-    "three": "0.150.1",
-    "@react-three/fiber": "9.2.3",
-    "@react-three/drei": "9.56.29",
-    "framer-motion": "10.16.4",
-    "lucide-react": "0.344.0"
-  }
-
- 
-  
-
-  "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build"
-  },
-  "devDependencies": {
-    "react-scripts": "^0.0.0"
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
+    "@react-three/drei": "^10.7.4",
+    "@react-three/fiber": "^9.3.0",
+    "framer-motion": "^12.23.12",
+    "three": "^0.179.1"
   }
 }
