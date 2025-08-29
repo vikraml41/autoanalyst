@@ -26,6 +26,8 @@ const HolographicShard = ({ top, left, size = 100, rotation = 0, delay = 0 }) =>
 };
 
 function App() {
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [marketStatus, setMarketStatus] = useState('CHECKING');
   const [marketConditions, setMarketConditions] = useState({
     regime: 'Loading',
     fedStance: 'Loading',
@@ -38,6 +40,29 @@ function App() {
   const [selectedTarget, setSelectedTarget] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [results, setResults] = useState(null);
+
+  // Clock and market status update
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = new Date();
+      setCurrentTime(now);
+      
+      const hours = now.getUTCHours() - 5; // EST
+      const day = now.getDay();
+      
+      if (day === 0 || day === 6) {
+        setMarketStatus('WEEKEND');
+      } else if (hours < 9 || (hours === 9 && now.getUTCMinutes() < 30)) {
+        setMarketStatus('PRE-MARKET');
+      } else if (hours >= 16) {
+        setMarketStatus('AFTER-HOURS');
+      } else {
+        setMarketStatus('OPEN');
+      }
+    }, 1000);
+    
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const initialize = async () => {
@@ -118,6 +143,45 @@ function App() {
       overflow-x: hidden;
     }
 
+    /* Top Bar Holographic Animation */
+    @keyframes holographic-bar {
+      0% { background-position: 0% 50%; }
+      100% { background-position: 100% 50%; }
+    }
+
+    @keyframes shine {
+      0% { left: -100%; }
+      100% { left: 200%; }
+    }
+
+    .holographic-header {
+      background: linear-gradient(
+        90deg,
+        #ff00ff,
+        #00ffff,
+        #ffff00,
+        #00ff00,
+        #ff00ff,
+        #00ffff,
+        #ff00ff
+      );
+      background-size: 200% 100%;
+      animation: holographic-bar 8s linear infinite;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .holographic-header::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+      animation: shine 6s infinite;
+    }
+
     /* Holographic Shard Animation */
     @keyframes float-shard {
       0%, 100% { transform: translateY(0px) rotate(0deg); }
@@ -125,7 +189,7 @@ function App() {
       66% { transform: translateY(10px) rotate(240deg); }
     }
 
-    @keyframes holographic-shift {
+    @keyframes holographic-shift-slow {
       0%, 100% { filter: hue-rotate(0deg) brightness(1); }
       25% { filter: hue-rotate(90deg) brightness(1.2); }
       50% { filter: hue-rotate(180deg) brightness(0.9); }
@@ -143,18 +207,19 @@ function App() {
         #ff00ff
       );
       clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
-      animation: float-shard 6s ease-in-out infinite, holographic-shift 4s linear infinite;
+      animation: float-shard 12s ease-in-out infinite, holographic-shift-slow 8s linear infinite;
       opacity: 0.6;
       filter: blur(0.5px);
     }
 
-    /* Liquid Glass Card */
+    /* Liquid Glass Card - No Rotation */
     .liquid-glass-card {
       position: relative;
       background: #000000;
       border-radius: 24px;
       padding: 32px;
       overflow: hidden;
+      border: 3px solid rgba(255, 255, 255, 0.15);
     }
 
     .liquid-glass-card::before {
@@ -162,32 +227,24 @@ function App() {
       position: absolute;
       inset: 0;
       border-radius: 24px;
-      padding: 2px;
-      background: conic-gradient(
-        from 180deg at 50% 50%,
-        rgba(255, 255, 255, 0.1),
-        rgba(255, 255, 255, 0.3),
-        rgba(255, 255, 255, 0.1),
-        rgba(255, 255, 255, 0.3),
-        rgba(255, 255, 255, 0.1)
+      padding: 3px;
+      background: linear-gradient(
+        135deg,
+        rgba(255, 255, 255, 0.2),
+        rgba(255, 255, 255, 0.05),
+        rgba(255, 255, 255, 0.2)
       );
       -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
       -webkit-mask-composite: xor;
       mask-composite: exclude;
-      animation: rotate-border 4s linear infinite;
-    }
-
-    @keyframes rotate-border {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
     }
 
     .liquid-glass-card::after {
       content: '';
       position: absolute;
-      inset: 2px;
+      inset: 3px;
       background: rgba(0, 0, 0, 0.95);
-      border-radius: 22px;
+      border-radius: 21px;
       backdrop-filter: blur(40px);
       z-index: -1;
     }
@@ -197,7 +254,7 @@ function App() {
       z-index: 1;
     }
 
-    /* Holographic Text */
+    /* Holographic Text - Slower Animation */
     .holographic-text {
       background: linear-gradient(
         90deg,
@@ -213,11 +270,11 @@ function App() {
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
-      animation: holographic-slide 3s linear infinite;
+      animation: holographic-slide-slow 6s linear infinite;
       font-weight: 800;
     }
 
-    @keyframes holographic-slide {
+    @keyframes holographic-slide-slow {
       0% { background-position: 0% 50%; }
       100% { background-position: 200% 50%; }
     }
@@ -226,15 +283,16 @@ function App() {
     .logo-text {
       font-family: 'Avant Garde', 'ITC Avant Garde Gothic', 'Questrial', sans-serif;
       font-weight: 900;
-      font-size: 64px;
-      letter-spacing: -2px;
+      font-size: 36px;
+      letter-spacing: -1px;
+      color: #000000;
     }
 
     /* Liquid Button */
     .liquid-button {
       position: relative;
       background: #000000;
-      border: 2px solid transparent;
+      border: 3px solid rgba(255, 255, 255, 0.2);
       border-radius: 100px;
       padding: 16px 32px;
       font-weight: 600;
@@ -247,21 +305,10 @@ function App() {
       transition: all 0.3s ease;
     }
 
-    .liquid-button::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      border-radius: 100px;
-      padding: 2px;
-      background: linear-gradient(90deg, rgba(255,255,255,0.2), rgba(255,255,255,0.4), rgba(255,255,255,0.2));
-      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-      -webkit-mask-composite: xor;
-      mask-composite: exclude;
-    }
-
     .liquid-button:hover {
       transform: translateY(-2px);
       box-shadow: 0 10px 30px rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.3);
     }
 
     .liquid-button:disabled {
@@ -273,7 +320,7 @@ function App() {
     .liquid-select {
       width: 100%;
       background: #000000;
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      border: 2px solid rgba(255, 255, 255, 0.15);
       border-radius: 12px;
       padding: 14px;
       color: white;
@@ -297,7 +344,7 @@ function App() {
     .result-card {
       position: relative;
       background: #000000;
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      border: 2px solid rgba(255, 255, 255, 0.15);
       border-radius: 16px;
       padding: 24px;
       margin-bottom: 16px;
@@ -327,7 +374,11 @@ function App() {
         grid-template-columns: 1fr !important;
       }
       .logo-text {
-        font-size: 48px;
+        font-size: 28px;
+      }
+      .header-info {
+        flex-direction: column !important;
+        gap: 8px !important;
       }
     }
   `;
@@ -342,21 +393,55 @@ function App() {
         position: 'relative'
       }}>
         {/* Holographic Shards scattered around */}
-        <HolographicShard top={10} left={5} size={60} rotation={45} delay={0} />
-        <HolographicShard top={20} left={85} size={80} rotation={135} delay={1} />
-        <HolographicShard top={50} left={3} size={70} rotation={225} delay={2} />
-        <HolographicShard top={70} left={90} size={50} rotation={315} delay={3} />
-        <HolographicShard top={80} left={15} size={65} rotation={90} delay={4} />
+        <HolographicShard top={20} left={5} size={60} rotation={45} delay={0} />
+        <HolographicShard top={30} left={85} size={80} rotation={135} delay={1} />
+        <HolographicShard top={60} left={3} size={70} rotation={225} delay={2} />
+        <HolographicShard top={75} left={90} size={50} rotation={315} delay={3} />
+        <HolographicShard top={85} left={15} size={65} rotation={90} delay={4} />
 
-        {/* Header */}
-        <div style={{ padding: '40px 40px 20px' }}>
-          <h1 className="holographic-text logo-text">
-            doDiligence
-          </h1>
+        {/* Holographic Header */}
+        <div className="holographic-header" style={{ padding: '20px 40px', position: 'relative' }}>
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            position: 'relative',
+            zIndex: 2
+          }}>
+            <h1 className="logo-text">
+              doDiligence
+            </h1>
+            <div className="header-info" style={{ 
+              display: 'flex', 
+              gap: '30px', 
+              alignItems: 'center',
+              color: '#000000',
+              fontWeight: '600',
+              fontSize: '14px'
+            }}>
+              <div>
+                MARKET: <span style={{ fontWeight: '800' }}>{marketStatus}</span>
+              </div>
+              <div>
+                {currentTime.toLocaleTimeString('en-US', { 
+                  hour: '2-digit', 
+                  minute: '2-digit', 
+                  second: '2-digit' 
+                })}
+              </div>
+              <div>
+                {currentTime.toLocaleDateString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric', 
+                  year: 'numeric' 
+                })}
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Main Content */}
-        <div style={{ padding: '0 40px 40px' }}>
+        <div style={{ padding: '40px' }}>
           {/* Market Overview */}
           <div style={{
             display: 'grid',
