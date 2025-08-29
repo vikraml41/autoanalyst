@@ -1,111 +1,51 @@
-import React, { useState, useEffect, useRef, Suspense } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { Environment, MeshDistortMaterial, Float, Text } from '@react-three/drei';
-import { motion, AnimatePresence } from 'framer-motion';
-import * as THREE from 'three';
+import React, { useState, useEffect, useRef } from 'react';
+import { TrendingUp, Activity, BarChart3, ChevronRight } from 'lucide-react';
 
 const API_URL = window.location.hostname === 'localhost' 
   ? 'http://localhost:8000'
   : 'https://autoanalyst-dz11.onrender.com';
 
-// Liquid Glass Orb Component
-function LiquidOrb({ position, scale = 1, distort = 0.4 }) {
-  const meshRef = useRef();
-  
-  useFrame((state) => {
-    if (meshRef.current) {
-      meshRef.current.rotation.x = Math.sin(state.clock.elapsedTime) * 0.2;
-      meshRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.5) * 0.2;
-    }
-  });
-
+// Holographic Shard Component
+const HolographicShard = ({ top, left, size = 100, rotation = 0, delay = 0 }) => {
   return (
-    <Float speed={2} rotationIntensity={0.5} floatIntensity={0.5}>
-      <mesh ref={meshRef} position={position} scale={scale}>
-        <sphereGeometry args={[1, 64, 64]} />
-        <MeshDistortMaterial
-          color="#ffffff"
-          envMapIntensity={0.9}
-          clearcoat={1}
-          clearcoatRoughness={0}
-          metalness={0.9}
-          roughness={0.1}
-          distort={distort}
-          speed={2}
-          transparent
-          opacity={0.15}
-        />
-      </mesh>
-    </Float>
-  );
-}
-
-// Glass Card Component with Refraction
-const GlassCard = ({ children, className = '', style = {}, onClick, hover = true }) => {
-  const [isHovered, setIsHovered] = useState(false);
-  
-  return (
-    <motion.div
-      className={`glass-card-extreme ${className}`}
-      style={style}
-      onClick={onClick}
-      onMouseEnter={() => hover && setIsHovered(true)}
-      onMouseLeave={() => hover && setIsHovered(false)}
-      animate={{
-        scale: isHovered ? 1.02 : 1,
-        rotateX: isHovered ? 2 : 0,
-        rotateY: isHovered ? -2 : 0,
+    <div 
+      className="holographic-shard"
+      style={{
+        position: 'absolute',
+        top: `${top}%`,
+        left: `${left}%`,
+        width: `${size}px`,
+        height: `${size}px`,
+        transform: `rotate(${rotation}deg)`,
+        animationDelay: `${delay}s`,
+        pointerEvents: 'none',
+        zIndex: 1
       }}
-      transition={{ type: "spring", stiffness: 300, damping: 20 }}
-    >
-      <div className="glass-refraction" />
-      <div className="glass-content">
-        {children}
-      </div>
-      <div className="glass-glow" />
-    </motion.div>
+    />
   );
 };
 
 function App() {
-  // State management
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [marketStatus, setMarketStatus] = useState('CHECKING');
   const [marketConditions, setMarketConditions] = useState({
     regime: 'Loading',
     fedStance: 'Loading',
     vix: 'Loading',
     recessionRisk: 'Loading'
   });
-  const [dataReady, setDataReady] = useState(false);
   const [sectors, setSectors] = useState([]);
   const [subIndustries, setSubIndustries] = useState([]);
   const [analysisType, setAnalysisType] = useState('sector');
   const [selectedTarget, setSelectedTarget] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisProgress, setAnalysisProgress] = useState(0);
   const [results, setResults] = useState(null);
-  const [error, setError] = useState(null);
 
-  // Initialize
   useEffect(() => {
     const initialize = async () => {
-      await wakeUpBackend();
-      await checkDataStatus();
       await fetchMarketConditions();
-      setInterval(fetchMarketConditions, 30000);
+      await checkDataStatus();
     };
     initialize();
   }, []);
-
-  const wakeUpBackend = async () => {
-    try {
-      const response = await fetch(`${API_URL}/api/health`);
-      return response.ok;
-    } catch {
-      return false;
-    }
-  };
 
   const fetchMarketConditions = async () => {
     try {
@@ -129,7 +69,6 @@ function App() {
       const response = await fetch(`${API_URL}/api/stocks/list`);
       if (response.ok) {
         const data = await response.json();
-        setDataReady(data.total_stocks > 0);
         setSectors(data.sectors || []);
         setSubIndustries(data.sub_industries || []);
       }
@@ -140,15 +79,8 @@ function App() {
 
   const executeAnalysis = async () => {
     if (!selectedTarget) return;
-
     setIsAnalyzing(true);
-    setAnalysisProgress(0);
-    setError(null);
     setResults(null);
-
-    const progressInterval = setInterval(() => {
-      setAnalysisProgress(prev => Math.min(prev + 10, 90));
-    }, 200);
 
     try {
       const response = await fetch(`${API_URL}/api/analysis`, {
@@ -163,227 +95,239 @@ function App() {
       if (response.ok) {
         const data = await response.json();
         setResults(data.results);
-        setAnalysisProgress(100);
       }
     } catch (error) {
-      setError(`Analysis failed: ${error.message}`);
+      console.error('Analysis failed:', error);
     } finally {
-      clearInterval(progressInterval);
-      setTimeout(() => {
-        setIsAnalyzing(false);
-        setAnalysisProgress(0);
-      }, 1000);
+      setIsAnalyzing(false);
     }
   };
 
-  // Extreme glass styles with refraction
   const styles = `
-    @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Questrial&display=swap');
     
     * {
-      font-family: 'Oswald', 'Neue Haas Grotesk', -apple-system, sans-serif;
-      font-weight: 500;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
-
+    
     body {
+      font-family: 'Avant Garde', 'ITC Avant Garde Gothic', 'Questrial', -apple-system, sans-serif;
       background: #000000;
       overflow-x: hidden;
     }
 
+    /* Holographic Shard Animation */
+    @keyframes float-shard {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      33% { transform: translateY(-20px) rotate(120deg); }
+      66% { transform: translateY(10px) rotate(240deg); }
+    }
+
     @keyframes holographic-shift {
-      0% { 
-        background-position: 0% 50%;
-        filter: hue-rotate(0deg);
-      }
-      33% { 
-        filter: hue-rotate(120deg);
-      }
-      66% { 
-        filter: hue-rotate(240deg);
-      }
-      100% { 
-        background-position: 100% 50%;
-        filter: hue-rotate(360deg);
-      }
+      0%, 100% { filter: hue-rotate(0deg) brightness(1); }
+      25% { filter: hue-rotate(90deg) brightness(1.2); }
+      50% { filter: hue-rotate(180deg) brightness(0.9); }
+      75% { filter: hue-rotate(270deg) brightness(1.1); }
     }
 
-    @keyframes refraction {
-      0% { transform: translateZ(0) rotateX(0deg); }
-      50% { transform: translateZ(50px) rotateX(1deg); }
-      100% { transform: translateZ(0) rotateX(0deg); }
+    .holographic-shard {
+      background: conic-gradient(
+        from 0deg at 50% 50%,
+        #ff00ff,
+        #00ffff,
+        #ffff00,
+        #ff00ff,
+        #00ffff,
+        #ff00ff
+      );
+      clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+      animation: float-shard 6s ease-in-out infinite, holographic-shift 4s linear infinite;
+      opacity: 0.6;
+      filter: blur(0.5px);
     }
 
-    .glass-card-extreme {
+    /* Liquid Glass Card */
+    .liquid-glass-card {
       position: relative;
-      background: rgba(255, 255, 255, 0.02);
-      backdrop-filter: blur(40px) saturate(200%);
-      -webkit-backdrop-filter: blur(40px) saturate(200%);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: #000000;
       border-radius: 24px;
+      padding: 32px;
       overflow: hidden;
-      transform-style: preserve-3d;
-      perspective: 1000px;
     }
 
-    .glass-card-extreme::before {
+    .liquid-glass-card::before {
       content: '';
       position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: linear-gradient(
-        135deg,
-        rgba(255, 255, 255, 0.1) 0%,
-        transparent 40%,
-        transparent 60%,
-        rgba(255, 255, 255, 0.05) 100%
-      );
-      pointer-events: none;
+      inset: 0;
       border-radius: 24px;
+      padding: 2px;
+      background: conic-gradient(
+        from 180deg at 50% 50%,
+        rgba(255, 255, 255, 0.1),
+        rgba(255, 255, 255, 0.3),
+        rgba(255, 255, 255, 0.1),
+        rgba(255, 255, 255, 0.3),
+        rgba(255, 255, 255, 0.1)
+      );
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      animation: rotate-border 4s linear infinite;
     }
 
-    .glass-refraction {
+    @keyframes rotate-border {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .liquid-glass-card::after {
+      content: '';
       position: absolute;
-      top: -50%;
-      left: -50%;
-      width: 200%;
-      height: 200%;
-      background: radial-gradient(
-        circle at 30% 30%,
-        rgba(255, 255, 255, 0.15) 0%,
-        transparent 50%
-      );
-      filter: blur(40px);
-      animation: refraction 8s ease-in-out infinite;
-      pointer-events: none;
+      inset: 2px;
+      background: rgba(0, 0, 0, 0.95);
+      border-radius: 22px;
+      backdrop-filter: blur(40px);
+      z-index: -1;
     }
 
     .glass-content {
       position: relative;
       z-index: 1;
-      padding: 32px;
     }
 
-    .glass-glow {
-      position: absolute;
-      top: -2px;
-      left: -2px;
-      right: -2px;
-      bottom: -2px;
+    /* Holographic Text */
+    .holographic-text {
       background: linear-gradient(
-        45deg,
+        90deg,
+        #ffffff,
         #ff00ff,
         #00ffff,
+        #ffffff,
         #ffff00,
+        #ffffff,
         #ff00ff
       );
-      background-size: 400% 400%;
-      opacity: 0;
-      filter: blur(20px);
-      transition: opacity 0.3s ease;
-      animation: holographic-shift 6s ease infinite;
-      z-index: -1;
-      border-radius: 24px;
-    }
-
-    .glass-card-extreme:hover .glass-glow {
-      opacity: 0.3;
-    }
-
-    .holographic-text-extreme {
-      background: linear-gradient(
-        135deg,
-        #ffffff,
-        #ff00ff,
-        #00ffff,
-        #ffffff,
-        #ffff00,
-        #ffffff
-      );
-      background-size: 300% 300%;
+      background-size: 200% 100%;
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
-      animation: holographic-shift 4s ease infinite;
-      font-weight: 700;
-      text-shadow: 0 0 40px rgba(255, 255, 255, 0.3);
+      animation: holographic-slide 3s linear infinite;
+      font-weight: 800;
     }
 
+    @keyframes holographic-slide {
+      0% { background-position: 0% 50%; }
+      100% { background-position: 200% 50%; }
+    }
+
+    /* Logo specific styling */
+    .logo-text {
+      font-family: 'Avant Garde', 'ITC Avant Garde Gothic', 'Questrial', sans-serif;
+      font-weight: 900;
+      font-size: 64px;
+      letter-spacing: -2px;
+    }
+
+    /* Liquid Button */
     .liquid-button {
       position: relative;
-      padding: 16px 40px;
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
-      border: 2px solid rgba(255, 255, 255, 0.2);
+      background: #000000;
+      border: 2px solid transparent;
       border-radius: 100px;
-      color: white;
+      padding: 16px 32px;
       font-weight: 600;
-      font-size: 16px;
-      letter-spacing: 1px;
-      overflow: hidden;
-      backdrop-filter: blur(20px);
-      transition: all 0.3s ease;
-      cursor: pointer;
+      font-size: 14px;
+      letter-spacing: 2px;
       text-transform: uppercase;
+      color: white;
+      cursor: pointer;
+      overflow: hidden;
+      transition: all 0.3s ease;
     }
 
     .liquid-button::before {
       content: '';
       position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 0;
-      height: 0;
-      background: radial-gradient(circle, rgba(255, 255, 255, 0.3), transparent);
-      transition: width 0.6s ease, height 0.6s ease;
-      transform: translate(-50%, -50%);
-      border-radius: 50%;
-    }
-
-    .liquid-button:hover::before {
-      width: 300px;
-      height: 300px;
+      inset: 0;
+      border-radius: 100px;
+      padding: 2px;
+      background: linear-gradient(90deg, rgba(255,255,255,0.2), rgba(255,255,255,0.4), rgba(255,255,255,0.2));
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
     }
 
     .liquid-button:hover {
-      border-color: rgba(255, 255, 255, 0.4);
       transform: translateY(-2px);
-      box-shadow: 0 10px 40px rgba(255, 255, 255, 0.2);
+      box-shadow: 0 10px 30px rgba(255, 255, 255, 0.1);
     }
 
+    .liquid-button:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    /* Liquid Select */
     .liquid-select {
-      background: rgba(255, 255, 255, 0.03);
-      backdrop-filter: blur(20px);
-      border: 2px solid rgba(255, 255, 255, 0.1);
-      border-radius: 16px;
-      color: white;
-      padding: 14px 18px;
-      font-size: 15px;
-      font-weight: 500;
       width: 100%;
+      background: #000000;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 14px;
+      color: white;
+      font-size: 14px;
+      font-weight: 500;
       outline: none;
       transition: all 0.3s ease;
     }
 
     .liquid-select:focus {
-      background: rgba(255, 255, 255, 0.06);
       border-color: rgba(255, 255, 255, 0.3);
-      box-shadow: 0 0 30px rgba(255, 255, 255, 0.1);
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.05);
     }
 
     .liquid-select option {
       background: #000000;
       color: white;
-      font-weight: 500;
+    }
+
+    /* Result Card */
+    .result-card {
+      position: relative;
+      background: #000000;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+
+    .result-card::before {
+      content: '';
+      position: absolute;
+      top: -2px;
+      left: -2px;
+      right: -2px;
+      bottom: -2px;
+      background: linear-gradient(45deg, transparent, rgba(255,0,255,0.2), transparent, rgba(0,255,255,0.2));
+      border-radius: 16px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      z-index: -1;
+    }
+
+    .result-card:hover::before {
+      opacity: 1;
     }
 
     @media (max-width: 768px) {
-      .glass-content {
-        padding: 20px;
-      }
-      
-      .grid-responsive {
+      .grid-main {
         grid-template-columns: 1fr !important;
+      }
+      .logo-text {
+        font-size: 48px;
       }
     }
   `;
@@ -397,113 +341,84 @@ function App() {
         color: 'white',
         position: 'relative'
       }}>
-        {/* WebGL Background */}
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          zIndex: 0,
-          pointerEvents: 'none'
-        }}>
-          <Canvas camera={{ position: [0, 0, 5], fov: 75 }}>
-            <Suspense fallback={null}>
-              <Environment preset="night" />
-              <ambientLight intensity={0.2} />
-              <pointLight position={[10, 10, 10]} intensity={0.5} />
-              <LiquidOrb position={[-3, 2, -5]} scale={1.5} />
-              <LiquidOrb position={[4, -2, -8]} scale={2} distort={0.6} />
-              <LiquidOrb position={[0, 0, -10]} scale={3} distort={0.3} />
-            </Suspense>
-          </Canvas>
+        {/* Holographic Shards scattered around */}
+        <HolographicShard top={10} left={5} size={60} rotation={45} delay={0} />
+        <HolographicShard top={20} left={85} size={80} rotation={135} delay={1} />
+        <HolographicShard top={50} left={3} size={70} rotation={225} delay={2} />
+        <HolographicShard top={70} left={90} size={50} rotation={315} delay={3} />
+        <HolographicShard top={80} left={15} size={65} rotation={90} delay={4} />
+
+        {/* Header */}
+        <div style={{ padding: '40px 40px 20px' }}>
+          <h1 className="holographic-text logo-text">
+            doDiligence
+          </h1>
         </div>
 
-        {/* Content */}
-        <div style={{ position: 'relative', zIndex: 1 }}>
-          {/* Header */}
-          <GlassCard style={{ margin: '20px', borderRadius: '32px' }} hover={false}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h1 className="holographic-text-extreme" style={{
-                fontSize: '48px',
-                fontWeight: '700',
-                letterSpacing: '-2px',
-                margin: 0
-              }}>
-                doDiligence
-              </h1>
-              <div style={{ display: 'flex', gap: '32px', alignItems: 'center' }}>
-                <div style={{ 
-                  fontSize: '14px', 
-                  fontWeight: '600',
-                  letterSpacing: '2px',
-                  opacity: 0.8 
-                }}>
-                  MARKET {marketStatus}
-                </div>
-              </div>
-            </div>
-          </GlassCard>
-
-          {/* Main Content */}
-          <div style={{ padding: '0 20px 20px' }}>
-            {/* Market Overview */}
-            <div className="grid-responsive" style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-              gap: '20px',
-              marginBottom: '30px'
-            }}>
-              {[
-                { label: 'REGIME', value: marketConditions.regime },
-                { label: 'FED', value: marketConditions.fedStance },
-                { label: 'VIX', value: marketConditions.vix },
-                { label: 'RISK', value: marketConditions.recessionRisk }
-              ].map((item, idx) => (
-                <GlassCard key={idx}>
+        {/* Main Content */}
+        <div style={{ padding: '0 40px 40px' }}>
+          {/* Market Overview */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+            gap: '24px',
+            marginBottom: '40px'
+          }}>
+            {[
+              { label: 'MARKET REGIME', value: marketConditions.regime },
+              { label: 'FED STANCE', value: marketConditions.fedStance },
+              { label: 'VOLATILITY INDEX', value: marketConditions.vix },
+              { label: 'RECESSION RISK', value: marketConditions.recessionRisk }
+            ].map((item, idx) => (
+              <div key={idx} className="liquid-glass-card">
+                <div className="glass-content">
                   <div style={{ 
-                    fontSize: '12px', 
-                    letterSpacing: '3px',
+                    fontSize: '11px', 
+                    letterSpacing: '2px',
                     opacity: 0.5,
                     marginBottom: '16px',
                     fontWeight: '600'
                   }}>
                     {item.label}
                   </div>
-                  <div className="holographic-text-extreme" style={{ 
-                    fontSize: '32px',
-                    fontWeight: '700'
+                  <div style={{ 
+                    fontSize: '28px',
+                    fontWeight: '700',
+                    color: '#ffffff'
                   }}>
                     {item.value}
                   </div>
-                </GlassCard>
-              ))}
-            </div>
+                </div>
+              </div>
+            ))}
+          </div>
 
-            {/* Analysis Section */}
-            <div className="grid-responsive" style={{ 
-              display: 'grid', 
-              gridTemplateColumns: '450px 1fr', 
-              gap: '20px' 
-            }}>
-              {/* Controls */}
-              <GlassCard>
+          {/* Analysis Section */}
+          <div className="grid-main" style={{ 
+            display: 'grid', 
+            gridTemplateColumns: '400px 1fr', 
+            gap: '24px' 
+          }}>
+            {/* Controls */}
+            <div className="liquid-glass-card">
+              <div className="glass-content">
                 <h2 style={{ 
-                  fontSize: '20px', 
+                  fontSize: '18px', 
                   fontWeight: '700',
-                  letterSpacing: '2px',
-                  marginBottom: '32px',
-                  textTransform: 'uppercase'
+                  letterSpacing: '1px',
+                  marginBottom: '32px'
                 }}>
-                  Analysis Control
+                  ANALYSIS CONTROL
                 </h2>
                 
                 <div style={{ marginBottom: '24px' }}>
                   <label style={{ 
-                    fontSize: '12px',
+                    fontSize: '11px',
                     letterSpacing: '2px',
                     fontWeight: '600',
-                    opacity: 0.6
+                    opacity: 0.5,
+                    display: 'block',
+                    marginBottom: '8px'
                   }}>
                     TYPE
                   </label>
@@ -511,7 +426,6 @@ function App() {
                     className="liquid-select"
                     value={analysisType}
                     onChange={(e) => setAnalysisType(e.target.value)}
-                    style={{ marginTop: '8px' }}
                   >
                     <option value="sector">Sector Analysis</option>
                     <option value="sub_industry">Sub-Industry Analysis</option>
@@ -520,10 +434,12 @@ function App() {
 
                 <div style={{ marginBottom: '32px' }}>
                   <label style={{ 
-                    fontSize: '12px',
+                    fontSize: '11px',
                     letterSpacing: '2px',
                     fontWeight: '600',
-                    opacity: 0.6
+                    opacity: 0.5,
+                    display: 'block',
+                    marginBottom: '8px'
                   }}>
                     TARGET
                   </label>
@@ -531,7 +447,6 @@ function App() {
                     className="liquid-select"
                     value={selectedTarget}
                     onChange={(e) => setSelectedTarget(e.target.value)}
-                    style={{ marginTop: '8px' }}
                   >
                     <option value="">Select Target</option>
                     {(analysisType === 'sector' ? sectors : subIndustries).map(item => (
@@ -546,108 +461,86 @@ function App() {
                   disabled={isAnalyzing || !selectedTarget}
                   style={{ width: '100%' }}
                 >
-                  {isAnalyzing ? 'Processing...' : 'Execute'}
+                  {isAnalyzing ? 'PROCESSING' : 'EXECUTE'}
                 </button>
+              </div>
+            </div>
 
-                {isAnalyzing && (
-                  <div style={{ marginTop: '24px' }}>
-                    <div style={{
-                      height: '8px',
-                      background: 'rgba(255, 255, 255, 0.1)',
-                      borderRadius: '100px',
-                      overflow: 'hidden'
-                    }}>
-                      <motion.div
-                        style={{
-                          height: '100%',
-                          background: 'linear-gradient(90deg, #ff00ff, #00ffff)',
-                          borderRadius: '100px'
-                        }}
-                        animate={{ width: `${analysisProgress}%` }}
-                        transition={{ duration: 0.3 }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </GlassCard>
-
-              {/* Results */}
-              <GlassCard>
+            {/* Results */}
+            <div className="liquid-glass-card">
+              <div className="glass-content">
                 <h2 style={{ 
-                  fontSize: '20px',
+                  fontSize: '18px',
                   fontWeight: '700',
-                  letterSpacing: '2px',
-                  marginBottom: '32px',
-                  textTransform: 'uppercase'
+                  letterSpacing: '1px',
+                  marginBottom: '32px'
                 }}>
-                  Results
+                  RESULTS
                 </h2>
                 
                 {results && results.top_stocks ? (
-                  <AnimatePresence>
+                  <div>
                     {results.top_stocks.map((stock, idx) => (
-                      <motion.div
-                        key={stock.symbol}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: idx * 0.1 }}
-                      >
-                        <GlassCard style={{ marginBottom: '16px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <div>
-                              <div className="holographic-text-extreme" style={{ 
-                                fontSize: '28px',
-                                fontWeight: '700',
-                                marginBottom: '16px'
-                              }}>
-                                {stock.symbol}
-                              </div>
-                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
-                                <div>
-                                  <div style={{ fontSize: '11px', opacity: 0.5, fontWeight: '600', letterSpacing: '1px' }}>CURRENT</div>
-                                  <div style={{ fontSize: '20px', fontWeight: '700' }}>${stock.metrics.current_price}</div>
-                                </div>
-                                <div>
-                                  <div style={{ fontSize: '11px', opacity: 0.5, fontWeight: '600', letterSpacing: '1px' }}>TARGET</div>
-                                  <div style={{ fontSize: '20px', fontWeight: '700' }}>${stock.metrics.target_price}</div>
-                                </div>
-                                <div>
-                                  <div style={{ fontSize: '11px', opacity: 0.5, fontWeight: '600', letterSpacing: '1px' }}>UPSIDE</div>
-                                  <div style={{ 
-                                    fontSize: '20px',
-                                    fontWeight: '700',
-                                    color: stock.metrics.upside_potential > 0 ? '#00ff88' : '#ff0044'
-                                  }}>
-                                    {stock.metrics.upside_potential}%
-                                  </div>
-                                </div>
-                                <div>
-                                  <div style={{ fontSize: '11px', opacity: 0.5, fontWeight: '600', letterSpacing: '1px' }}>CONFIDENCE</div>
-                                  <div style={{ fontSize: '20px', fontWeight: '700' }}>{stock.metrics.confidence_score}%</div>
-                                </div>
-                              </div>
+                      <div key={stock.symbol} className="result-card">
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                          <div style={{ flex: 1 }}>
+                            <div className="holographic-text" style={{ 
+                              fontSize: '24px',
+                              fontWeight: '800',
+                              marginBottom: '20px'
+                            }}>
+                              {stock.symbol}
                             </div>
-                            <div className="holographic-text-extreme" style={{ fontSize: '48px', opacity: 0.3 }}>
-                              {idx + 1}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
+                              <div>
+                                <div style={{ fontSize: '10px', opacity: 0.5, fontWeight: '600', letterSpacing: '1px' }}>CURRENT</div>
+                                <div style={{ fontSize: '18px', fontWeight: '700', marginTop: '4px' }}>${stock.metrics.current_price}</div>
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '10px', opacity: 0.5, fontWeight: '600', letterSpacing: '1px' }}>TARGET</div>
+                                <div style={{ fontSize: '18px', fontWeight: '700', marginTop: '4px' }}>${stock.metrics.target_price}</div>
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '10px', opacity: 0.5, fontWeight: '600', letterSpacing: '1px' }}>UPSIDE</div>
+                                <div style={{ 
+                                  fontSize: '18px',
+                                  fontWeight: '700',
+                                  marginTop: '4px',
+                                  color: stock.metrics.upside_potential > 0 ? '#00ff88' : '#ff3333'
+                                }}>
+                                  {stock.metrics.upside_potential > 0 ? '+' : ''}{stock.metrics.upside_potential}%
+                                </div>
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '10px', opacity: 0.5, fontWeight: '600', letterSpacing: '1px' }}>CONFIDENCE</div>
+                                <div style={{ fontSize: '18px', fontWeight: '700', marginTop: '4px' }}>{stock.metrics.confidence_score}%</div>
+                              </div>
                             </div>
                           </div>
-                        </GlassCard>
-                      </motion.div>
+                          <div style={{ 
+                            fontSize: '48px',
+                            fontWeight: '900',
+                            opacity: 0.1
+                          }}>
+                            {idx + 1}
+                          </div>
+                        </div>
+                      </div>
                     ))}
-                  </AnimatePresence>
+                  </div>
                 ) : (
                   <div style={{ 
                     textAlign: 'center',
                     padding: '80px 20px',
                     opacity: 0.3,
-                    fontSize: '14px',
+                    fontSize: '12px',
                     letterSpacing: '2px',
                     fontWeight: '600'
                   }}>
                     NO DATA AVAILABLE
                   </div>
                 )}
-              </GlassCard>
+              </div>
             </div>
           </div>
         </div>
