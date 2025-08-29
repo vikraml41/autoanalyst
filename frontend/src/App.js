@@ -5,26 +5,6 @@ const API_URL = window.location.hostname === 'localhost'
   ? 'http://localhost:8000'
   : 'https://autoanalyst-dz11.onrender.com';
 
-// Holographic Shard Component
-const HolographicShard = ({ top, left, size = 100, rotation = 0, delay = 0 }) => {
-  return (
-    <div 
-      className="holographic-shard"
-      style={{
-        position: 'absolute',
-        top: `${top}%`,
-        left: `${left}%`,
-        width: `${size}px`,
-        height: `${size}px`,
-        transform: `rotate(${rotation}deg)`,
-        animationDelay: `${delay}s`,
-        pointerEvents: 'none',
-        zIndex: 1
-      }}
-    />
-  );
-};
-
 function App() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [marketStatus, setMarketStatus] = useState('CHECKING');
@@ -40,6 +20,7 @@ function App() {
   const [selectedTarget, setSelectedTarget] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [results, setResults] = useState(null);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   // Clock and market status update
   useEffect(() => {
@@ -135,10 +116,11 @@ function App() {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
+      font-family: 'Avant Garde', 'ITC Avant Garde Gothic', 'Questrial', -apple-system, sans-serif !important;
     }
     
     body {
-      font-family: 'Avant Garde', 'ITC Avant Garde Gothic', 'Questrial', -apple-system, sans-serif;
+      font-family: 'Avant Garde', 'ITC Avant Garde Gothic', 'Questrial', -apple-system, sans-serif !important;
       background: #000000;
       overflow-x: hidden;
     }
@@ -157,16 +139,16 @@ function App() {
     .holographic-header {
       background: linear-gradient(
         90deg,
-        #ff00ff,
-        #00ffff,
-        #ffff00,
-        #00ff00,
-        #ff00ff,
-        #00ffff,
-        #ff00ff
+        #ffffff,
+        #e8f4ff,
+        #d0f0ff,
+        #ffffff,
+        #ffe8ff,
+        #ffffff,
+        #e8f4ff
       );
       background-size: 200% 100%;
-      animation: holographic-bar 8s linear infinite;
+      animation: holographic-bar 10s linear infinite;
       position: relative;
       overflow: hidden;
     }
@@ -178,48 +160,21 @@ function App() {
       left: -100%;
       width: 100%;
       height: 100%;
-      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-      animation: shine 6s infinite;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
+      animation: shine 8s infinite;
     }
 
-    /* Holographic Shard Animation */
-    @keyframes float-shard {
-      0%, 100% { transform: translateY(0px) rotate(0deg); }
-      33% { transform: translateY(-20px) rotate(120deg); }
-      66% { transform: translateY(10px) rotate(240deg); }
-    }
-
-    @keyframes holographic-shift-slow {
-      0%, 100% { filter: hue-rotate(0deg) brightness(1); }
-      25% { filter: hue-rotate(90deg) brightness(1.2); }
-      50% { filter: hue-rotate(180deg) brightness(0.9); }
-      75% { filter: hue-rotate(270deg) brightness(1.1); }
-    }
-
-    .holographic-shard {
-      background: conic-gradient(
-        from 0deg at 50% 50%,
-        #ff00ff,
-        #00ffff,
-        #ffff00,
-        #ff00ff,
-        #00ffff,
-        #ff00ff
-      );
-      clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
-      animation: float-shard 12s ease-in-out infinite, holographic-shift-slow 8s linear infinite;
-      opacity: 0.6;
-      filter: blur(0.5px);
-    }
-
-    /* Liquid Glass Card - No Rotation */
+    /* Glass Card with Bright Borders */
     .liquid-glass-card {
       position: relative;
-      background: #000000;
+      background: rgba(0, 0, 0, 0.5);
       border-radius: 24px;
       padding: 32px;
       overflow: hidden;
-      border: 3px solid rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(20px);
+      box-shadow: 
+        inset 0 0 40px rgba(255, 255, 255, 0.05),
+        0 0 40px rgba(255, 255, 255, 0.05);
     }
 
     .liquid-glass-card::before {
@@ -227,26 +182,16 @@ function App() {
       position: absolute;
       inset: 0;
       border-radius: 24px;
-      padding: 3px;
+      padding: 2px;
       background: linear-gradient(
         135deg,
-        rgba(255, 255, 255, 0.2),
-        rgba(255, 255, 255, 0.05),
-        rgba(255, 255, 255, 0.2)
+        rgba(255, 255, 255, 0.4),
+        rgba(255, 255, 255, 0.1),
+        rgba(255, 255, 255, 0.4)
       );
       -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
       -webkit-mask-composite: xor;
       mask-composite: exclude;
-    }
-
-    .liquid-glass-card::after {
-      content: '';
-      position: absolute;
-      inset: 3px;
-      background: rgba(0, 0, 0, 0.95);
-      border-radius: 21px;
-      backdrop-filter: blur(40px);
-      z-index: -1;
     }
 
     .glass-content {
@@ -254,45 +199,137 @@ function App() {
       z-index: 1;
     }
 
-    /* Holographic Text - Slower Animation */
+    /* Holographic Text */
     .holographic-text {
       background: linear-gradient(
         90deg,
         #ffffff,
-        #ff00ff,
-        #00ffff,
+        #ff80ff,
+        #80ffff,
         #ffffff,
-        #ffff00,
-        #ffffff,
-        #ff00ff
+        #ffff80,
+        #ffffff
       );
       background-size: 200% 100%;
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
-      animation: holographic-slide-slow 6s linear infinite;
+      animation: holographic-slide 8s linear infinite;
       font-weight: 800;
+      font-family: 'Avant Garde', 'ITC Avant Garde Gothic', 'Questrial', sans-serif !important;
     }
 
-    @keyframes holographic-slide-slow {
+    @keyframes holographic-slide {
       0% { background-position: 0% 50%; }
       100% { background-position: 200% 50%; }
     }
 
-    /* Logo specific styling */
-    .logo-text {
-      font-family: 'Avant Garde', 'ITC Avant Garde Gothic', 'Questrial', sans-serif;
-      font-weight: 900;
-      font-size: 36px;
-      letter-spacing: -1px;
-      color: #000000;
+    /* Custom Dropdown */
+    .custom-dropdown {
+      position: relative;
+      width: 100%;
+    }
+
+    .dropdown-header {
+      background: rgba(0, 0, 0, 0.5);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 12px;
+      padding: 14px;
+      color: white;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      backdrop-filter: blur(10px);
+      transition: all 0.3s ease;
+      font-family: 'Avant Garde', 'ITC Avant Garde Gothic', 'Questrial', sans-serif !important;
+    }
+
+    .dropdown-header:hover {
+      border-color: rgba(255, 255, 255, 0.5);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .dropdown-list {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      margin-top: 8px;
+      background: rgba(0, 0, 0, 0.95);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 12px;
+      backdrop-filter: blur(20px);
+      max-height: 300px;
+      overflow-y: auto;
+      z-index: 1000;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+    }
+
+    .dropdown-item {
+      padding: 12px 16px;
+      color: white;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      font-family: 'Avant Garde', 'ITC Avant Garde Gothic', 'Questrial', sans-serif !important;
+      font-weight: 500;
+    }
+
+    .dropdown-item:last-child {
+      border-bottom: none;
+    }
+
+    .dropdown-item:hover {
+      background: rgba(255, 255, 255, 0.1);
+      padding-left: 20px;
+    }
+
+    .dropdown-item.selected {
+      background: rgba(255, 255, 255, 0.15);
+      font-weight: 600;
+    }
+
+    /* Tab Buttons */
+    .tab-button {
+      background: rgba(0, 0, 0, 0.5);
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      color: white;
+      padding: 12px 24px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-weight: 600;
+      font-size: 13px;
+      letter-spacing: 1px;
+      backdrop-filter: blur(10px);
+      font-family: 'Avant Garde', 'ITC Avant Garde Gothic', 'Questrial', sans-serif !important;
+    }
+
+    .tab-button:first-child {
+      border-radius: 12px 0 0 12px;
+      border-right: none;
+    }
+
+    .tab-button:last-child {
+      border-radius: 0 12px 12px 0;
+    }
+
+    .tab-button.active {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.4);
+    }
+
+    .tab-button:hover:not(.active) {
+      background: rgba(255, 255, 255, 0.05);
     }
 
     /* Liquid Button */
     .liquid-button {
       position: relative;
-      background: #000000;
-      border: 3px solid rgba(255, 255, 255, 0.2);
+      background: rgba(0, 0, 0, 0.5);
+      border: 3px solid rgba(255, 255, 255, 0.3);
       border-radius: 100px;
       padding: 16px 32px;
       font-weight: 600;
@@ -303,12 +340,15 @@ function App() {
       cursor: pointer;
       overflow: hidden;
       transition: all 0.3s ease;
+      backdrop-filter: blur(10px);
+      font-family: 'Avant Garde', 'ITC Avant Garde Gothic', 'Questrial', sans-serif !important;
     }
 
     .liquid-button:hover {
       transform: translateY(-2px);
       box-shadow: 0 10px 30px rgba(255, 255, 255, 0.1);
-      border-color: rgba(255, 255, 255, 0.3);
+      border-color: rgba(255, 255, 255, 0.5);
+      background: rgba(255, 255, 255, 0.05);
     }
 
     .liquid-button:disabled {
@@ -316,57 +356,31 @@ function App() {
       cursor: not-allowed;
     }
 
-    /* Liquid Select */
-    .liquid-select {
-      width: 100%;
-      background: #000000;
-      border: 2px solid rgba(255, 255, 255, 0.15);
-      border-radius: 12px;
-      padding: 14px;
-      color: white;
-      font-size: 14px;
-      font-weight: 500;
-      outline: none;
-      transition: all 0.3s ease;
-    }
-
-    .liquid-select:focus {
-      border-color: rgba(255, 255, 255, 0.3);
-      box-shadow: 0 0 20px rgba(255, 255, 255, 0.05);
-    }
-
-    .liquid-select option {
-      background: #000000;
-      color: white;
-    }
-
     /* Result Card */
     .result-card {
       position: relative;
-      background: #000000;
-      border: 2px solid rgba(255, 255, 255, 0.15);
+      background: rgba(0, 0, 0, 0.5);
+      border: 2px solid rgba(255, 255, 255, 0.3);
       border-radius: 16px;
       padding: 24px;
       margin-bottom: 16px;
       overflow: hidden;
+      backdrop-filter: blur(10px);
+      box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.05);
     }
 
-    .result-card::before {
-      content: '';
-      position: absolute;
-      top: -2px;
-      left: -2px;
-      right: -2px;
-      bottom: -2px;
-      background: linear-gradient(45deg, transparent, rgba(255,0,255,0.2), transparent, rgba(0,255,255,0.2));
-      border-radius: 16px;
-      opacity: 0;
-      transition: opacity 0.3s ease;
-      z-index: -1;
+    .result-card:hover {
+      border-color: rgba(255, 255, 255, 0.5);
+      background: rgba(255, 255, 255, 0.02);
     }
 
-    .result-card:hover::before {
-      opacity: 1;
+    /* Logo specific styling */
+    .logo-text {
+      font-family: 'Avant Garde', 'ITC Avant Garde Gothic', 'Questrial', sans-serif !important;
+      font-weight: 900;
+      font-size: 36px;
+      letter-spacing: -1px;
+      color: #000000;
     }
 
     @media (max-width: 768px) {
@@ -392,13 +406,6 @@ function App() {
         color: 'white',
         position: 'relative'
       }}>
-        {/* Holographic Shards scattered around */}
-        <HolographicShard top={20} left={5} size={60} rotation={45} delay={0} />
-        <HolographicShard top={30} left={85} size={80} rotation={135} delay={1} />
-        <HolographicShard top={60} left={3} size={70} rotation={225} delay={2} />
-        <HolographicShard top={75} left={90} size={50} rotation={315} delay={3} />
-        <HolographicShard top={85} left={15} size={65} rotation={90} delay={4} />
-
         {/* Holographic Header */}
         <div className="holographic-header" style={{ padding: '20px 40px', position: 'relative' }}>
           <div style={{ 
@@ -417,7 +424,8 @@ function App() {
               alignItems: 'center',
               color: '#000000',
               fontWeight: '600',
-              fontSize: '14px'
+              fontSize: '14px',
+              fontFamily: 'Avant Garde, ITC Avant Garde Gothic, Questrial, sans-serif'
             }}>
               <div>
                 MARKET: <span style={{ fontWeight: '800' }}>{marketStatus}</span>
@@ -496,27 +504,23 @@ function App() {
                   ANALYSIS CONTROL
                 </h2>
                 
-                <div style={{ marginBottom: '24px' }}>
-                  <label style={{ 
-                    fontSize: '11px',
-                    letterSpacing: '2px',
-                    fontWeight: '600',
-                    opacity: 0.5,
-                    display: 'block',
-                    marginBottom: '8px'
-                  }}>
-                    TYPE
-                  </label>
-                  <select 
-                    className="liquid-select"
-                    value={analysisType}
-                    onChange={(e) => setAnalysisType(e.target.value)}
+                {/* Tab Buttons */}
+                <div style={{ marginBottom: '24px', display: 'flex' }}>
+                  <button 
+                    className={`tab-button ${analysisType === 'sector' ? 'active' : ''}`}
+                    onClick={() => setAnalysisType('sector')}
                   >
-                    <option value="sector">Sector Analysis</option>
-                    <option value="sub_industry">Sub-Industry Analysis</option>
-                  </select>
+                    SECTOR
+                  </button>
+                  <button 
+                    className={`tab-button ${analysisType === 'sub_industry' ? 'active' : ''}`}
+                    onClick={() => setAnalysisType('sub_industry')}
+                  >
+                    SUB-INDUSTRY
+                  </button>
                 </div>
 
+                {/* Custom Dropdown */}
                 <div style={{ marginBottom: '32px' }}>
                   <label style={{ 
                     fontSize: '11px',
@@ -526,18 +530,33 @@ function App() {
                     display: 'block',
                     marginBottom: '8px'
                   }}>
-                    TARGET
+                    SELECT TARGET
                   </label>
-                  <select 
-                    className="liquid-select"
-                    value={selectedTarget}
-                    onChange={(e) => setSelectedTarget(e.target.value)}
-                  >
-                    <option value="">Select Target</option>
-                    {(analysisType === 'sector' ? sectors : subIndustries).map(item => (
-                      <option key={item} value={item}>{item}</option>
-                    ))}
-                  </select>
+                  <div className="custom-dropdown">
+                    <div 
+                      className="dropdown-header"
+                      onClick={() => setDropdownOpen(!dropdownOpen)}
+                    >
+                      <span>{selectedTarget || 'Choose Target'}</span>
+                      <span style={{ transform: dropdownOpen ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.3s' }}>▼</span>
+                    </div>
+                    {dropdownOpen && (
+                      <div className="dropdown-list">
+                        {(analysisType === 'sector' ? sectors : subIndustries).map(item => (
+                          <div 
+                            key={item} 
+                            className={`dropdown-item ${selectedTarget === item ? 'selected' : ''}`}
+                            onClick={() => {
+                              setSelectedTarget(item);
+                              setDropdownOpen(false);
+                            }}
+                          >
+                            {item}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <button
