@@ -9,8 +9,8 @@
     "react-dom": "18.3.1",
     "react-native": "0.76.3",
     "three": "0.150.1",
-    "@react-three/fiber": "9.2.3",
-    "@react-three/drei": "9.56.29",
+    "@react-three/fiber": "8.15.16",
+    "@react-three/drei": "9.99.4",
     "framer-motion": "10.16.4",
     "lucide-react": "0.344.0"
   },
