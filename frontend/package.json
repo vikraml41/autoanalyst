@@ -2,29 +2,29 @@
   "name": "autoanalyst-frontend",
   "version": "1.0.0",
   "private": true,
-
+  
   "dependencies": {
     "expo": "53.0.20",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-native": "0.76.3",
     "three": "0.150.1",
-    "@react-three/fiber": "8.15.16",
-    "@react-three/drei": "9.99.4",
+    "@react-three/fiber": "9.2.3",
+    "@react-three/drei": "9.56.29",
     "framer-motion": "10.16.4",
     "lucide-react": "0.344.0"
-  },
+  }
+
+ 
+  
 
   "scripts": {
-    "start": "expo start",
-    "android": "expo run:android",
-    "ios": "expo run:ios",
-    "web": "expo start --web",
-    "build": "expo export:web"
+    "start": "react-scripts start",
+    "build": "react-scripts build"
   },
-
-  "devDependencies": {},
-
+  "devDependencies": {
+    "react-scripts": "^0.0.0"
+  },
   "browserslist": {
     "production": [
       ">0.2%",
