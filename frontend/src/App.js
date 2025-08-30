@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { TrendingUp, Activity, BarChart3, ChevronRight } from 'lucide-react';
+import { TrendingUp, Activity, BarChart3, ChevronDown, ChevronUp } from 'lucide-react';
 
 const API_URL = window.location.hostname === 'localhost' 
   ? 'http://localhost:8000'
@@ -21,6 +21,7 @@ function App() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [results, setResults] = useState(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [expandedStock, setExpandedStock] = useState(null);
 
   // Clock and market status update
   useEffect(() => {
@@ -87,6 +88,7 @@ function App() {
     if (!selectedTarget) return;
     setIsAnalyzing(true);
     setResults(null);
+    setExpandedStock(null);
 
     try {
       const response = await fetch(`${API_URL}/api/analysis`, {
@@ -396,6 +398,38 @@ function App() {
       background: rgba(255, 255, 255, 0.02);
     }
 
+    /* Analysis Button */
+    .analysis-button {
+      margin-top: 20px;
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .analysis-button:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.5);
+    }
+
+    /* Analysis Details */
+    .analysis-details {
+      margin-top: 20px;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
     /* Logo specific styling */
     .logo-text {
       font-family: 'Avant Garde', 'ITC Avant Garde Gothic', 'Questrial', sans-serif !important;
@@ -642,6 +676,102 @@ function App() {
                                 <div style={{ fontSize: '18px', fontWeight: '700', marginTop: '4px' }}>{stock.metrics.confidence_score}%</div>
                               </div>
                             </div>
+                            
+                            {/* Analysis Details Button */}
+                            <button
+                              className="analysis-button"
+                              onClick={() => setExpandedStock(expandedStock === stock.symbol ? null : stock.symbol)}
+                            >
+                              {expandedStock === stock.symbol ? 'HIDE ANALYSIS' : 'VIEW FULL ANALYSIS'}
+                              {expandedStock === stock.symbol ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                            </button>
+                            
+                            {/* Expanded Analysis Details */}
+                            {expandedStock === stock.symbol && stock.analysis_details && (
+                              <div className="analysis-details">
+                                <h4 style={{ fontSize: '14px', marginBottom: '16px', opacity: 0.8 }}>FUNDAMENTAL ANALYSIS</h4>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
+                                  <div>
+                                    <span style={{ fontSize: '11px', opacity: 0.5 }}>P/E Ratio: </span>
+                                    <span style={{ fontSize: '13px', fontWeight: '600' }}>
+                                      {stock.analysis_details.fundamentals?.pe_ratio?.toFixed(2) || 'N/A'}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span style={{ fontSize: '11px', opacity: 0.5 }}>PEG Ratio: </span>
+                                    <span style={{ fontSize: '13px', fontWeight: '600' }}>
+                                      {stock.analysis_details.fundamentals?.peg_ratio?.toFixed(2) || 'N/A'}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span style={{ fontSize: '11px', opacity: 0.5 }}>ROE: </span>
+                                    <span style={{ fontSize: '13px', fontWeight: '600' }}>
+                                      {((stock.analysis_details.fundamentals?.roe || 0) * 100).toFixed(1)}%
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span style={{ fontSize: '11px', opacity: 0.5 }}>Revenue Growth: </span>
+                                    <span style={{ fontSize: '13px', fontWeight: '600' }}>
+                                      {((stock.analysis_details.fundamentals?.revenue_growth || 0) * 100).toFixed(1)}%
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span style={{ fontSize: '11px', opacity: 0.5 }}>Profit Margin: </span>
+                                    <span style={{ fontSize: '13px', fontWeight: '600' }}>
+                                      {((stock.analysis_details.fundamentals?.profit_margin || 0) * 100).toFixed(1)}%
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span style={{ fontSize: '11px', opacity: 0.5 }}>Debt/Equity: </span>
+                                    <span style={{ fontSize: '13px', fontWeight: '600' }}>
+                                      {stock.analysis_details.fundamentals?.debt_to_equity?.toFixed(2) || 'N/A'}
+                                    </span>
+                                  </div>
+                                </div>
+                                
+                                <h4 style={{ fontSize: '14px', marginBottom: '16px', opacity: 0.8 }}>TECHNICAL INDICATORS</h4>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
+                                  <div>
+                                    <span style={{ fontSize: '11px', opacity: 0.5 }}>RSI: </span>
+                                    <span style={{ fontSize: '13px', fontWeight: '600' }}>
+                                      {stock.analysis_details.technicals?.rsi?.toFixed(1) || 'N/A'}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span style={{ fontSize: '11px', opacity: 0.5 }}>20D Momentum: </span>
+                                    <span style={{ fontSize: '13px', fontWeight: '600' }}>
+                                      {((stock.analysis_details.technicals?.momentum_20d || 0) * 100).toFixed(1)}%
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span style={{ fontSize: '11px', opacity: 0.5 }}>60D Momentum: </span>
+                                    <span style={{ fontSize: '13px', fontWeight: '600' }}>
+                                      {((stock.analysis_details.technicals?.momentum_60d || 0) * 100).toFixed(1)}%
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span style={{ fontSize: '11px', opacity: 0.5 }}>Volatility: </span>
+                                    <span style={{ fontSize: '13px', fontWeight: '600' }}>
+                                      {((stock.analysis_details.technicals?.volatility || 0) * 100).toFixed(1)}%
+                                    </span>
+                                  </div>
+                                </div>
+                                
+                                <h4 style={{ fontSize: '14px', marginBottom: '16px', opacity: 0.8 }}>ML ANALYSIS</h4>
+                                <div style={{ marginBottom: '8px' }}>
+                                  <span style={{ fontSize: '11px', opacity: 0.5 }}>ML Prediction: </span>
+                                  <span style={{ fontSize: '13px', fontWeight: '600' }}>
+                                    {((stock.analysis_details?.ml_prediction || 0) * 100).toFixed(1)}% expected return
+                                  </span>
+                                </div>
+                                <div>
+                                  <span style={{ fontSize: '11px', opacity: 0.5 }}>Quality Score: </span>
+                                  <span style={{ fontSize: '13px', fontWeight: '600' }}>
+                                    {(stock.analysis_details?.quality_score || 0).toFixed(2)}/1.0
+                                  </span>
+                                </div>
+                              </div>
+                            )}
                           </div>
                           <div style={{ 
                             fontSize: '48px',
