@@ -22,6 +22,7 @@ function App() {
   const [results, setResults] = useState(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [expandedStock, setExpandedStock] = useState(null);
+  const [analysisProgress, setAnalysisProgress] = useState('');
 
   // Clock and market status update
   useEffect(() => {
@@ -89,6 +90,29 @@ function App() {
     setIsAnalyzing(true);
     setResults(null);
     setExpandedStock(null);
+    setAnalysisProgress('Initializing analysis...');
+
+    // Add timeout handling
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 90000); // 90 second timeout
+
+    // Simulate progress updates
+    const progressInterval = setInterval(() => {
+      setAnalysisProgress(prev => {
+        const messages = [
+          'Fetching market data...',
+          'Analyzing sector conditions...',
+          'Running ML models...',
+          'Calculating valuations...',
+          'Generating predictions...'
+        ];
+        const currentIndex = messages.indexOf(prev);
+        if (currentIndex < messages.length - 1) {
+          return messages[currentIndex + 1];
+        }
+        return prev;
+      });
+    }, 3000);
 
     try {
       const response = await fetch(`${API_URL}/api/analysis`, {
@@ -97,15 +121,27 @@ function App() {
         body: JSON.stringify({
           analysis_type: analysisType,
           target: selectedTarget
-        })
+        }),
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
+      clearInterval(progressInterval);
 
       if (response.ok) {
         const data = await response.json();
         setResults(data.results);
+        setAnalysisProgress('');
       }
     } catch (error) {
-      console.error('Analysis failed:', error);
+      clearInterval(progressInterval);
+      if (error.name === 'AbortError') {
+        setAnalysisProgress('Analysis timeout - please try again');
+        setTimeout(() => setAnalysisProgress(''), 3000);
+      } else {
+        setAnalysisProgress('Analysis failed - please try again');
+        setTimeout(() => setAnalysisProgress(''), 3000);
+      }
     } finally {
       setIsAnalyzing(false);
     }
@@ -188,13 +224,13 @@ function App() {
       mix-blend-mode: overlay;
     }
 
-    /* Glass Card with Bright Borders */
+    /* Glass Card with Bright Borders - FIXED OVERFLOW */
     .liquid-glass-card {
       position: relative;
       background: rgba(0, 0, 0, 0.5);
       border-radius: 24px;
       padding: 32px;
-      overflow: hidden;
+      overflow: visible; /* Changed to visible for dropdown */
       backdrop-filter: blur(20px);
       box-shadow: 
         inset 0 0 40px rgba(255, 255, 255, 0.05),
@@ -216,6 +252,7 @@ function App() {
       -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
       -webkit-mask-composite: xor;
       mask-composite: exclude;
+      pointer-events: none;
     }
 
     .glass-content {
@@ -248,10 +285,11 @@ function App() {
       100% { background-position: 200% 50%; }
     }
 
-    /* Custom Dropdown */
+    /* Custom Dropdown - FIXED Z-INDEX */
     .custom-dropdown {
       position: relative;
       width: 100%;
+      z-index: 100;
     }
 
     .dropdown-header {
@@ -282,14 +320,14 @@ function App() {
       left: 0;
       right: 0;
       margin-top: 8px;
-      background: rgba(0, 0, 0, 0.95);
+      background: rgba(0, 0, 0, 0.98);
       border: 2px solid rgba(255, 255, 255, 0.3);
       border-radius: 12px;
       backdrop-filter: blur(20px);
       max-height: 300px;
       overflow-y: auto;
-      z-index: 1000;
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+      z-index: 10000; /* Increased z-index */
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.9);
     }
 
     .dropdown-item {
@@ -428,6 +466,26 @@ function App() {
       background: rgba(255, 255, 255, 0.02);
       border-radius: 12px;
       border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    /* Progress Indicator */
+    .progress-indicator {
+      padding: 12px 20px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      margin-top: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .progress-text {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.8);
+      animation: pulse 2s ease-in-out infinite;
     }
 
     /* Logo specific styling */
@@ -623,6 +681,13 @@ function App() {
                 >
                   {isAnalyzing ? 'PROCESSING' : 'EXECUTE'}
                 </button>
+
+                {/* Progress Indicator */}
+                {isAnalyzing && analysisProgress && (
+                  <div className="progress-indicator">
+                    <div className="progress-text">{analysisProgress}</div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -793,7 +858,7 @@ function App() {
                     letterSpacing: '2px',
                     fontWeight: '600'
                   }}>
-                    NO DATA AVAILABLE
+                    {isAnalyzing ? 'ANALYZING...' : 'NO DATA AVAILABLE'}
                   </div>
                 )}
               </div>
