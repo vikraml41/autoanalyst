@@ -23,6 +23,8 @@ function App() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [expandedStock, setExpandedStock] = useState(null);
   const [analysisProgress, setAnalysisProgress] = useState('');
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
+  const dropdownRef = useRef(null);
 
   // Clock and market status update
   useEffect(() => {
@@ -92,11 +94,9 @@ function App() {
     setExpandedStock(null);
     setAnalysisProgress('Initializing analysis...');
 
-    // Add timeout handling
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 90000); // 90 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 90000);
 
-    // Simulate progress updates
     const progressInterval = setInterval(() => {
       setAnalysisProgress(prev => {
         const messages = [
@@ -224,17 +224,26 @@ function App() {
       mix-blend-mode: overlay;
     }
 
-    /* Glass Card with Bright Borders - FIXED OVERFLOW */
+    /* Glass Card */
     .liquid-glass-card {
       position: relative;
       background: rgba(0, 0, 0, 0.5);
       border-radius: 24px;
       padding: 32px;
-      overflow: visible; /* Changed to visible for dropdown */
       backdrop-filter: blur(20px);
       box-shadow: 
         inset 0 0 40px rgba(255, 255, 255, 0.05),
         0 0 40px rgba(255, 255, 255, 0.05);
+    }
+
+    .liquid-glass-card.controls-card {
+      overflow: visible;
+      z-index: 1000;
+    }
+
+    .liquid-glass-card.results-card {
+      overflow: hidden;
+      z-index: 1;
     }
 
     .liquid-glass-card::before {
@@ -285,11 +294,11 @@ function App() {
       100% { background-position: 200% 50%; }
     }
 
-    /* Custom Dropdown - FIXED Z-INDEX */
+    /* Custom Dropdown */
     .custom-dropdown {
       position: relative;
       width: 100%;
-      z-index: 100;
+      z-index: 9999;
     }
 
     .dropdown-header {
@@ -315,18 +324,14 @@ function App() {
     }
 
     .dropdown-list {
-      position: absolute;
-      top: 100%;
-      left: 0;
-      right: 0;
-      margin-top: 8px;
+      position: fixed;
       background: rgba(0, 0, 0, 0.98);
       border: 2px solid rgba(255, 255, 255, 0.3);
       border-radius: 12px;
       backdrop-filter: blur(20px);
       max-height: 300px;
       overflow-y: auto;
-      z-index: 10000; /* Increased z-index */
+      z-index: 99999;
       box-shadow: 0 10px 40px rgba(0, 0, 0, 0.9);
     }
 
@@ -607,7 +612,7 @@ function App() {
             gap: '24px' 
           }}>
             {/* Controls */}
-            <div className="liquid-glass-card">
+            <div className="liquid-glass-card controls-card">
               <div className="glass-content">
                 <h2 style={{ 
                   fontSize: '18px', 
@@ -648,14 +653,30 @@ function App() {
                   </label>
                   <div className="custom-dropdown">
                     <div 
+                      ref={dropdownRef}
                       className="dropdown-header"
-                      onClick={() => setDropdownOpen(!dropdownOpen)}
+                      onClick={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setDropdownPosition({
+                          top: rect.bottom + 8,
+                          left: rect.left,
+                          width: rect.width
+                        });
+                        setDropdownOpen(!dropdownOpen);
+                      }}
                     >
                       <span>{selectedTarget || 'Choose Target'}</span>
                       <span style={{ transform: dropdownOpen ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.3s' }}>▼</span>
                     </div>
                     {dropdownOpen && (
-                      <div className="dropdown-list">
+                      <div 
+                        className="dropdown-list"
+                        style={{
+                          top: `${dropdownPosition.top}px`,
+                          left: `${dropdownPosition.left}px`,
+                          width: `${dropdownPosition.width}px`
+                        }}
+                      >
                         {(analysisType === 'sector' ? sectors : subIndustries).map(item => (
                           <div 
                             key={item} 
@@ -692,7 +713,7 @@ function App() {
             </div>
 
             {/* Results */}
-            <div className="liquid-glass-card">
+            <div className="liquid-glass-card results-card">
               <div className="glass-content">
                 <h2 style={{ 
                   fontSize: '18px',
