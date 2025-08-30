@@ -136,21 +136,42 @@ function App() {
       100% { left: 200%; }
     }
 
+    @keyframes sparkle {
+      0%, 100% { opacity: 0; }
+      50% { opacity: 1; }
+    }
+
     .holographic-header {
       background: linear-gradient(
         90deg,
+        #ff00ff,
+        #ff44ff,
         #ffffff,
-        #e8f4ff,
-        #d0f0ff,
+        #00bbff,
+        #00ffff,
         #ffffff,
-        #ffe8ff,
-        #ffffff,
-        #e8f4ff
+        #ff00ff,
+        #ff44ff,
+        #00bbff
       );
       background-size: 200% 100%;
-      animation: holographic-bar 10s linear infinite;
+      animation: holographic-bar 12s linear infinite;
       position: relative;
       overflow: hidden;
+    }
+
+    .holographic-header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: radial-gradient(circle at 20% 50%, rgba(255,255,255,0.8) 0%, transparent 50%),
+                  radial-gradient(circle at 80% 50%, rgba(255,255,255,0.8) 0%, transparent 50%),
+                  radial-gradient(circle at 50% 50%, rgba(255,255,255,0.6) 0%, transparent 60%);
+      mix-blend-mode: overlay;
+      animation: sparkle 3s ease-in-out infinite;
     }
 
     .holographic-header::after {
@@ -158,10 +179,11 @@ function App() {
       position: absolute;
       top: 0;
       left: -100%;
-      width: 100%;
+      width: 50%;
       height: 100%;
-      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent);
       animation: shine 8s infinite;
+      mix-blend-mode: overlay;
     }
 
     /* Glass Card with Bright Borders */
