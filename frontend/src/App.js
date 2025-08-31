@@ -23,7 +23,7 @@ function App() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [expandedStock, setExpandedStock] = useState(null);
   const [analysisProgress, setAnalysisProgress] = useState('');
-  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
+  const [isLoading, setIsLoading] = useState(true);
   const dropdownRef = useRef(null);
 
   // Clock and market status update
@@ -51,10 +51,26 @@ function App() {
 
   useEffect(() => {
     const initialize = async () => {
-      await fetchMarketConditions();
-      await checkDataStatus();
+      setIsLoading(true);
+      await Promise.all([
+        fetchMarketConditions(),
+        checkDataStatus()
+      ]);
+      // Add a minimum loading time for better UX
+      setTimeout(() => setIsLoading(false), 1500);
     };
     initialize();
+  }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const fetchMarketConditions = async () => {
@@ -163,6 +179,70 @@ function App() {
       overflow-x: hidden;
     }
 
+    /* Loading Screen */
+    .loading-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #000000;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 100000;
+    }
+
+    @keyframes holographic-loading {
+      0% { background-position: 0% 50%; }
+      100% { background-position: 200% 50%; }
+    }
+
+    .loading-title {
+      font-family: 'Avant Garde', 'ITC Avant Garde Gothic', 'Questrial', sans-serif !important;
+      font-size: 72px;
+      font-weight: 900;
+      letter-spacing: -2px;
+      background: linear-gradient(
+        90deg,
+        #ff00ff,
+        #ff44ff,
+        #ffffff,
+        #00bbff,
+        #00ffff,
+        #ffffff,
+        #ff00ff,
+        #ff44ff,
+        #00bbff
+      );
+      background-size: 200% 100%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: holographic-loading 3s linear infinite;
+    }
+
+    @keyframes dots {
+      0%, 20% { content: 'loading'; }
+      40% { content: 'loading.'; }
+      60% { content: 'loading..'; }
+      80%, 100% { content: 'loading...'; }
+    }
+
+    .loading-text {
+      margin-top: 30px;
+      color: rgba(255, 255, 255, 0.3);
+      font-size: 16px;
+      letter-spacing: 2px;
+      font-weight: 500;
+    }
+
+    .loading-text::after {
+      content: 'loading';
+      animation: dots 2s infinite;
+    }
+
     /* Top Bar Holographic Animation */
     @keyframes holographic-bar {
       0% { background-position: 0% 50%; }
@@ -234,16 +314,7 @@ function App() {
       box-shadow: 
         inset 0 0 40px rgba(255, 255, 255, 0.05),
         0 0 40px rgba(255, 255, 255, 0.05);
-    }
-
-    .liquid-glass-card.controls-card {
-      overflow: visible;
-      z-index: 1000;
-    }
-
-    .liquid-glass-card.results-card {
       overflow: hidden;
-      z-index: 1;
     }
 
     .liquid-glass-card::before {
@@ -286,7 +357,6 @@ function App() {
       background-clip: text;
       animation: holographic-slide 8s linear infinite;
       font-weight: 800;
-      font-family: 'Avant Garde', 'ITC Avant Garde Gothic', 'Questrial', sans-serif !important;
     }
 
     @keyframes holographic-slide {
@@ -294,11 +364,10 @@ function App() {
       100% { background-position: 200% 50%; }
     }
 
-    /* Custom Dropdown */
+    /* Custom Dropdown - FIXED */
     .custom-dropdown {
       position: relative;
       width: 100%;
-      z-index: 9999;
     }
 
     .dropdown-header {
@@ -315,7 +384,6 @@ function App() {
       align-items: center;
       backdrop-filter: blur(10px);
       transition: all 0.3s ease;
-      font-family: 'Avant Garde', 'ITC Avant Garde Gothic', 'Questrial', sans-serif !important;
     }
 
     .dropdown-header:hover {
@@ -324,14 +392,17 @@ function App() {
     }
 
     .dropdown-list {
-      position: fixed;
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      right: 0;
       background: rgba(0, 0, 0, 0.98);
       border: 2px solid rgba(255, 255, 255, 0.3);
       border-radius: 12px;
       backdrop-filter: blur(20px);
       max-height: 300px;
       overflow-y: auto;
-      z-index: 99999;
+      z-index: 50000;
       box-shadow: 0 10px 40px rgba(0, 0, 0, 0.9);
     }
 
@@ -341,7 +412,6 @@ function App() {
       cursor: pointer;
       transition: all 0.2s ease;
       border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-      font-family: 'Avant Garde', 'ITC Avant Garde Gothic', 'Questrial', sans-serif !important;
       font-weight: 500;
     }
 
@@ -371,7 +441,6 @@ function App() {
       font-size: 13px;
       letter-spacing: 1px;
       backdrop-filter: blur(10px);
-      font-family: 'Avant Garde', 'ITC Avant Garde Gothic', 'Questrial', sans-serif !important;
     }
 
     .tab-button:first-child {
@@ -388,11 +457,7 @@ function App() {
       border-color: rgba(255, 255, 255, 0.4);
     }
 
-    .tab-button:hover:not(.active) {
-      background: rgba(255, 255, 255, 0.05);
-    }
-
-    /* Liquid Button */
+    /* Other styles remain the same */
     .liquid-button {
       position: relative;
       background: rgba(0, 0, 0, 0.5);
@@ -408,7 +473,6 @@ function App() {
       overflow: hidden;
       transition: all 0.3s ease;
       backdrop-filter: blur(10px);
-      font-family: 'Avant Garde', 'ITC Avant Garde Gothic', 'Questrial', sans-serif !important;
     }
 
     .liquid-button:hover {
@@ -423,7 +487,6 @@ function App() {
       cursor: not-allowed;
     }
 
-    /* Result Card */
     .result-card {
       position: relative;
       background: rgba(0, 0, 0, 0.5);
@@ -436,12 +499,6 @@ function App() {
       box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.05);
     }
 
-    .result-card:hover {
-      border-color: rgba(255, 255, 255, 0.5);
-      background: rgba(255, 255, 255, 0.02);
-    }
-
-    /* Analysis Button */
     .analysis-button {
       margin-top: 20px;
       background: transparent;
@@ -459,12 +516,6 @@ function App() {
       gap: 8px;
     }
 
-    .analysis-button:hover {
-      background: rgba(255, 255, 255, 0.05);
-      border-color: rgba(255, 255, 255, 0.5);
-    }
-
-    /* Analysis Details */
     .analysis-details {
       margin-top: 20px;
       padding: 20px;
@@ -473,7 +524,6 @@ function App() {
       border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
-    /* Progress Indicator */
     .progress-indicator {
       padding: 12px 20px;
       background: rgba(255, 255, 255, 0.05);
@@ -482,18 +532,6 @@ function App() {
       border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
-    }
-
-    .progress-text {
-      font-size: 13px;
-      color: rgba(255, 255, 255, 0.8);
-      animation: pulse 2s ease-in-out infinite;
-    }
-
-    /* Logo specific styling */
     .logo-text {
       font-family: 'Avant Garde', 'ITC Avant Garde Gothic', 'Questrial', sans-serif !important;
       font-weight: 900;
@@ -506,15 +544,24 @@ function App() {
       .grid-main {
         grid-template-columns: 1fr !important;
       }
-      .logo-text {
-        font-size: 28px;
-      }
-      .header-info {
-        flex-direction: column !important;
-        gap: 8px !important;
+      .loading-title {
+        font-size: 48px;
       }
     }
   `;
+
+  // Loading Screen
+  if (isLoading) {
+    return (
+      <>
+        <style>{styles}</style>
+        <div className="loading-screen">
+          <h1 className="loading-title">doDiligence</h1>
+          <div className="loading-text"></div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -537,14 +584,13 @@ function App() {
             <h1 className="logo-text">
               doDiligence
             </h1>
-            <div className="header-info" style={{ 
+            <div style={{ 
               display: 'flex', 
               gap: '30px', 
               alignItems: 'center',
               color: '#000000',
               fontWeight: '600',
-              fontSize: '14px',
-              fontFamily: 'Avant Garde, ITC Avant Garde Gothic, Questrial, sans-serif'
+              fontSize: '14px'
             }}>
               <div>
                 MARKET: <span style={{ fontWeight: '800' }}>{marketStatus}</span>
@@ -612,7 +658,7 @@ function App() {
             gap: '24px' 
           }}>
             {/* Controls */}
-            <div className="liquid-glass-card controls-card">
+            <div className="liquid-glass-card" style={{ overflow: 'visible' }}>
               <div className="glass-content">
                 <h2 style={{ 
                   fontSize: '18px', 
@@ -651,32 +697,16 @@ function App() {
                   }}>
                     SELECT TARGET
                   </label>
-                  <div className="custom-dropdown">
+                  <div className="custom-dropdown" ref={dropdownRef}>
                     <div 
-                      ref={dropdownRef}
                       className="dropdown-header"
-                      onClick={(e) => {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        setDropdownPosition({
-                          top: rect.bottom + 8,
-                          left: rect.left,
-                          width: rect.width
-                        });
-                        setDropdownOpen(!dropdownOpen);
-                      }}
+                      onClick={() => setDropdownOpen(!dropdownOpen)}
                     >
                       <span>{selectedTarget || 'Choose Target'}</span>
                       <span style={{ transform: dropdownOpen ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.3s' }}>▼</span>
                     </div>
                     {dropdownOpen && (
-                      <div 
-                        className="dropdown-list"
-                        style={{
-                          top: `${dropdownPosition.top}px`,
-                          left: `${dropdownPosition.left}px`,
-                          width: `${dropdownPosition.width}px`
-                        }}
-                      >
+                      <div className="dropdown-list">
                         {(analysisType === 'sector' ? sectors : subIndustries).map(item => (
                           <div 
                             key={item} 
@@ -706,14 +736,16 @@ function App() {
                 {/* Progress Indicator */}
                 {isAnalyzing && analysisProgress && (
                   <div className="progress-indicator">
-                    <div className="progress-text">{analysisProgress}</div>
+                    <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.8)' }}>
+                      {analysisProgress}
+                    </div>
                   </div>
                 )}
               </div>
             </div>
 
             {/* Results */}
-            <div className="liquid-glass-card results-card">
+            <div className="liquid-glass-card">
               <div className="glass-content">
                 <h2 style={{ 
                   fontSize: '18px',
@@ -777,84 +809,26 @@ function App() {
                               <div className="analysis-details">
                                 <h4 style={{ fontSize: '14px', marginBottom: '16px', opacity: 0.8 }}>FUNDAMENTAL ANALYSIS</h4>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
-                                  <div>
-                                    <span style={{ fontSize: '11px', opacity: 0.5 }}>P/E Ratio: </span>
-                                    <span style={{ fontSize: '13px', fontWeight: '600' }}>
-                                      {stock.analysis_details.fundamentals?.pe_ratio?.toFixed(2) || 'N/A'}
-                                    </span>
-                                  </div>
-                                  <div>
-                                    <span style={{ fontSize: '11px', opacity: 0.5 }}>PEG Ratio: </span>
-                                    <span style={{ fontSize: '13px', fontWeight: '600' }}>
-                                      {stock.analysis_details.fundamentals?.peg_ratio?.toFixed(2) || 'N/A'}
-                                    </span>
-                                  </div>
-                                  <div>
-                                    <span style={{ fontSize: '11px', opacity: 0.5 }}>ROE: </span>
-                                    <span style={{ fontSize: '13px', fontWeight: '600' }}>
-                                      {((stock.analysis_details.fundamentals?.roe || 0) * 100).toFixed(1)}%
-                                    </span>
-                                  </div>
-                                  <div>
-                                    <span style={{ fontSize: '11px', opacity: 0.5 }}>Revenue Growth: </span>
-                                    <span style={{ fontSize: '13px', fontWeight: '600' }}>
-                                      {((stock.analysis_details.fundamentals?.revenue_growth || 0) * 100).toFixed(1)}%
-                                    </span>
-                                  </div>
-                                  <div>
-                                    <span style={{ fontSize: '11px', opacity: 0.5 }}>Profit Margin: </span>
-                                    <span style={{ fontSize: '13px', fontWeight: '600' }}>
-                                      {((stock.analysis_details.fundamentals?.profit_margin || 0) * 100).toFixed(1)}%
-                                    </span>
-                                  </div>
-                                  <div>
-                                    <span style={{ fontSize: '11px', opacity: 0.5 }}>Debt/Equity: </span>
-                                    <span style={{ fontSize: '13px', fontWeight: '600' }}>
-                                      {stock.analysis_details.fundamentals?.debt_to_equity?.toFixed(2) || 'N/A'}
-                                    </span>
-                                  </div>
+                                  {Object.entries(stock.analysis_details.fundamentals || {}).map(([key, value]) => (
+                                    <div key={key}>
+                                      <span style={{ fontSize: '11px', opacity: 0.5 }}>{key.replace(/_/g, ' ').toUpperCase()}: </span>
+                                      <span style={{ fontSize: '13px', fontWeight: '600' }}>
+                                        {typeof value === 'number' ? value.toFixed(2) : value}
+                                      </span>
+                                    </div>
+                                  ))}
                                 </div>
                                 
                                 <h4 style={{ fontSize: '14px', marginBottom: '16px', opacity: 0.8 }}>TECHNICAL INDICATORS</h4>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
-                                  <div>
-                                    <span style={{ fontSize: '11px', opacity: 0.5 }}>RSI: </span>
-                                    <span style={{ fontSize: '13px', fontWeight: '600' }}>
-                                      {stock.analysis_details.technicals?.rsi?.toFixed(1) || 'N/A'}
-                                    </span>
-                                  </div>
-                                  <div>
-                                    <span style={{ fontSize: '11px', opacity: 0.5 }}>20D Momentum: </span>
-                                    <span style={{ fontSize: '13px', fontWeight: '600' }}>
-                                      {((stock.analysis_details.technicals?.momentum_20d || 0) * 100).toFixed(1)}%
-                                    </span>
-                                  </div>
-                                  <div>
-                                    <span style={{ fontSize: '11px', opacity: 0.5 }}>60D Momentum: </span>
-                                    <span style={{ fontSize: '13px', fontWeight: '600' }}>
-                                      {((stock.analysis_details.technicals?.momentum_60d || 0) * 100).toFixed(1)}%
-                                    </span>
-                                  </div>
-                                  <div>
-                                    <span style={{ fontSize: '11px', opacity: 0.5 }}>Volatility: </span>
-                                    <span style={{ fontSize: '13px', fontWeight: '600' }}>
-                                      {((stock.analysis_details.technicals?.volatility || 0) * 100).toFixed(1)}%
-                                    </span>
-                                  </div>
-                                </div>
-                                
-                                <h4 style={{ fontSize: '14px', marginBottom: '16px', opacity: 0.8 }}>ML ANALYSIS</h4>
-                                <div style={{ marginBottom: '8px' }}>
-                                  <span style={{ fontSize: '11px', opacity: 0.5 }}>ML Prediction: </span>
-                                  <span style={{ fontSize: '13px', fontWeight: '600' }}>
-                                    {((stock.analysis_details?.ml_prediction || 0) * 100).toFixed(1)}% expected return
-                                  </span>
-                                </div>
-                                <div>
-                                  <span style={{ fontSize: '11px', opacity: 0.5 }}>Quality Score: </span>
-                                  <span style={{ fontSize: '13px', fontWeight: '600' }}>
-                                    {(stock.analysis_details?.quality_score || 0).toFixed(2)}/1.0
-                                  </span>
+                                  {Object.entries(stock.analysis_details.technicals || {}).map(([key, value]) => (
+                                    <div key={key}>
+                                      <span style={{ fontSize: '11px', opacity: 0.5 }}>{key.replace(/_/g, ' ').toUpperCase()}: </span>
+                                      <span style={{ fontSize: '13px', fontWeight: '600' }}>
+                                        {typeof value === 'number' ? value.toFixed(2) : value}
+                                      </span>
+                                    </div>
+                                  ))}
                                 </div>
                               </div>
                             )}
