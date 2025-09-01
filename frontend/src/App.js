@@ -56,7 +56,6 @@ function App() {
         fetchMarketConditions(),
         checkDataStatus()
       ]);
-      // Add a minimum loading time for better UX
       setTimeout(() => setIsLoading(false), 1500);
     };
     initialize();
@@ -110,30 +109,34 @@ function App() {
     setExpandedStock(null);
     setAnalysisProgress('Initializing analysis...');
 
+    // Increase timeout to 3 minutes
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 90000);
+    const timeoutId = setTimeout(() => controller.abort(), 180000);
+
+    let messageIndex = 0;
+    const messages = [
+      'Fetching market data...',
+      'Analyzing sector conditions...',
+      'Running ML models...',
+      'Calculating valuations...',
+      'Generating predictions...',
+      'Finalizing results...',
+      'Almost complete...'
+    ];
 
     const progressInterval = setInterval(() => {
-      setAnalysisProgress(prev => {
-        const messages = [
-          'Fetching market data...',
-          'Analyzing sector conditions...',
-          'Running ML models...',
-          'Calculating valuations...',
-          'Generating predictions...'
-        ];
-        const currentIndex = messages.indexOf(prev);
-        if (currentIndex < messages.length - 1) {
-          return messages[currentIndex + 1];
-        }
-        return prev;
-      });
-    }, 3000);
+      if (messageIndex < messages.length - 1) {
+        messageIndex++;
+        setAnalysisProgress(messages[messageIndex]);
+      }
+    }, 5000);
 
     try {
       const response = await fetch(`${API_URL}/api/analysis`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
           analysis_type: analysisType,
           target: selectedTarget
@@ -148,16 +151,20 @@ function App() {
         const data = await response.json();
         setResults(data.results);
         setAnalysisProgress('');
-      }
-    } catch (error) {
-      clearInterval(progressInterval);
-      if (error.name === 'AbortError') {
-        setAnalysisProgress('Analysis timeout - please try again');
-        setTimeout(() => setAnalysisProgress(''), 3000);
       } else {
         setAnalysisProgress('Analysis failed - please try again');
         setTimeout(() => setAnalysisProgress(''), 3000);
       }
+    } catch (error) {
+      clearInterval(progressInterval);
+      if (error.name === 'AbortError') {
+        setAnalysisProgress('Analysis is taking longer than expected. Try selecting a smaller sector.');
+        setTimeout(() => setAnalysisProgress(''), 5000);
+      } else {
+        setAnalysisProgress('Connection error - please try again');
+        setTimeout(() => setAnalysisProgress(''), 3000);
+      }
+      console.error('Analysis error:', error);
     } finally {
       setIsAnalyzing(false);
     }
@@ -364,7 +371,7 @@ function App() {
       100% { background-position: 200% 50%; }
     }
 
-    /* Custom Dropdown - FIXED */
+    /* Custom Dropdown */
     .custom-dropdown {
       position: relative;
       width: 100%;
@@ -457,7 +464,6 @@ function App() {
       border-color: rgba(255, 255, 255, 0.4);
     }
 
-    /* Other styles remain the same */
     .liquid-button {
       position: relative;
       background: rgba(0, 0, 0, 0.5);
@@ -530,6 +536,11 @@ function App() {
       border-radius: 8px;
       margin-top: 12px;
       border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
     }
 
     .logo-text {
@@ -736,7 +747,7 @@ function App() {
                 {/* Progress Indicator */}
                 {isAnalyzing && analysisProgress && (
                   <div className="progress-indicator">
-                    <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.8)' }}>
+                    <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.8)', animation: 'pulse 2s ease-in-out infinite' }}>
                       {analysisProgress}
                     </div>
                   </div>
