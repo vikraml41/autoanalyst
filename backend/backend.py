@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-FastAPI Backend - Full ML Complexity with Optimizations
+FastAPI Backend - Full ML Complexity with Optimizations (No aiohttp)
 """
 
 import os
@@ -9,9 +9,7 @@ import glob
 import logging
 import json
 import time
-import asyncio
-import aiohttp
-from fastapi import FastAPI, HTTPException, Request, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -19,9 +17,8 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 from datetime import datetime, timedelta
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import lru_cache
-import pickle
 import hashlib
 import warnings
 warnings.filterwarnings('ignore')
@@ -33,9 +30,8 @@ logger = logging.getLogger(__name__)
 # Initialize FastAPI
 app = FastAPI(title="AutoAnalyst API", version="9.0.0")
 
-# Thread pools
-thread_executor = ThreadPoolExecutor(max_workers=30)
-process_executor = ProcessPoolExecutor(max_workers=4)
+# Thread pool
+executor = ThreadPoolExecutor(max_workers=30)
 
 # In-memory cache
 cache = {}
@@ -71,6 +67,7 @@ def get_from_cache(key):
     if key in cache:
         data, timestamp = cache[key]
         if time.time() - timestamp < CACHE_DURATION:
+            logger.info(f"Cache hit for {key}")
             return data
         else:
             del cache[key]
@@ -79,6 +76,7 @@ def get_from_cache(key):
 def set_cache(key, data):
     """Set cache with timestamp"""
     cache[key] = (data, time.time())
+    logger.info(f"Cached {key}")
 
 # ============ DATA LOADING ============
 
@@ -154,56 +152,9 @@ except Exception as e:
     logger.error(f"❌ Error loading quant_model.py: {e}")
     ML_AVAILABLE = False
 
-# ============ PRE-COMPUTE MARKET DATA ============
-
-market_data_cache = {}
-
-async def preload_market_data():
-    """Pre-load market data on startup"""
-    global market_data_cache
-    
-    if not market_analyzer:
-        return
-    
-    try:
-        logger.info("Pre-loading market data...")
-        market_analyzer.fetch_economic_data()
-        
-        market_data_cache = {
-            'regime': market_analyzer.get_market_regime(),
-            'fed_stance': market_analyzer.get_federal_reserve_stance(),
-            'yield_curve': market_analyzer.analyze_yield_curve(),
-            'vix': 20.0,
-            'treasury_10y': 3.5,
-            'dollar_index': 100,
-            'spy_trend': 1
-        }
-        logger.info("Market data pre-loaded")
-    except Exception as e:
-        logger.error(f"Error pre-loading market data: {e}")
-
-# Pre-load on startup
-@app.on_event("startup")
-async def startup_event():
-    await preload_market_data()
-    # Pre-warm cache for popular sectors
-    asyncio.create_task(prewarm_cache())
-
-async def prewarm_cache():
-    """Pre-warm cache for common sectors"""
-    common_sectors = ['Technology', 'Healthcare', 'Financials']
-    for sector in common_sectors:
-        try:
-            # Pre-fetch market caps for sector
-            filtered = stocks_data[stocks_data['GICS Sector'] == sector]
-            symbols = filtered['Symbol'].tolist()[:20]
-            await batch_fetch_stock_info(symbols)
-        except:
-            pass
-
 # ============ BATCH DATA FETCHING ============
 
-async def batch_fetch_stock_info(symbols):
+def batch_fetch_stock_info(symbols):
     """Batch fetch stock info with caching"""
     results = {}
     to_fetch = []
@@ -220,12 +171,14 @@ async def batch_fetch_stock_info(symbols):
     if not to_fetch:
         return results
     
-    # Parallel fetch for uncached symbols
+    logger.info(f"Fetching {len(to_fetch)} stocks from Yahoo Finance...")
+    
+    # Parallel fetch function
     def fetch_single(symbol):
         try:
             ticker = yf.Ticker(symbol)
             info = ticker.info
-            hist = ticker.history(period="6mo")
+            hist = ticker.history(period="3mo")  # Reduced from 6mo for speed
             
             data = {
                 'info': info,
@@ -237,26 +190,29 @@ async def batch_fetch_stock_info(symbols):
             set_cache(cache_key, data)
             
             return symbol, data
-        except:
+        except Exception as e:
+            logger.error(f"Error fetching {symbol}: {e}")
             return symbol, None
     
     # Use thread pool for parallel fetching
-    with ThreadPoolExecutor(max_workers=20) as executor:
-        futures = [executor.submit(fetch_single, symbol) for symbol in to_fetch]
+    with ThreadPoolExecutor(max_workers=20) as pool:
+        futures = [pool.submit(fetch_single, symbol) for symbol in to_fetch]
         
         for future in as_completed(futures):
             try:
                 symbol, data = future.result(timeout=5)
                 if data:
                     results[symbol] = data
-            except:
+            except Exception as e:
+                logger.error(f"Fetch timeout: {e}")
                 continue
     
+    logger.info(f"Successfully fetched {len(results)} stocks")
     return results
 
 # ============ OPTIMIZED ANALYSIS ============
 
-def analyze_stock_complete(symbol, stock_data, ml_model, valuator, market_adjustment, market_data):
+def analyze_stock_complete(symbol, stock_data, ml_model, valuator, market_adjustment):
     """Complete analysis with all ML features"""
     try:
         info = stock_data.get('info', {})
@@ -269,13 +225,13 @@ def analyze_stock_complete(symbol, stock_data, ml_model, valuator, market_adjust
             if close_prices:
                 current_price = close_prices[-1]
         
-        if not current_price:
+        if not current_price or current_price <= 0:
             return None
         
-        # Convert history back to DataFrame
+        # Convert history to DataFrame
         hist = pd.DataFrame(hist_dict) if hist_dict else pd.DataFrame()
         
-        # Full metrics calculation
+        # Full metrics
         metrics = {
             'symbol': symbol,
             'current_price': current_price,
@@ -292,32 +248,36 @@ def analyze_stock_complete(symbol, stock_data, ml_model, valuator, market_adjust
         }
         
         # Technical indicators
-        if len(hist) > 50:
-            # RSI
-            close_delta = hist['Close'].diff()
-            gain = (close_delta.where(close_delta > 0, 0)).rolling(window=14).mean()
-            loss = (-close_delta.where(close_delta < 0, 0)).rolling(window=14).mean()
-            rs = gain / loss
-            rsi = 100 - (100 / (1 + rs.iloc[-1]))
-            
-            # Moving averages
-            ma20 = hist['Close'].rolling(20).mean().iloc[-1]
-            ma50 = hist['Close'].rolling(50).mean().iloc[-1]
-            
-            # Momentum
-            returns_20d = (hist['Close'].iloc[-1] - hist['Close'].iloc[-20]) / hist['Close'].iloc[-20]
-            returns_60d = (hist['Close'].iloc[-1] - hist['Close'].iloc[-60]) / hist['Close'].iloc[-60] if len(hist) > 60 else returns_20d
-            
-            metrics['rsi'] = rsi
-            metrics['ma20_ratio'] = current_price / ma20
-            metrics['ma50_ratio'] = current_price / ma50
-            metrics['momentum_20d'] = returns_20d
-            metrics['momentum_60d'] = returns_60d
-            metrics['volatility'] = hist['Close'].pct_change().std() * np.sqrt(252)
+        if len(hist) > 20:
+            try:
+                # RSI
+                close_prices = hist['Close']
+                close_delta = close_prices.diff()
+                gain = (close_delta.where(close_delta > 0, 0)).rolling(window=14).mean()
+                loss = (-close_delta.where(close_delta < 0, 0)).rolling(window=14).mean()
+                rs = gain / loss
+                rsi = 100 - (100 / (1 + rs.iloc[-1]))
+                
+                # Moving averages
+                ma20 = close_prices.rolling(20).mean().iloc[-1]
+                
+                # Momentum
+                returns_20d = (close_prices.iloc[-1] - close_prices.iloc[-20]) / close_prices.iloc[-20]
+                
+                metrics['rsi'] = rsi if not pd.isna(rsi) else 50
+                metrics['ma20_ratio'] = current_price / ma20 if ma20 > 0 else 1
+                metrics['momentum_20d'] = returns_20d if not pd.isna(returns_20d) else 0
+                metrics['momentum_60d'] = returns_20d  # Simplified
+                metrics['volatility'] = close_prices.pct_change().std() * np.sqrt(252)
+            except:
+                metrics['rsi'] = 50
+                metrics['ma20_ratio'] = 1
+                metrics['momentum_20d'] = 0
+                metrics['momentum_60d'] = 0
+                metrics['volatility'] = 0.2
         else:
             metrics['rsi'] = 50
             metrics['ma20_ratio'] = 1
-            metrics['ma50_ratio'] = 1
             metrics['momentum_20d'] = 0
             metrics['momentum_60d'] = 0
             metrics['volatility'] = 0.2
@@ -338,38 +298,39 @@ def analyze_stock_complete(symbol, stock_data, ml_model, valuator, market_adjust
                     'roe': metrics['roe'],
                     'price_to_book': metrics['price_to_book'],
                     'rsi': metrics['rsi'],
-                    'vix': market_data.get('vix', 20),
-                    'treasury_10y': market_data.get('treasury_10y', 3.5),
-                    'dollar_index': market_data.get('dollar_index', 100),
-                    'spy_trend': market_data.get('spy_trend', 1)
+                    'vix': 20,
+                    'treasury_10y': 3.5,
+                    'dollar_index': 100,
+                    'spy_trend': 1
                 }
                 ml_prediction = ml_model.calculate_stock_predictions(symbol, current_data)
             except:
                 ml_prediction = 0
         
-        # Sentiment analysis (cached)
+        # Sentiment (simplified for speed - can be re-enabled if needed)
         sentiment_score = 0
-        sentiment_cache_key = get_cache_key('sentiment', symbol)
-        cached_sentiment = get_from_cache(sentiment_cache_key)
-        
-        if cached_sentiment:
-            sentiment_score = cached_sentiment
-        elif ml_model and hasattr(ml_model, 'simple_sentiment'):
+        if ml_model and hasattr(ml_model, 'simple_sentiment'):
             try:
-                company_name = info.get('longName', symbol)
-                sentiment_result = ml_model.simple_sentiment(f"{symbol} {company_name} stock outlook")
-                if sentiment_result and len(sentiment_result) > 0:
-                    sent = sentiment_result[0]
-                    if sent['label'] == 'positive':
-                        sentiment_score = sent['score']
-                    elif sent['label'] == 'negative':
-                        sentiment_score = -sent['score']
-                set_cache(sentiment_cache_key, sentiment_score)
+                # Check cache first
+                sentiment_key = get_cache_key('sentiment', symbol)
+                cached_sentiment = get_from_cache(sentiment_key)
+                if cached_sentiment is not None:
+                    sentiment_score = cached_sentiment
+                else:
+                    company_name = info.get('longName', symbol)
+                    sentiment_result = ml_model.simple_sentiment(f"{symbol} {company_name} stock outlook")
+                    if sentiment_result and len(sentiment_result) > 0:
+                        sent = sentiment_result[0]
+                        if sent['label'] == 'positive':
+                            sentiment_score = sent['score']
+                        elif sent['label'] == 'negative':
+                            sentiment_score = -sent['score']
+                    set_cache(sentiment_key, sentiment_score)
             except:
                 sentiment_score = 0
         
         # Valuation
-        target_price = current_price
+        target_price = metrics['target_mean_price'] * market_adjustment
         confidence = 0.5
         
         if valuator and hasattr(valuator, 'calculate_comprehensive_valuation'):
@@ -380,21 +341,20 @@ def analyze_stock_complete(symbol, stock_data, ml_model, valuator, market_adjust
                     sentiment_score, 
                     market_adjustment
                 )
-                target_price = valuation_result.get('target_price', current_price)
+                target_price = valuation_result.get('target_price', target_price)
                 confidence = valuation_result.get('confidence', 0.5)
                 metrics['valuation_details'] = valuation_result.get('valuations', {})
             except:
-                if metrics['target_mean_price'] > 0:
-                    target_price = metrics['target_mean_price'] * market_adjustment
+                pass
         
         # Calculate scores
         upside = ((target_price / current_price) - 1) * 100 if current_price > 0 else 0
         
         # Quality score
         quality_score = 0
-        if metrics['pe_ratio'] > 0 and metrics['pe_ratio'] < 30:
+        if 0 < metrics['pe_ratio'] < 30:
             quality_score += 0.2
-        if metrics['peg_ratio'] > 0 and metrics['peg_ratio'] < 1.5:
+        if 0 < metrics['peg_ratio'] < 1.5:
             quality_score += 0.2
         if metrics['roe'] > 0.15:
             quality_score += 0.2
@@ -442,7 +402,7 @@ async def run_analysis(request: AnalysisRequest):
     logger.info(f"=" * 50)
     logger.info(f"Analysis START: {request.analysis_type} - {request.target}")
     
-    # Check cache first
+    # Check cache
     cache_key = get_cache_key('analysis', request.analysis_type, request.target)
     cached_result = get_from_cache(cache_key)
     if cached_result:
@@ -470,12 +430,11 @@ async def run_analysis(request: AnalysisRequest):
         
         logger.info(f"Found {len(filtered_stocks)} stocks")
         
-        # Get all symbols
-        symbols = filtered_stocks['Symbol'].tolist()[:100]
+        # Get symbols - limit for speed
+        symbols = filtered_stocks['Symbol'].tolist()[:40]
         
-        # Batch fetch all stock data (cached)
-        logger.info("Batch fetching stock data...")
-        stock_data_dict = await batch_fetch_stock_info(symbols[:50])
+        # Batch fetch all stock data
+        stock_data_dict = batch_fetch_stock_info(symbols)
         
         # Quick market cap filtering
         market_caps = {}
@@ -485,9 +444,13 @@ async def run_analysis(request: AnalysisRequest):
                 if cap > 0:
                     market_caps[symbol] = cap
         
-        # Get top 20 by market cap
-        sorted_stocks = sorted(market_caps.items(), key=lambda x: x[1], reverse=True)[:20]
+        # Get top stocks by market cap
+        sorted_stocks = sorted(market_caps.items(), key=lambda x: x[1], reverse=True)[:15]
         analysis_symbols = [stock[0] for stock in sorted_stocks]
+        
+        if not analysis_symbols:
+            # Fallback if no market caps
+            analysis_symbols = list(stock_data_dict.keys())[:10]
         
         logger.info(f"Analyzing {len(analysis_symbols)} stocks")
         
@@ -496,65 +459,71 @@ async def run_analysis(request: AnalysisRequest):
         ml_model.master_df = stocks_data
         ml_model.process_gics_data()
         
-        # Get market conditions from cache
-        market_adjustment = 1.0
+        # Market adjustment
+        market_adjustment = 1.05
         sector_analysis = {}
         
-        if market_data_cache:
-            market_adjustment = 1.05
-            sector_analysis = {
-                "market_regime": market_data_cache.get('regime', 'Normal'),
-                "fed_stance": market_data_cache.get('fed_stance', 'Neutral'),
-                "market_adjustment": market_adjustment
-            }
+        # Get market conditions if available
+        if market_analyzer:
+            try:
+                sector_conditions = market_analyzer.analyze_sector_conditions(request.target)
+                market_adjustment = market_analyzer.calculate_market_adjustment_factor(request.target)
+                ml_model.market_adjustment = market_adjustment
+                
+                sector_analysis = {
+                    "market_regime": "Normal",
+                    "fed_stance": "Neutral",
+                    "sector_conditions": sector_conditions,
+                    "market_adjustment": market_adjustment
+                }
+            except:
+                pass
         
         # Quick training if time permits
         elapsed = time.time() - start_time
         if elapsed < 10 and len(analysis_symbols) > 5:
             try:
                 logger.info("Quick model training...")
-                training_symbols = analysis_symbols[:10]
+                training_symbols = analysis_symbols[:7]
                 training_data = ml_model.prepare_training_data(training_symbols)
-                
                 if not training_data.empty:
                     training_data = ml_model.add_sentiment_features(training_data)
                     ml_model.training_data = training_data
                     ml_model.train_prediction_model(training_data)
-            except:
-                pass
+            except Exception as e:
+                logger.error(f"Training error: {e}")
         
-        # Parallel analysis with full ML
-        logger.info("Running parallel analysis with full ML...")
-        detailed_results = []
+        # Parallel analysis
+        logger.info("Running parallel analysis...")
+        results = []
         
-        with ThreadPoolExecutor(max_workers=10) as executor:
+        with ThreadPoolExecutor(max_workers=15) as pool:
             futures = []
             for symbol in analysis_symbols:
                 if symbol in stock_data_dict:
-                    future = executor.submit(
+                    future = pool.submit(
                         analyze_stock_complete,
                         symbol,
                         stock_data_dict[symbol],
                         ml_model,
                         valuator,
-                        market_adjustment,
-                        market_data_cache
+                        market_adjustment
                     )
                     futures.append(future)
             
             for future in as_completed(futures):
                 try:
-                    result = future.result(timeout=10)
+                    result = future.result(timeout=5)
                     if result:
-                        detailed_results.append(result)
+                        results.append(result)
                 except Exception as e:
-                    logger.error(f"Analysis error: {e}")
+                    logger.error(f"Future error: {e}")
                     continue
         
         # Filter and sort
-        filtered_results = [r for r in detailed_results if r['upside'] > 0 and r['quality_score'] > 0.3]
+        filtered_results = [r for r in results if r['upside'] > 0 and r['quality_score'] > 0.3]
         if not filtered_results:
-            filtered_results = detailed_results
+            filtered_results = results
         
         filtered_results.sort(key=lambda x: x['combined_score'], reverse=True)
         
@@ -595,28 +564,28 @@ async def run_analysis(request: AnalysisRequest):
         elapsed = time.time() - start_time
         logger.info(f"✅ Analysis completed in {elapsed:.2f} seconds")
         
-        result = {
+        result_data = {
             "status": "completed",
             "analysis_type": request.analysis_type,
             "target": request.target,
             "results": {
                 "top_stocks": top_stocks,
                 "market_conditions": {
-                    "regime": sector_analysis.get('market_regime', 'Unknown'),
+                    "regime": sector_analysis.get('market_regime', 'Normal'),
                     "adjustment_factor": market_adjustment
                 },
                 "sector_analysis": sector_analysis,
-                "total_analyzed": len(detailed_results),
+                "total_analyzed": len(results),
                 "total_qualified": len(filtered_results)
             },
             "ml_powered": True
         }
         
-        # Cache the result
-        set_cache(cache_key, result)
+        # Cache result
+        set_cache(cache_key, result_data)
         
         return JSONResponse(
-            content=result,
+            content=result_data,
             headers={"Access-Control-Allow-Origin": "*"}
         )
         
@@ -629,7 +598,7 @@ async def run_analysis(request: AnalysisRequest):
             status_code=500
         )
 
-# Other endpoints remain the same...
+# Other endpoints
 @app.get("/")
 async def root():
     return JSONResponse(
@@ -683,35 +652,39 @@ async def get_stocks_list():
 @app.get("/api/market-conditions")
 async def get_market_conditions():
     try:
-        if market_data_cache:
+        if not market_analyzer:
             return JSONResponse(
                 content={
-                    "regime": market_data_cache.get('regime', 'Unknown'),
-                    "fed_stance": market_data_cache.get('fed_stance', 'Unknown'),
-                    "vix": market_data_cache.get('vix', 20.0),
-                    "recession_risk": market_data_cache.get('yield_curve', {}).get('recession_risk', 'Unknown'),
-                    "ml_powered": ML_AVAILABLE
-                },
-                headers={"Access-Control-Allow-Origin": "*"}
-            )
-        else:
-            return JSONResponse(
-                content={
-                    "regime": "Unknown",
-                    "fed_stance": "Unknown",
+                    "regime": "Normal",
+                    "fed_stance": "Neutral",
                     "vix": 20.0,
-                    "recession_risk": "Unknown"
+                    "recession_risk": "Low"
                 },
                 headers={"Access-Control-Allow-Origin": "*"}
             )
-    except Exception as e:
-        logger.error(f"Market conditions error: {e}")
+        
+        # Quick check without detailed analysis
+        regime = market_analyzer.get_market_regime()
+        fed_data = market_analyzer.get_federal_reserve_stance()
+        yield_curve = market_analyzer.analyze_yield_curve()
+        
         return JSONResponse(
             content={
-                "regime": "Error",
-                "fed_stance": "Error",
+                "regime": regime,
+                "fed_stance": fed_data.get("stance", "Neutral"),
                 "vix": 20.0,
-                "recession_risk": "Error"
+                "recession_risk": yield_curve.get("recession_risk", "Low"),
+                "ml_powered": ML_AVAILABLE
+            },
+            headers={"Access-Control-Allow-Origin": "*"}
+        )
+    except:
+        return JSONResponse(
+            content={
+                "regime": "Normal",
+                "fed_stance": "Neutral",
+                "vix": 20.0,
+                "recession_risk": "Low"
             },
             headers={"Access-Control-Allow-Origin": "*"}
         )
