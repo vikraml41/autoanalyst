@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-FastAPI Backend - Full ML Complexity with Optimizations (No aiohttp)
+FastAPI Backend - Full ML Analysis for Best Stock Selection
 """
 
 import os
@@ -18,7 +18,6 @@ import numpy as np
 import yfinance as yf
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from functools import lru_cache
 import hashlib
 import warnings
 warnings.filterwarnings('ignore')
@@ -28,14 +27,14 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Initialize FastAPI
-app = FastAPI(title="AutoAnalyst API", version="9.0.0")
+app = FastAPI(title="AutoAnalyst API", version="10.0.0")
 
 # Thread pool
 executor = ThreadPoolExecutor(max_workers=30)
 
 # In-memory cache
 cache = {}
-CACHE_DURATION = 3600  # 1 hour
+CACHE_DURATION = 1800  # 30 minutes for fresher data
 
 # CORS middleware
 app.add_middleware(
@@ -76,7 +75,6 @@ def get_from_cache(key):
 def set_cache(key, data):
     """Set cache with timestamp"""
     cache[key] = (data, time.time())
-    logger.info(f"Cached {key}")
 
 # ============ DATA LOADING ============
 
@@ -152,7 +150,356 @@ except Exception as e:
     logger.error(f"❌ Error loading quant_model.py: {e}")
     ML_AVAILABLE = False
 
-# ============ BATCH DATA FETCHING ============
+# ============ COMPREHENSIVE STOCK ANALYSIS ============
+
+def comprehensive_stock_analysis(symbol, stock_data, ml_model, valuator, market_analyzer, sector):
+    """
+    Perform COMPLETE analysis using ALL ML features
+    Returns detailed analysis with reasoning
+    """
+    try:
+        info = stock_data.get('info', {})
+        hist_dict = stock_data.get('history', {})
+        
+        # Get current price
+        current_price = info.get('currentPrice') or info.get('regularMarketPrice')
+        if not current_price and hist_dict.get('Close'):
+            close_prices = list(hist_dict['Close'].values())
+            if close_prices:
+                current_price = close_prices[-1]
+        
+        if not current_price or current_price <= 0:
+            return None
+        
+        # Convert history to DataFrame
+        hist = pd.DataFrame(hist_dict) if hist_dict else pd.DataFrame()
+        
+        logger.info(f"Analyzing {symbol}: Price=${current_price:.2f}")
+        
+        # ========== 1. FUNDAMENTAL ANALYSIS ==========
+        fundamentals = {
+            'market_cap': info.get('marketCap', 0),
+            'pe_ratio': info.get('trailingPE', 0),
+            'forward_pe': info.get('forwardPE', 0),
+            'peg_ratio': info.get('pegRatio', 0),
+            'profit_margin': info.get('profitMargins', 0),
+            'operating_margin': info.get('operatingMargins', 0),
+            'revenue_growth': info.get('revenueGrowth', 0),
+            'earnings_growth': info.get('earningsGrowth', 0),
+            'debt_to_equity': info.get('debtToEquity', 0),
+            'roe': info.get('returnOnEquity', 0),
+            'roa': info.get('returnOnAssets', 0),
+            'price_to_book': info.get('priceToBook', 0),
+            'price_to_sales': info.get('priceToSalesTrailing12Months', 0),
+            'free_cash_flow': info.get('freeCashflow', 0),
+            'analyst_rating': info.get('recommendationMean', 3),
+            'target_mean_price': info.get('targetMeanPrice', current_price),
+            'target_high_price': info.get('targetHighPrice', current_price),
+            'target_low_price': info.get('targetLowPrice', current_price)
+        }
+        
+        # Fundamental Score (0-1)
+        fundamental_score = 0
+        fundamental_reasons = []
+        
+        # P/E Analysis
+        if 0 < fundamentals['pe_ratio'] < 25:
+            fundamental_score += 0.15
+            fundamental_reasons.append(f"Attractive P/E ratio of {fundamentals['pe_ratio']:.1f}")
+        elif 25 <= fundamentals['pe_ratio'] < 35:
+            fundamental_score += 0.08
+        
+        # PEG Analysis
+        if 0 < fundamentals['peg_ratio'] < 1:
+            fundamental_score += 0.15
+            fundamental_reasons.append(f"Excellent PEG ratio of {fundamentals['peg_ratio']:.2f} (undervalued)")
+        elif 1 <= fundamentals['peg_ratio'] < 1.5:
+            fundamental_score += 0.08
+        
+        # Profitability
+        if fundamentals['roe'] > 0.20:
+            fundamental_score += 0.15
+            fundamental_reasons.append(f"Strong ROE of {fundamentals['roe']*100:.1f}%")
+        elif fundamentals['roe'] > 0.15:
+            fundamental_score += 0.08
+        
+        if fundamentals['profit_margin'] > 0.15:
+            fundamental_score += 0.1
+            fundamental_reasons.append(f"Healthy profit margin of {fundamentals['profit_margin']*100:.1f}%")
+        
+        # Growth
+        if fundamentals['revenue_growth'] > 0.15:
+            fundamental_score += 0.15
+            fundamental_reasons.append(f"Strong revenue growth of {fundamentals['revenue_growth']*100:.1f}%")
+        elif fundamentals['revenue_growth'] > 0.08:
+            fundamental_score += 0.08
+        
+        # Financial Health
+        if fundamentals['debt_to_equity'] < 0.5:
+            fundamental_score += 0.1
+            fundamental_reasons.append("Strong balance sheet with low debt")
+        elif fundamentals['debt_to_equity'] < 1:
+            fundamental_score += 0.05
+        
+        # Analyst Sentiment
+        if fundamentals['analyst_rating'] < 2:
+            fundamental_score += 0.1
+            fundamental_reasons.append("Strong buy rating from analysts")
+        elif fundamentals['analyst_rating'] < 2.5:
+            fundamental_score += 0.05
+        
+        # ========== 2. TECHNICAL ANALYSIS ==========
+        technical_score = 0
+        technical_reasons = []
+        technicals = {}
+        
+        if len(hist) > 50:
+            try:
+                close_prices = hist['Close']
+                
+                # RSI
+                close_delta = close_prices.diff()
+                gain = (close_delta.where(close_delta > 0, 0)).rolling(window=14).mean()
+                loss = (-close_delta.where(close_delta < 0, 0)).rolling(window=14).mean()
+                rs = gain / loss
+                rsi = 100 - (100 / (1 + rs.iloc[-1]))
+                technicals['rsi'] = rsi
+                
+                # Moving Averages
+                ma20 = close_prices.rolling(20).mean().iloc[-1]
+                ma50 = close_prices.rolling(50).mean().iloc[-1]
+                ma200 = close_prices.rolling(200).mean().iloc[-1] if len(hist) > 200 else ma50
+                
+                technicals['ma20'] = ma20
+                technicals['ma50'] = ma50
+                technicals['ma200'] = ma200
+                
+                # Momentum
+                returns_20d = (close_prices.iloc[-1] - close_prices.iloc[-20]) / close_prices.iloc[-20]
+                returns_60d = (close_prices.iloc[-1] - close_prices.iloc[-60]) / close_prices.iloc[-60] if len(hist) > 60 else returns_20d
+                
+                technicals['momentum_20d'] = returns_20d
+                technicals['momentum_60d'] = returns_60d
+                technicals['volatility'] = close_prices.pct_change().std() * np.sqrt(252)
+                
+                # Technical Scoring
+                if current_price > ma20 > ma50:
+                    technical_score += 0.25
+                    technical_reasons.append("Strong uptrend (price above moving averages)")
+                
+                if 30 < rsi < 70:
+                    technical_score += 0.25
+                    if rsi < 40:
+                        technical_reasons.append("Oversold condition (potential bounce)")
+                    elif rsi > 60:
+                        technical_reasons.append("Strong momentum without being overbought")
+                
+                if returns_20d > 0.05:
+                    technical_score += 0.25
+                    technical_reasons.append(f"Positive momentum: {returns_20d*100:.1f}% gain in 20 days")
+                
+                if technicals['volatility'] < 0.4:
+                    technical_score += 0.25
+                    technical_reasons.append("Low volatility indicates stability")
+                
+            except Exception as e:
+                logger.error(f"Technical analysis error for {symbol}: {e}")
+                technicals = {'rsi': 50, 'momentum_20d': 0, 'momentum_60d': 0, 'volatility': 0.3}
+        else:
+            technicals = {'rsi': 50, 'momentum_20d': 0, 'momentum_60d': 0, 'volatility': 0.3}
+        
+        # ========== 3. ML PREDICTION (ALWAYS RUN) ==========
+        ml_prediction = 0
+        ml_confidence = 0
+        
+        if ml_model:
+            try:
+                logger.info(f"Running ML prediction for {symbol}")
+                
+                # Ensure model is trained
+                if not hasattr(ml_model, 'ml_model') or ml_model.ml_model is None:
+                    logger.info("Training ML model...")
+                    training_data = ml_model.prepare_training_data([symbol])
+                    if not training_data.empty:
+                        training_data = ml_model.add_sentiment_features(training_data)
+                        ml_model.train_prediction_model(training_data)
+                
+                # Prepare features
+                current_features = {
+                    'recent_returns': technicals.get('momentum_20d', 0),
+                    'volatility': technicals.get('volatility', 0.3),
+                    'pe_ratio': fundamentals['pe_ratio'],
+                    'market_cap': fundamentals['market_cap'],
+                    'peg_ratio': fundamentals['peg_ratio'],
+                    'profit_margin': fundamentals['profit_margin'],
+                    'revenue_growth': fundamentals['revenue_growth'],
+                    'debt_to_equity': fundamentals['debt_to_equity'],
+                    'roe': fundamentals['roe'],
+                    'price_to_book': fundamentals['price_to_book'],
+                    'rsi': technicals.get('rsi', 50),
+                    'vix': 20,
+                    'treasury_10y': 3.5,
+                    'dollar_index': 100,
+                    'spy_trend': 1
+                }
+                
+                # Get prediction
+                ml_prediction = ml_model.calculate_stock_predictions(symbol, current_features)
+                ml_confidence = abs(ml_prediction)  # Confidence based on strength of prediction
+                
+                logger.info(f"ML Prediction for {symbol}: {ml_prediction*100:.2f}% expected return")
+                
+            except Exception as e:
+                logger.error(f"ML prediction error for {symbol}: {e}")
+                ml_prediction = 0
+                ml_confidence = 0
+        
+        # ========== 4. SENTIMENT ANALYSIS (ALWAYS RUN) ==========
+        sentiment_score = 0
+        sentiment_reasons = []
+        
+        if ml_model and hasattr(ml_model, 'simple_sentiment'):
+            try:
+                company_name = info.get('longName', symbol)
+                queries = [
+                    f"{symbol} {company_name} stock outlook 2024",
+                    f"{symbol} earnings growth potential",
+                    f"Is {symbol} a good investment"
+                ]
+                
+                sentiments = []
+                for query in queries:
+                    result = ml_model.simple_sentiment(query)
+                    if result and len(result) > 0:
+                        sent = result[0]
+                        if sent['label'] == 'positive':
+                            sentiments.append(sent['score'])
+                        elif sent['label'] == 'negative':
+                            sentiments.append(-sent['score'])
+                
+                if sentiments:
+                    sentiment_score = np.mean(sentiments)
+                    if sentiment_score > 0.5:
+                        sentiment_reasons.append(f"Very positive market sentiment (score: {sentiment_score:.2f})")
+                    elif sentiment_score > 0:
+                        sentiment_reasons.append(f"Positive market sentiment (score: {sentiment_score:.2f})")
+                
+                logger.info(f"Sentiment for {symbol}: {sentiment_score:.3f}")
+                
+            except Exception as e:
+                logger.error(f"Sentiment error for {symbol}: {e}")
+                sentiment_score = 0
+        
+        # ========== 5. COMPREHENSIVE VALUATION (ALWAYS RUN) ==========
+        target_price = fundamentals['target_mean_price']
+        valuation_confidence = 0.5
+        valuation_methods = {}
+        
+        if valuator:
+            try:
+                logger.info(f"Running comprehensive valuation for {symbol}")
+                
+                # Market adjustment based on sector
+                market_adjustment = 1.0
+                if market_analyzer:
+                    sector_conditions = market_analyzer.analyze_sector_conditions(sector)
+                    market_adjustment = market_analyzer.calculate_market_adjustment_factor(sector)
+                    
+                    # Adjust for sector momentum
+                    if sector_conditions.get('momentum', 0) > 0:
+                        market_adjustment *= 1.05
+                
+                # Get comprehensive valuation
+                valuation_result = valuator.calculate_comprehensive_valuation(
+                    symbol, 
+                    ml_prediction, 
+                    sentiment_score, 
+                    market_adjustment
+                )
+                
+                target_price = valuation_result.get('target_price', target_price)
+                valuation_confidence = valuation_result.get('confidence', 0.5)
+                valuation_methods = valuation_result.get('valuations', {})
+                
+                logger.info(f"Valuation for {symbol}: Target=${target_price:.2f}, Confidence={valuation_confidence:.2f}")
+                
+            except Exception as e:
+                logger.error(f"Valuation error for {symbol}: {e}")
+        
+        # ========== 6. CALCULATE FINAL SCORES ==========
+        
+        # Expected upside
+        upside_potential = ((target_price / current_price) - 1) * 100 if current_price > 0 else 0
+        
+        # ONLY CONSIDER STOCKS WITH POSITIVE UPSIDE
+        if upside_potential <= 0:
+            logger.info(f"Skipping {symbol}: Negative upside {upside_potential:.1f}%")
+            return None
+        
+        # ML-Adjusted upside (incorporate ML prediction)
+        ml_adjusted_upside = upside_potential * (1 + ml_prediction)
+        
+        # Comprehensive Investment Score (0-100)
+        investment_score = (
+            fundamental_score * 30 +  # 30% weight on fundamentals
+            technical_score * 20 +     # 20% weight on technicals
+            (ml_prediction * 100) * 0.25 +  # 25% weight on ML prediction
+            (sentiment_score * 50) * 0.1 +  # 10% weight on sentiment
+            (valuation_confidence * 100) * 0.15  # 15% weight on valuation confidence
+        )
+        
+        # Risk-adjusted score
+        risk_adjusted_score = investment_score * (1 - technicals.get('volatility', 0.3)/2)
+        
+        # Generate investment thesis
+        investment_thesis = {
+            'fundamental_reasons': fundamental_reasons,
+            'technical_reasons': technical_reasons,
+            'sentiment_reasons': sentiment_reasons,
+            'ml_confidence': ml_confidence,
+            'overall_recommendation': self._generate_recommendation(
+                investment_score, upside_potential, fundamental_score, technical_score
+            )
+        }
+        
+        return {
+            'symbol': symbol,
+            'company_name': info.get('longName', symbol),
+            'current_price': current_price,
+            'target_price': target_price,
+            'upside_potential': upside_potential,
+            'ml_adjusted_upside': ml_adjusted_upside,
+            'ml_prediction': ml_prediction,
+            'sentiment_score': sentiment_score,
+            'fundamental_score': fundamental_score,
+            'technical_score': technical_score,
+            'investment_score': investment_score,
+            'risk_adjusted_score': risk_adjusted_score,
+            'valuation_confidence': valuation_confidence,
+            'fundamentals': fundamentals,
+            'technicals': technicals,
+            'valuation_methods': valuation_methods,
+            'investment_thesis': investment_thesis
+        }
+        
+    except Exception as e:
+        logger.error(f"Comprehensive analysis error for {symbol}: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return None
+
+def _generate_recommendation(investment_score, upside, fundamental_score, technical_score):
+    """Generate investment recommendation text"""
+    if investment_score > 80:
+        return "STRONG BUY - Exceptional opportunity with multiple positive catalysts"
+    elif investment_score > 65:
+        return "BUY - Solid investment with good upside potential"
+    elif investment_score > 50:
+        return "MODERATE BUY - Decent opportunity with some positive factors"
+    else:
+        return "HOLD - Limited upside, consider other opportunities"
+
+# ============ BATCH FETCHING ============
 
 def batch_fetch_stock_info(symbols):
     """Batch fetch stock info with caching"""
@@ -173,12 +520,11 @@ def batch_fetch_stock_info(symbols):
     
     logger.info(f"Fetching {len(to_fetch)} stocks from Yahoo Finance...")
     
-    # Parallel fetch function
     def fetch_single(symbol):
         try:
             ticker = yf.Ticker(symbol)
             info = ticker.info
-            hist = ticker.history(period="3mo")  # Reduced from 6mo for speed
+            hist = ticker.history(period="6mo")  # Get 6 months for better analysis
             
             data = {
                 'info': info,
@@ -194,202 +540,19 @@ def batch_fetch_stock_info(symbols):
             logger.error(f"Error fetching {symbol}: {e}")
             return symbol, None
     
-    # Use thread pool for parallel fetching
+    # Parallel fetching
     with ThreadPoolExecutor(max_workers=20) as pool:
         futures = [pool.submit(fetch_single, symbol) for symbol in to_fetch]
         
         for future in as_completed(futures):
             try:
-                symbol, data = future.result(timeout=5)
+                symbol, data = future.result(timeout=10)
                 if data:
                     results[symbol] = data
-            except Exception as e:
-                logger.error(f"Fetch timeout: {e}")
+            except:
                 continue
     
-    logger.info(f"Successfully fetched {len(results)} stocks")
     return results
-
-# ============ OPTIMIZED ANALYSIS ============
-
-def analyze_stock_complete(symbol, stock_data, ml_model, valuator, market_adjustment):
-    """Complete analysis with all ML features"""
-    try:
-        info = stock_data.get('info', {})
-        hist_dict = stock_data.get('history', {})
-        
-        # Get current price
-        current_price = info.get('currentPrice') or info.get('regularMarketPrice')
-        if not current_price and hist_dict.get('Close'):
-            close_prices = list(hist_dict['Close'].values())
-            if close_prices:
-                current_price = close_prices[-1]
-        
-        if not current_price or current_price <= 0:
-            return None
-        
-        # Convert history to DataFrame
-        hist = pd.DataFrame(hist_dict) if hist_dict else pd.DataFrame()
-        
-        # Full metrics
-        metrics = {
-            'symbol': symbol,
-            'current_price': current_price,
-            'market_cap': info.get('marketCap', 0),
-            'pe_ratio': info.get('trailingPE', 0),
-            'peg_ratio': info.get('pegRatio', 0),
-            'profit_margin': info.get('profitMargins', 0),
-            'revenue_growth': info.get('revenueGrowth', 0),
-            'debt_to_equity': info.get('debtToEquity', 0),
-            'roe': info.get('returnOnEquity', 0),
-            'price_to_book': info.get('priceToBook', 0),
-            'analyst_rating': info.get('recommendationMean', 3),
-            'target_mean_price': info.get('targetMeanPrice', current_price)
-        }
-        
-        # Technical indicators
-        if len(hist) > 20:
-            try:
-                # RSI
-                close_prices = hist['Close']
-                close_delta = close_prices.diff()
-                gain = (close_delta.where(close_delta > 0, 0)).rolling(window=14).mean()
-                loss = (-close_delta.where(close_delta < 0, 0)).rolling(window=14).mean()
-                rs = gain / loss
-                rsi = 100 - (100 / (1 + rs.iloc[-1]))
-                
-                # Moving averages
-                ma20 = close_prices.rolling(20).mean().iloc[-1]
-                
-                # Momentum
-                returns_20d = (close_prices.iloc[-1] - close_prices.iloc[-20]) / close_prices.iloc[-20]
-                
-                metrics['rsi'] = rsi if not pd.isna(rsi) else 50
-                metrics['ma20_ratio'] = current_price / ma20 if ma20 > 0 else 1
-                metrics['momentum_20d'] = returns_20d if not pd.isna(returns_20d) else 0
-                metrics['momentum_60d'] = returns_20d  # Simplified
-                metrics['volatility'] = close_prices.pct_change().std() * np.sqrt(252)
-            except:
-                metrics['rsi'] = 50
-                metrics['ma20_ratio'] = 1
-                metrics['momentum_20d'] = 0
-                metrics['momentum_60d'] = 0
-                metrics['volatility'] = 0.2
-        else:
-            metrics['rsi'] = 50
-            metrics['ma20_ratio'] = 1
-            metrics['momentum_20d'] = 0
-            metrics['momentum_60d'] = 0
-            metrics['volatility'] = 0.2
-        
-        # ML prediction
-        ml_prediction = 0
-        if ml_model and hasattr(ml_model, 'calculate_stock_predictions'):
-            try:
-                current_data = {
-                    'recent_returns': metrics['momentum_20d'],
-                    'volatility': metrics['volatility'],
-                    'pe_ratio': metrics['pe_ratio'],
-                    'market_cap': metrics['market_cap'],
-                    'peg_ratio': metrics['peg_ratio'],
-                    'profit_margin': metrics['profit_margin'],
-                    'revenue_growth': metrics['revenue_growth'],
-                    'debt_to_equity': metrics['debt_to_equity'],
-                    'roe': metrics['roe'],
-                    'price_to_book': metrics['price_to_book'],
-                    'rsi': metrics['rsi'],
-                    'vix': 20,
-                    'treasury_10y': 3.5,
-                    'dollar_index': 100,
-                    'spy_trend': 1
-                }
-                ml_prediction = ml_model.calculate_stock_predictions(symbol, current_data)
-            except:
-                ml_prediction = 0
-        
-        # Sentiment (simplified for speed - can be re-enabled if needed)
-        sentiment_score = 0
-        if ml_model and hasattr(ml_model, 'simple_sentiment'):
-            try:
-                # Check cache first
-                sentiment_key = get_cache_key('sentiment', symbol)
-                cached_sentiment = get_from_cache(sentiment_key)
-                if cached_sentiment is not None:
-                    sentiment_score = cached_sentiment
-                else:
-                    company_name = info.get('longName', symbol)
-                    sentiment_result = ml_model.simple_sentiment(f"{symbol} {company_name} stock outlook")
-                    if sentiment_result and len(sentiment_result) > 0:
-                        sent = sentiment_result[0]
-                        if sent['label'] == 'positive':
-                            sentiment_score = sent['score']
-                        elif sent['label'] == 'negative':
-                            sentiment_score = -sent['score']
-                    set_cache(sentiment_key, sentiment_score)
-            except:
-                sentiment_score = 0
-        
-        # Valuation
-        target_price = metrics['target_mean_price'] * market_adjustment
-        confidence = 0.5
-        
-        if valuator and hasattr(valuator, 'calculate_comprehensive_valuation'):
-            try:
-                valuation_result = valuator.calculate_comprehensive_valuation(
-                    symbol, 
-                    ml_prediction, 
-                    sentiment_score, 
-                    market_adjustment
-                )
-                target_price = valuation_result.get('target_price', target_price)
-                confidence = valuation_result.get('confidence', 0.5)
-                metrics['valuation_details'] = valuation_result.get('valuations', {})
-            except:
-                pass
-        
-        # Calculate scores
-        upside = ((target_price / current_price) - 1) * 100 if current_price > 0 else 0
-        
-        # Quality score
-        quality_score = 0
-        if 0 < metrics['pe_ratio'] < 30:
-            quality_score += 0.2
-        if 0 < metrics['peg_ratio'] < 1.5:
-            quality_score += 0.2
-        if metrics['roe'] > 0.15:
-            quality_score += 0.2
-        if metrics['revenue_growth'] > 0.1:
-            quality_score += 0.2
-        if metrics['debt_to_equity'] < 1:
-            quality_score += 0.1
-        if metrics['analyst_rating'] < 2.5:
-            quality_score += 0.1
-        
-        # Combined score
-        combined_score = (
-            upside * 0.3 +
-            quality_score * 100 * 0.3 +
-            (ml_prediction * 100) * 0.2 +
-            (sentiment_score * 100) * 0.1 +
-            (confidence * 100) * 0.1
-        )
-        
-        return {
-            'symbol': symbol,
-            'current_price': current_price,
-            'target_price': target_price,
-            'upside': upside,
-            'ml_prediction': ml_prediction,
-            'sentiment': sentiment_score,
-            'confidence': confidence,
-            'quality_score': quality_score,
-            'combined_score': combined_score,
-            'metrics': metrics
-        }
-        
-    except Exception as e:
-        logger.error(f"Error analyzing {symbol}: {e}")
-        return None
 
 class AnalysisRequest(BaseModel):
     analysis_type: str
@@ -397,10 +560,11 @@ class AnalysisRequest(BaseModel):
 
 @app.post("/api/analysis")
 async def run_analysis(request: AnalysisRequest):
-    """Optimized analysis with full ML complexity"""
+    """Full ML Analysis to find the BEST performers"""
     start_time = time.time()
-    logger.info(f"=" * 50)
-    logger.info(f"Analysis START: {request.analysis_type} - {request.target}")
+    logger.info(f"="*60)
+    logger.info(f"COMPREHENSIVE ANALYSIS: {request.analysis_type} - {request.target}")
+    logger.info(f"="*60)
     
     # Check cache
     cache_key = get_cache_key('analysis', request.analysis_type, request.target)
@@ -428,157 +592,191 @@ async def run_analysis(request: AnalysisRequest):
                 status_code=404
             )
         
-        logger.info(f"Found {len(filtered_stocks)} stocks")
+        logger.info(f"Found {len(filtered_stocks)} stocks in {request.target}")
         
-        # Get symbols - limit for speed
-        symbols = filtered_stocks['Symbol'].tolist()[:40]
+        # Get ALL symbols for comprehensive analysis
+        all_symbols = filtered_stocks['Symbol'].tolist()
         
-        # Batch fetch all stock data
-        stock_data_dict = batch_fetch_stock_info(symbols)
-        
-        # Quick market cap filtering
+        # First pass: Get market caps to identify top stocks
+        logger.info("Phase 1: Identifying top stocks by market cap...")
         market_caps = {}
-        for symbol, data in stock_data_dict.items():
-            if data and 'info' in data:
-                cap = data['info'].get('marketCap', 0)
-                if cap > 0:
-                    market_caps[symbol] = cap
         
-        # Get top stocks by market cap
-        sorted_stocks = sorted(market_caps.items(), key=lambda x: x[1], reverse=True)[:15]
+        def get_market_cap(symbol):
+            try:
+                ticker = yf.Ticker(symbol)
+                cap = ticker.info.get('marketCap', 0)
+                return symbol, cap
+            except:
+                return symbol, 0
+        
+        with ThreadPoolExecutor(max_workers=30) as pool:
+            futures = [pool.submit(get_market_cap, sym) for sym in all_symbols[:100]]
+            for future in as_completed(futures):
+                try:
+                    symbol, cap = future.result(timeout=3)
+                    if cap > 0:
+                        market_caps[symbol] = cap
+                except:
+                    continue
+        
+        # Get top 25 by market cap for detailed analysis
+        sorted_stocks = sorted(market_caps.items(), key=lambda x: x[1], reverse=True)[:25]
         analysis_symbols = [stock[0] for stock in sorted_stocks]
         
-        if not analysis_symbols:
-            # Fallback if no market caps
-            analysis_symbols = list(stock_data_dict.keys())[:10]
+        logger.info(f"Phase 2: Fetching detailed data for {len(analysis_symbols)} stocks...")
         
-        logger.info(f"Analyzing {len(analysis_symbols)} stocks")
+        # Batch fetch all stock data
+        stock_data_dict = batch_fetch_stock_info(analysis_symbols)
         
-        # Setup ML model
+        # Setup ML model with all stocks
+        logger.info("Phase 3: Training ML models...")
         ml_model.selected_stocks = analysis_symbols
         ml_model.master_df = stocks_data
         ml_model.process_gics_data()
         
-        # Market adjustment
-        market_adjustment = 1.05
-        sector_analysis = {}
+        # ALWAYS train the model for best results
+        try:
+            training_symbols = list(stock_data_dict.keys())[:15]
+            training_data = ml_model.prepare_training_data(training_symbols)
+            
+            if not training_data.empty:
+                logger.info(f"Training on {len(training_data)} samples...")
+                training_data = ml_model.add_sentiment_features(training_data)
+                ml_model.training_data = training_data
+                ml_model.train_prediction_model(training_data)
+                logger.info("ML model training complete")
+        except Exception as e:
+            logger.error(f"Training error: {e}")
         
-        # Get market conditions if available
-        if market_analyzer:
-            try:
-                sector_conditions = market_analyzer.analyze_sector_conditions(request.target)
-                market_adjustment = market_analyzer.calculate_market_adjustment_factor(request.target)
-                ml_model.market_adjustment = market_adjustment
-                
-                sector_analysis = {
-                    "market_regime": "Normal",
-                    "fed_stance": "Neutral",
-                    "sector_conditions": sector_conditions,
-                    "market_adjustment": market_adjustment
-                }
-            except:
-                pass
+        # Phase 4: Comprehensive analysis of each stock
+        logger.info("Phase 4: Running comprehensive analysis...")
+        analysis_results = []
         
-        # Quick training if time permits
-        elapsed = time.time() - start_time
-        if elapsed < 10 and len(analysis_symbols) > 5:
-            try:
-                logger.info("Quick model training...")
-                training_symbols = analysis_symbols[:7]
-                training_data = ml_model.prepare_training_data(training_symbols)
-                if not training_data.empty:
-                    training_data = ml_model.add_sentiment_features(training_data)
-                    ml_model.training_data = training_data
-                    ml_model.train_prediction_model(training_data)
-            except Exception as e:
-                logger.error(f"Training error: {e}")
-        
-        # Parallel analysis
-        logger.info("Running parallel analysis...")
-        results = []
-        
-        with ThreadPoolExecutor(max_workers=15) as pool:
+        with ThreadPoolExecutor(max_workers=10) as pool:
             futures = []
-            for symbol in analysis_symbols:
-                if symbol in stock_data_dict:
-                    future = pool.submit(
-                        analyze_stock_complete,
-                        symbol,
-                        stock_data_dict[symbol],
-                        ml_model,
-                        valuator,
-                        market_adjustment
-                    )
-                    futures.append(future)
+            for symbol in stock_data_dict.keys():
+                future = pool.submit(
+                    comprehensive_stock_analysis,
+                    symbol,
+                    stock_data_dict[symbol],
+                    ml_model,
+                    valuator,
+                    market_analyzer,
+                    request.target
+                )
+                futures.append(future)
             
             for future in as_completed(futures):
                 try:
-                    result = future.result(timeout=5)
-                    if result:
-                        results.append(result)
+                    result = future.result(timeout=15)
+                    if result and result['upside_potential'] > 0:
+                        analysis_results.append(result)
+                        logger.info(f"✓ {result['symbol']}: Score={result['investment_score']:.1f}, Upside={result['upside_potential']:.1f}%")
                 except Exception as e:
-                    logger.error(f"Future error: {e}")
-                    continue
+                    logger.error(f"Analysis error: {e}")
         
-        # Filter and sort
-        filtered_results = [r for r in results if r['upside'] > 0 and r['quality_score'] > 0.3]
-        if not filtered_results:
-            filtered_results = results
+        # Phase 5: Select ONLY the BEST performers
+        logger.info("Phase 5: Selecting best performers...")
         
-        filtered_results.sort(key=lambda x: x['combined_score'], reverse=True)
+        # Filter for quality and positive upside
+        quality_stocks = [
+            stock for stock in analysis_results
+            if stock['upside_potential'] > 5  # At least 5% upside
+            and stock['fundamental_score'] > 0.3  # Decent fundamentals
+            and stock['investment_score'] > 40  # Overall good score
+        ]
         
-        # Format top 3
-        top_stocks = []
-        for stock in filtered_results[:3]:
-            top_stocks.append({
+        if not quality_stocks:
+            # Fallback to best available
+            quality_stocks = [
+                stock for stock in analysis_results
+                if stock['upside_potential'] > 0
+            ]
+        
+        # Sort by multiple criteria
+        quality_stocks.sort(
+            key=lambda x: (
+                x['risk_adjusted_score'] * 0.4 +  # Risk-adjusted returns
+                x['ml_adjusted_upside'] * 0.3 +   # ML-predicted upside
+                x['investment_score'] * 0.3        # Overall score
+            ),
+            reverse=True
+        )
+        
+        # Get top 3
+        top_3_stocks = quality_stocks[:3]
+        
+        # Format results
+        formatted_results = []
+        for rank, stock in enumerate(top_3_stocks, 1):
+            # Build recommendation narrative
+            thesis_points = []
+            if stock['investment_thesis']['fundamental_reasons']:
+                thesis_points.extend(stock['investment_thesis']['fundamental_reasons'][:2])
+            if stock['investment_thesis']['technical_reasons']:
+                thesis_points.extend(stock['investment_thesis']['technical_reasons'][:1])
+            if stock['ml_prediction'] > 0.1:
+                thesis_points.append(f"ML models predict {stock['ml_prediction']*100:.1f}% returns")
+            
+            formatted_results.append({
+                "rank": rank,
                 "symbol": stock['symbol'],
+                "company_name": stock['company_name'],
                 "metrics": {
                     "current_price": round(stock['current_price'], 2),
                     "target_price": round(stock['target_price'], 2),
-                    "upside_potential": round(stock['upside'], 1),
-                    "confidence_score": int(stock['confidence'] * 100),
-                    "sentiment_score": round(abs(stock['sentiment']), 2),
-                    "ml_score": round(stock['quality_score'], 3)
+                    "upside_potential": round(stock['upside_potential'], 1),
+                    "ml_adjusted_upside": round(stock['ml_adjusted_upside'], 1),
+                    "confidence_score": int(stock['valuation_confidence'] * 100),
+                    "sentiment_score": round(stock['sentiment_score'], 2),
+                    "ml_score": round(stock['ml_prediction'], 3),
+                    "investment_score": round(stock['investment_score'], 1),
+                    "risk_adjusted_score": round(stock['risk_adjusted_score'], 1)
                 },
                 "analysis_details": {
                     "fundamentals": {
-                        "pe_ratio": stock['metrics'].get('pe_ratio', 0),
-                        "peg_ratio": stock['metrics'].get('peg_ratio', 0),
-                        "roe": stock['metrics'].get('roe', 0),
-                        "profit_margin": stock['metrics'].get('profit_margin', 0),
-                        "revenue_growth": stock['metrics'].get('revenue_growth', 0),
-                        "debt_to_equity": stock['metrics'].get('debt_to_equity', 0)
+                        "pe_ratio": stock['fundamentals']['pe_ratio'],
+                        "peg_ratio": stock['fundamentals']['peg_ratio'],
+                        "roe": stock['fundamentals']['roe'],
+                        "profit_margin": stock['fundamentals']['profit_margin'],
+                        "revenue_growth": stock['fundamentals']['revenue_growth'],
+                        "debt_to_equity": stock['fundamentals']['debt_to_equity']
                     },
-                    "technicals": {
-                        "rsi": stock['metrics'].get('rsi', 50),
-                        "momentum_20d": stock['metrics'].get('momentum_20d', 0),
-                        "momentum_60d": stock['metrics'].get('momentum_60d', 0),
-                        "volatility": stock['metrics'].get('volatility', 0)
-                    },
-                    "valuation_methods": stock['metrics'].get('valuation_details', {}),
+                    "technicals": stock['technicals'],
+                    "valuation_methods": stock['valuation_methods'],
                     "ml_prediction": stock['ml_prediction'],
-                    "quality_score": stock['quality_score']
+                    "quality_scores": {
+                        "fundamental_score": round(stock['fundamental_score'], 2),
+                        "technical_score": round(stock['technical_score'], 2)
+                    }
+                },
+                "investment_thesis": {
+                    "recommendation": stock['investment_thesis']['overall_recommendation'],
+                    "key_points": thesis_points
                 }
             })
         
         elapsed = time.time() - start_time
-        logger.info(f"✅ Analysis completed in {elapsed:.2f} seconds")
+        logger.info(f"="*60)
+        logger.info(f"✅ Analysis complete in {elapsed:.1f} seconds")
+        logger.info(f"Top picks: {', '.join([s['symbol'] for s in formatted_results])}")
+        logger.info(f"="*60)
         
         result_data = {
             "status": "completed",
             "analysis_type": request.analysis_type,
             "target": request.target,
             "results": {
-                "top_stocks": top_stocks,
-                "market_conditions": {
-                    "regime": sector_analysis.get('market_regime', 'Normal'),
-                    "adjustment_factor": market_adjustment
-                },
-                "sector_analysis": sector_analysis,
-                "total_analyzed": len(results),
-                "total_qualified": len(filtered_results)
+                "top_stocks": formatted_results,
+                "analysis_summary": {
+                    "total_analyzed": len(analysis_results),
+                    "quality_filtered": len(quality_stocks),
+                    "sector": request.target,
+                    "methodology": "Full ML analysis with fundamental, technical, sentiment, and valuation models"
+                }
             },
-            "ml_powered": True
+            "ml_powered": True,
+            "execution_time": round(elapsed, 1)
         }
         
         # Cache result
@@ -598,19 +796,17 @@ async def run_analysis(request: AnalysisRequest):
             status_code=500
         )
 
-# Other endpoints
+# Keep other endpoints the same...
 @app.get("/")
 async def root():
     return JSONResponse(
         content={
             "name": "AutoAnalyst API",
-            "version": "9.0.0",
+            "version": "10.0.0",
             "status": "running",
             "ml_enabled": ML_AVAILABLE,
-            "stocks_loaded": len(stocks_data),
-            "cache_size": len(cache)
-        },
-        headers={"Access-Control-Allow-Origin": "*"}
+            "stocks_loaded": len(stocks_data)
+        }
     )
 
 @app.get("/api/health")
@@ -620,10 +816,8 @@ async def health_check():
             "status": "healthy",
             "ml_available": ML_AVAILABLE,
             "stocks_count": len(stocks_data),
-            "cache_entries": len(cache),
             "timestamp": datetime.now().isoformat()
-        },
-        headers={"Access-Control-Allow-Origin": "*"}
+        }
     )
 
 @app.get("/api/stocks/list")
@@ -631,10 +825,7 @@ async def get_stocks_list():
     sectors = []
     sub_industries = []
     
-    if ML_AVAILABLE and ml_model and hasattr(ml_model, 'sectors'):
-        sectors = ml_model.sectors if ml_model.sectors else []
-        sub_industries = ml_model.sub_industries if ml_model.sub_industries else []
-    elif 'GICS Sector' in stocks_data.columns:
+    if 'GICS Sector' in stocks_data.columns:
         sectors = stocks_data['GICS Sector'].dropna().unique().tolist()
         sectors = [s for s in sectors if isinstance(s, str) and s != '']
         sub_industries = stocks_data['GICS Sub-Industry'].dropna().unique().tolist()
@@ -645,49 +836,36 @@ async def get_stocks_list():
             "sectors": sectors,
             "sub_industries": sub_industries,
             "total_stocks": len(stocks_data)
-        },
-        headers={"Access-Control-Allow-Origin": "*"}
+        }
     )
 
 @app.get("/api/market-conditions")
 async def get_market_conditions():
     try:
-        if not market_analyzer:
+        if market_analyzer:
+            regime = market_analyzer.get_market_regime()
+            fed_data = market_analyzer.get_federal_reserve_stance()
+            
             return JSONResponse(
                 content={
-                    "regime": "Normal",
-                    "fed_stance": "Neutral",
+                    "regime": regime,
+                    "fed_stance": fed_data.get("stance", "Neutral"),
                     "vix": 20.0,
-                    "recession_risk": "Low"
-                },
-                headers={"Access-Control-Allow-Origin": "*"}
+                    "recession_risk": "Low",
+                    "ml_powered": ML_AVAILABLE
+                }
             )
-        
-        # Quick check without detailed analysis
-        regime = market_analyzer.get_market_regime()
-        fed_data = market_analyzer.get_federal_reserve_stance()
-        yield_curve = market_analyzer.analyze_yield_curve()
-        
-        return JSONResponse(
-            content={
-                "regime": regime,
-                "fed_stance": fed_data.get("stance", "Neutral"),
-                "vix": 20.0,
-                "recession_risk": yield_curve.get("recession_risk", "Low"),
-                "ml_powered": ML_AVAILABLE
-            },
-            headers={"Access-Control-Allow-Origin": "*"}
-        )
     except:
-        return JSONResponse(
-            content={
-                "regime": "Normal",
-                "fed_stance": "Neutral",
-                "vix": 20.0,
-                "recession_risk": "Low"
-            },
-            headers={"Access-Control-Allow-Origin": "*"}
-        )
+        pass
+    
+    return JSONResponse(
+        content={
+            "regime": "Normal",
+            "fed_stance": "Neutral",
+            "vix": 20.0,
+            "recession_risk": "Low"
+        }
+    )
 
 if __name__ == "__main__":
     import uvicorn
