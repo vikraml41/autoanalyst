@@ -18,6 +18,7 @@ function App() {
   const [subIndustries, setSubIndustries] = useState([]);
   const [analysisType, setAnalysisType] = useState('sector');
   const [selectedTarget, setSelectedTarget] = useState('');
+  const [marketCapSize, setMarketCapSize] = useState('all');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [results, setResults] = useState(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -109,7 +110,6 @@ function App() {
     setExpandedStock(null);
     setAnalysisProgress('Initializing analysis...');
 
-    // Increase timeout to 3 minutes
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 180000);
 
@@ -139,7 +139,8 @@ function App() {
         },
         body: JSON.stringify({
           analysis_type: analysisType,
-          target: selectedTarget
+          target: selectedTarget,
+          market_cap_size: marketCapSize
         }),
         signal: controller.signal
       });
@@ -464,6 +465,29 @@ function App() {
       border-color: rgba(255, 255, 255, 0.4);
     }
 
+    /* Market Cap Buttons */
+    .cap-button {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: white;
+      padding: 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      transition: all 0.3s ease;
+    }
+
+    .cap-button.active {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.4);
+    }
+
+    .cap-button:hover:not(.active) {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
     .liquid-button {
       position: relative;
       background: rgba(0, 0, 0, 0.5);
@@ -551,12 +575,48 @@ function App() {
       color: #000000;
     }
 
+    /* Mobile Responsive Fixes */
     @media (max-width: 768px) {
       .grid-main {
         grid-template-columns: 1fr !important;
       }
+      
       .loading-title {
         font-size: 48px;
+      }
+      
+      .logo-text {
+        font-size: 22px !important;
+      }
+      
+      .header-container {
+        padding: 15px 20px !important;
+      }
+      
+      .header-layout {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 12px !important;
+      }
+      
+      .header-info {
+        width: 100%;
+        display: flex !important;
+        justify-content: space-between !important;
+        font-size: 11px !important;
+        gap: 10px !important;
+      }
+      
+      .market-cap-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+      }
+      
+      .main-padding {
+        padding: 20px !important;
+      }
+      
+      .market-overview-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
       }
     }
   `;
@@ -584,8 +644,8 @@ function App() {
         position: 'relative'
       }}>
         {/* Holographic Header */}
-        <div className="holographic-header" style={{ padding: '20px 40px', position: 'relative' }}>
-          <div style={{ 
+        <div className="holographic-header header-container" style={{ padding: '20px 40px', position: 'relative' }}>
+          <div className="header-layout" style={{ 
             display: 'flex', 
             justifyContent: 'space-between', 
             alignItems: 'center',
@@ -595,7 +655,7 @@ function App() {
             <h1 className="logo-text">
               doDiligence
             </h1>
-            <div style={{ 
+            <div className="header-info" style={{ 
               display: 'flex', 
               gap: '30px', 
               alignItems: 'center',
@@ -625,9 +685,9 @@ function App() {
         </div>
 
         {/* Main Content */}
-        <div style={{ padding: '40px' }}>
+        <div className="main-padding" style={{ padding: '40px' }}>
           {/* Market Overview */}
-          <div style={{
+          <div className="market-overview-grid" style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
             gap: '24px',
@@ -636,7 +696,12 @@ function App() {
             {[
               { label: 'MARKET REGIME', value: marketConditions.regime },
               { label: 'FED STANCE', value: marketConditions.fedStance },
-              { label: 'VOLATILITY INDEX', value: marketConditions.vix },
+              { 
+                label: 'VOLATILITY INDEX (VIX)', 
+                value: marketConditions.vix,
+                color: marketConditions.vix < 20 ? '#00ff88' : 
+                       marketConditions.vix < 30 ? '#ffaa00' : '#ff3333'
+              },
               { label: 'RECESSION RISK', value: marketConditions.recessionRisk }
             ].map((item, idx) => (
               <div key={idx} className="liquid-glass-card">
@@ -653,7 +718,7 @@ function App() {
                   <div style={{ 
                     fontSize: '28px',
                     fontWeight: '700',
-                    color: '#ffffff'
+                    color: item.color || '#ffffff'
                   }}>
                     {item.value}
                   </div>
@@ -694,6 +759,55 @@ function App() {
                   >
                     SUB-INDUSTRY
                   </button>
+                </div>
+
+                {/* Market Cap Filter */}
+                <div style={{ marginBottom: '24px' }}>
+                  <label style={{ 
+                    fontSize: '11px',
+                    letterSpacing: '2px',
+                    fontWeight: '600',
+                    opacity: 0.5,
+                    display: 'block',
+                    marginBottom: '12px'
+                  }}>
+                    MARKET CAP FILTER
+                  </label>
+                  <div className="market-cap-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+                    {[
+                      { value: 'all', label: 'ALL CAPS' },
+                      { value: 'large', label: 'LARGE CAP' },
+                      { value: 'mid', label: 'MID CAP' },
+                      { value: 'small', label: 'SMALL CAP' }
+                    ].map(option => (
+                      <button
+                        key={option.value}
+                        className={`cap-button ${marketCapSize === option.value ? 'active' : ''}`}
+                        onClick={() => setMarketCapSize(option.value)}
+                        style={{
+                          background: marketCapSize === option.value 
+                            ? 'rgba(255, 255, 255, 0.1)' 
+                            : 'transparent',
+                          border: `1px solid ${marketCapSize === option.value 
+                            ? 'rgba(255, 255, 255, 0.4)' 
+                            : 'rgba(255, 255, 255, 0.2)'}`,
+                        }}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ 
+                    marginTop: '8px', 
+                    fontSize: '10px', 
+                    opacity: 0.5,
+                    textAlign: 'center'
+                  }}>
+                    {marketCapSize === 'large' && '>$10B Market Cap'}
+                    {marketCapSize === 'mid' && '$2B - $10B Market Cap'}
+                    {marketCapSize === 'small' && '$300M - $2B Market Cap'}
+                    {marketCapSize === 'all' && 'All Market Capitalizations'}
+                  </div>
                 </div>
 
                 {/* Custom Dropdown */}
@@ -773,12 +887,22 @@ function App() {
                       <div key={stock.symbol} className="result-card">
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
                           <div style={{ flex: 1 }}>
-                            <div className="holographic-text" style={{ 
-                              fontSize: '24px',
-                              fontWeight: '800',
-                              marginBottom: '20px'
-                            }}>
-                              {stock.symbol}
+                            <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', marginBottom: '20px' }}>
+                              <div className="holographic-text" style={{ 
+                                fontSize: '24px',
+                                fontWeight: '800'
+                              }}>
+                                {stock.symbol}
+                              </div>
+                              {stock.market_cap && (
+                                <div style={{ 
+                                  fontSize: '12px', 
+                                  opacity: 0.6,
+                                  fontWeight: '500'
+                                }}>
+                                  {stock.market_cap}
+                                </div>
+                              )}
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
                               <div>
@@ -841,6 +965,17 @@ function App() {
                                     </div>
                                   ))}
                                 </div>
+
+                                {stock.investment_thesis && (
+                                  <>
+                                    <h4 style={{ fontSize: '14px', marginBottom: '16px', opacity: 0.8 }}>INVESTMENT THESIS</h4>
+                                    <ul style={{ fontSize: '12px', lineHeight: '1.8', opacity: 0.9, paddingLeft: '20px' }}>
+                                      {stock.investment_thesis.map((reason, idx) => (
+                                        <li key={idx}>{reason}</li>
+                                      ))}
+                                    </ul>
+                                  </>
+                                )}
                               </div>
                             )}
                           </div>
