@@ -26,6 +26,7 @@ function App() {
   const [analysisProgress, setAnalysisProgress] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const dropdownRef = useRef(null);
+  const pollIntervalRef = useRef(null);
 
   // Clock and market status update
   useEffect(() => {
@@ -73,6 +74,15 @@ function App() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+    };
+  }, []);
+
   const fetchMarketConditions = async () => {
     try {
       const response = await fetch(`${API_URL}/api/market-conditions`);
@@ -81,12 +91,12 @@ function App() {
         setMarketConditions({
           regime: data.regime || 'Unknown',
           fedStance: data.fed_stance || 'Neutral',
-          vix: data.vix ? data.vix.toFixed(2) : 'N/A',
+          vix: data.vix ? (typeof data.vix === 'number' ? data.vix.toFixed(2) : data.vix) : 'N/A',
           recessionRisk: data.recession_risk || 'Unknown'
         });
       }
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error fetching market conditions:', error);
     }
   };
 
@@ -99,75 +109,89 @@ function App() {
         setSubIndustries(data.sub_industries || []);
       }
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error fetching stocks list:', error);
     }
   };
 
   const executeAnalysis = async () => {
     if (!selectedTarget) return;
+    
+    // Clear any existing polling
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+    }
+    
     setIsAnalyzing(true);
     setResults(null);
     setExpandedStock(null);
-    setAnalysisProgress('Initializing analysis...');
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 180000);
-
-    let messageIndex = 0;
-    const messages = [
-      'Fetching market data...',
-      'Analyzing sector conditions...',
-      'Running ML models...',
-      'Calculating valuations...',
-      'Generating predictions...',
-      'Finalizing results...',
-      'Almost complete...'
-    ];
-
-    const progressInterval = setInterval(() => {
-      if (messageIndex < messages.length - 1) {
-        messageIndex++;
-        setAnalysisProgress(messages[messageIndex]);
-      }
-    }, 5000);
+    setAnalysisProgress('Starting analysis...');
 
     try {
-      const response = await fetch(`${API_URL}/api/analysis`, {
+      // Start the analysis job
+      const startResponse = await fetch(`${API_URL}/api/analysis`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           analysis_type: analysisType,
           target: selectedTarget,
           market_cap_size: marketCapSize
-        }),
-        signal: controller.signal
+        })
       });
 
-      clearTimeout(timeoutId);
-      clearInterval(progressInterval);
+      if (!startResponse.ok) {
+        throw new Error('Failed to start analysis');
+      }
 
-      if (response.ok) {
-        const data = await response.json();
-        setResults(data.results);
-        setAnalysisProgress('');
-      } else {
-        setAnalysisProgress('Analysis failed - please try again');
-        setTimeout(() => setAnalysisProgress(''), 3000);
-      }
+      const { job_id } = await startResponse.json();
+      console.log('Analysis job started:', job_id);
+      
+      // Poll for results
+      pollIntervalRef.current = setInterval(async () => {
+        try {
+          const statusResponse = await fetch(`${API_URL}/api/analysis/${job_id}`);
+          const data = await statusResponse.json();
+          
+          if (data.status === 'completed') {
+            clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+            setResults(data.results);
+            setAnalysisProgress('');
+            setIsAnalyzing(false);
+            
+            // Refresh market conditions after analysis
+            fetchMarketConditions();
+          } else if (data.status === 'error') {
+            clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+            setAnalysisProgress('Analysis failed: ' + (data.error || 'Unknown error'));
+            setIsAnalyzing(false);
+            setTimeout(() => setAnalysisProgress(''), 5000);
+          } else if (data.status === 'processing') {
+            setAnalysisProgress(data.progress || 'Processing...');
+          }
+        } catch (error) {
+          console.error('Polling error:', error);
+        }
+      }, 2000); // Poll every 2 seconds
+
+      // Timeout after 3 minutes
+      setTimeout(() => {
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+        if (isAnalyzing) {
+          setAnalysisProgress('Analysis timed out - please try again with fewer stocks');
+          setIsAnalyzing(false);
+          setTimeout(() => setAnalysisProgress(''), 5000);
+        }
+      }, 180000);
+
     } catch (error) {
-      clearInterval(progressInterval);
-      if (error.name === 'AbortError') {
-        setAnalysisProgress('Analysis is taking longer than expected. Try selecting a smaller sector.');
-        setTimeout(() => setAnalysisProgress(''), 5000);
-      } else {
-        setAnalysisProgress('Connection error - please try again');
-        setTimeout(() => setAnalysisProgress(''), 3000);
-      }
       console.error('Analysis error:', error);
-    } finally {
+      setAnalysisProgress('Failed to start analysis');
       setIsAnalyzing(false);
+      setTimeout(() => setAnalysisProgress(''), 3000);
     }
   };
 
@@ -699,8 +723,8 @@ function App() {
               { 
                 label: 'VOLATILITY INDEX (VIX)', 
                 value: marketConditions.vix,
-                color: marketConditions.vix < 20 ? '#00ff88' : 
-                       marketConditions.vix < 30 ? '#ffaa00' : '#ff3333'
+                color: parseFloat(marketConditions.vix) < 20 ? '#00ff88' : 
+                       parseFloat(marketConditions.vix) < 30 ? '#ffaa00' : '#ff3333'
               },
               { label: 'RECESSION RISK', value: marketConditions.recessionRisk }
             ].map((item, idx) => (
@@ -859,7 +883,7 @@ function App() {
                 </button>
 
                 {/* Progress Indicator */}
-                {isAnalyzing && analysisProgress && (
+                {analysisProgress && (
                   <div className="progress-indicator">
                     <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.8)', animation: 'pulse 2s ease-in-out infinite' }}>
                       {analysisProgress}
@@ -904,6 +928,15 @@ function App() {
                                 </div>
                               )}
                             </div>
+                            {stock.company_name && (
+                              <div style={{ 
+                                fontSize: '14px', 
+                                opacity: 0.7,
+                                marginBottom: '16px'
+                              }}>
+                                {stock.company_name}
+                              </div>
+                            )}
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
                               <div>
                                 <div style={{ fontSize: '10px', opacity: 0.5, fontWeight: '600', letterSpacing: '1px' }}>CURRENT</div>
@@ -948,32 +981,33 @@ function App() {
                                     <div key={key}>
                                       <span style={{ fontSize: '11px', opacity: 0.5 }}>{key.replace(/_/g, ' ').toUpperCase()}: </span>
                                       <span style={{ fontSize: '13px', fontWeight: '600' }}>
-                                        {typeof value === 'number' ? value.toFixed(2) : value}
+                                        {typeof value === 'number' ? 
+                                          (key.includes('ratio') || key.includes('multiple') ? value.toFixed(2) : 
+                                           key.includes('margin') || key.includes('growth') || key.includes('roe') ? 
+                                           (value * 100).toFixed(1) + '%' : value.toFixed(2)) 
+                                          : value}
                                       </span>
                                     </div>
                                   ))}
                                 </div>
                                 
-                                <h4 style={{ fontSize: '14px', marginBottom: '16px', opacity: 0.8 }}>TECHNICAL INDICATORS</h4>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
-                                  {Object.entries(stock.analysis_details.technicals || {}).map(([key, value]) => (
-                                    <div key={key}>
-                                      <span style={{ fontSize: '11px', opacity: 0.5 }}>{key.replace(/_/g, ' ').toUpperCase()}: </span>
-                                      <span style={{ fontSize: '13px', fontWeight: '600' }}>
-                                        {typeof value === 'number' ? value.toFixed(2) : value}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-
-                                {stock.investment_thesis && (
+                                {stock.analysis_details.ml_prediction !== undefined && (
                                   <>
-                                    <h4 style={{ fontSize: '14px', marginBottom: '16px', opacity: 0.8 }}>INVESTMENT THESIS</h4>
-                                    <ul style={{ fontSize: '12px', lineHeight: '1.8', opacity: 0.9, paddingLeft: '20px' }}>
-                                      {stock.investment_thesis.map((reason, idx) => (
-                                        <li key={idx}>{reason}</li>
-                                      ))}
-                                    </ul>
+                                    <h4 style={{ fontSize: '14px', marginBottom: '16px', opacity: 0.8 }}>ML ANALYSIS</h4>
+                                    <div style={{ marginBottom: '20px' }}>
+                                      <div>
+                                        <span style={{ fontSize: '11px', opacity: 0.5 }}>ML PREDICTION: </span>
+                                        <span style={{ fontSize: '13px', fontWeight: '600' }}>
+                                          {(stock.analysis_details.ml_prediction * 100).toFixed(2)}% expected return
+                                        </span>
+                                      </div>
+                                      <div style={{ marginTop: '8px' }}>
+                                        <span style={{ fontSize: '11px', opacity: 0.5 }}>QUALITY SCORE: </span>
+                                        <span style={{ fontSize: '13px', fontWeight: '600' }}>
+                                          {(stock.analysis_details.quality_score * 100).toFixed(0)}%
+                                        </span>
+                                      </div>
+                                    </div>
                                   </>
                                 )}
                               </div>
@@ -989,6 +1023,18 @@ function App() {
                         </div>
                       </div>
                     ))}
+                    {results.market_conditions && results.market_conditions.vix && (
+                      <div style={{ 
+                        marginTop: '24px', 
+                        padding: '16px',
+                        background: 'rgba(255, 255, 255, 0.02)',
+                        borderRadius: '12px',
+                        fontSize: '12px',
+                        opacity: 0.6
+                      }}>
+                        Analysis performed with VIX at {results.market_conditions.vix}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div style={{ 
