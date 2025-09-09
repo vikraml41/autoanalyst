@@ -906,136 +906,172 @@ function App() {
                 </h2>
                 
                 {results && results.top_stocks ? (
-                  <div>
-                    {results.top_stocks.map((stock, idx) => (
-                      <div key={stock.symbol} className="result-card">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', marginBottom: '20px' }}>
-                              <div className="holographic-text" style={{ 
-                                fontSize: '24px',
-                                fontWeight: '800'
-                              }}>
-                                {stock.symbol}
-                              </div>
-                              {stock.market_cap && (
-                                <div style={{ 
-                                  fontSize: '12px', 
-                                  opacity: 0.6,
-                                  fontWeight: '500'
+                  results.top_stocks.length > 0 ? (
+                    <div>
+                      {results.top_stocks.map((stock, idx) => (
+                        <div key={stock.symbol} className="result-card">
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', marginBottom: '20px' }}>
+                                <div className="holographic-text" style={{ 
+                                  fontSize: '24px',
+                                  fontWeight: '800'
                                 }}>
-                                  {stock.market_cap}
+                                  {stock.symbol}
+                                </div>
+                                {stock.market_cap && (
+                                  <div style={{ 
+                                    fontSize: '12px', 
+                                    opacity: 0.6,
+                                    fontWeight: '500'
+                                  }}>
+                                    {stock.market_cap}
+                                  </div>
+                                )}
+                              </div>
+                              {stock.company_name && (
+                                <div style={{ 
+                                  fontSize: '14px', 
+                                  opacity: 0.7,
+                                  marginBottom: '16px'
+                                }}>
+                                  {stock.company_name}
+                                </div>
+                              )}
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
+                                <div>
+                                  <div style={{ fontSize: '10px', opacity: 0.5, fontWeight: '600', letterSpacing: '1px' }}>CURRENT</div>
+                                  <div style={{ fontSize: '18px', fontWeight: '700', marginTop: '4px' }}>${stock.metrics.current_price}</div>
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: '10px', opacity: 0.5, fontWeight: '600', letterSpacing: '1px' }}>TARGET</div>
+                                  <div style={{ fontSize: '18px', fontWeight: '700', marginTop: '4px' }}>${stock.metrics.target_price}</div>
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: '10px', opacity: 0.5, fontWeight: '600', letterSpacing: '1px' }}>UPSIDE</div>
+                                  <div style={{ 
+                                    fontSize: '18px',
+                                    fontWeight: '700',
+                                    marginTop: '4px',
+                                    color: stock.metrics.upside_potential > 0 ? '#00ff88' : '#ff3333'
+                                  }}>
+                                    {stock.metrics.upside_potential > 0 ? '+' : ''}{stock.metrics.upside_potential}%
+                                  </div>
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: '10px', opacity: 0.5, fontWeight: '600', letterSpacing: '1px' }}>CONFIDENCE</div>
+                                  <div style={{ fontSize: '18px', fontWeight: '700', marginTop: '4px' }}>{stock.metrics.confidence_score}%</div>
+                                </div>
+                              </div>
+                              
+                              {/* Analysis Details Button */}
+                              <button
+                                className="analysis-button"
+                                onClick={() => setExpandedStock(expandedStock === stock.symbol ? null : stock.symbol)}
+                              >
+                                {expandedStock === stock.symbol ? 'HIDE ANALYSIS' : 'VIEW FULL ANALYSIS'}
+                                {expandedStock === stock.symbol ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                              </button>
+                              
+                              {/* Expanded Analysis Details */}
+                              {expandedStock === stock.symbol && stock.analysis_details && (
+                                <div className="analysis-details">
+                                  <h4 style={{ fontSize: '14px', marginBottom: '16px', opacity: 0.8 }}>FUNDAMENTAL ANALYSIS</h4>
+                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
+                                    {Object.entries(stock.analysis_details.fundamentals || {}).map(([key, value]) => (
+                                      <div key={key}>
+                                        <span style={{ fontSize: '11px', opacity: 0.5 }}>{key.replace(/_/g, ' ').toUpperCase()}: </span>
+                                        <span style={{ fontSize: '13px', fontWeight: '600' }}>
+                                          {typeof value === 'number' ? 
+                                            (key.includes('ratio') || key.includes('multiple') ? value.toFixed(2) : 
+                                             key.includes('margin') || key.includes('growth') || key.includes('roe') ? 
+                                             (value * 100).toFixed(1) + '%' : value.toFixed(2)) 
+                                            : value}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                  
+                                  {stock.analysis_details.ml_prediction !== undefined && (
+                                    <>
+                                      <h4 style={{ fontSize: '14px', marginBottom: '16px', opacity: 0.8 }}>ML ANALYSIS</h4>
+                                      <div style={{ marginBottom: '20px' }}>
+                                        <div>
+                                          <span style={{ fontSize: '11px', opacity: 0.5 }}>ML PREDICTION: </span>
+                                          <span style={{ fontSize: '13px', fontWeight: '600' }}>
+                                            {(stock.analysis_details.ml_prediction * 100).toFixed(2)}% expected return
+                                          </span>
+                                        </div>
+                                        <div style={{ marginTop: '8px' }}>
+                                          <span style={{ fontSize: '11px', opacity: 0.5 }}>QUALITY SCORE: </span>
+                                          <span style={{ fontSize: '13px', fontWeight: '600' }}>
+                                            {(stock.analysis_details.quality_score * 100).toFixed(0)}%
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </>
+                                  )}
                                 </div>
                               )}
                             </div>
-                            {stock.company_name && (
-                              <div style={{ 
-                                fontSize: '14px', 
-                                opacity: 0.7,
-                                marginBottom: '16px'
-                              }}>
-                                {stock.company_name}
-                              </div>
-                            )}
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
-                              <div>
-                                <div style={{ fontSize: '10px', opacity: 0.5, fontWeight: '600', letterSpacing: '1px' }}>CURRENT</div>
-                                <div style={{ fontSize: '18px', fontWeight: '700', marginTop: '4px' }}>${stock.metrics.current_price}</div>
-                              </div>
-                              <div>
-                                <div style={{ fontSize: '10px', opacity: 0.5, fontWeight: '600', letterSpacing: '1px' }}>TARGET</div>
-                                <div style={{ fontSize: '18px', fontWeight: '700', marginTop: '4px' }}>${stock.metrics.target_price}</div>
-                              </div>
-                              <div>
-                                <div style={{ fontSize: '10px', opacity: 0.5, fontWeight: '600', letterSpacing: '1px' }}>UPSIDE</div>
-                                <div style={{ 
-                                  fontSize: '18px',
-                                  fontWeight: '700',
-                                  marginTop: '4px',
-                                  color: stock.metrics.upside_potential > 0 ? '#00ff88' : '#ff3333'
-                                }}>
-                                  {stock.metrics.upside_potential > 0 ? '+' : ''}{stock.metrics.upside_potential}%
-                                </div>
-                              </div>
-                              <div>
-                                <div style={{ fontSize: '10px', opacity: 0.5, fontWeight: '600', letterSpacing: '1px' }}>CONFIDENCE</div>
-                                <div style={{ fontSize: '18px', fontWeight: '700', marginTop: '4px' }}>{stock.metrics.confidence_score}%</div>
-                              </div>
+                            <div style={{ 
+                              fontSize: '48px',
+                              fontWeight: '900',
+                              opacity: 0.1
+                            }}>
+                              {idx + 1}
                             </div>
-                            
-                            {/* Analysis Details Button */}
-                            <button
-                              className="analysis-button"
-                              onClick={() => setExpandedStock(expandedStock === stock.symbol ? null : stock.symbol)}
-                            >
-                              {expandedStock === stock.symbol ? 'HIDE ANALYSIS' : 'VIEW FULL ANALYSIS'}
-                              {expandedStock === stock.symbol ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                            </button>
-                            
-                            {/* Expanded Analysis Details */}
-                            {expandedStock === stock.symbol && stock.analysis_details && (
-                              <div className="analysis-details">
-                                <h4 style={{ fontSize: '14px', marginBottom: '16px', opacity: 0.8 }}>FUNDAMENTAL ANALYSIS</h4>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
-                                  {Object.entries(stock.analysis_details.fundamentals || {}).map(([key, value]) => (
-                                    <div key={key}>
-                                      <span style={{ fontSize: '11px', opacity: 0.5 }}>{key.replace(/_/g, ' ').toUpperCase()}: </span>
-                                      <span style={{ fontSize: '13px', fontWeight: '600' }}>
-                                        {typeof value === 'number' ? 
-                                          (key.includes('ratio') || key.includes('multiple') ? value.toFixed(2) : 
-                                           key.includes('margin') || key.includes('growth') || key.includes('roe') ? 
-                                           (value * 100).toFixed(1) + '%' : value.toFixed(2)) 
-                                          : value}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                                
-                                {stock.analysis_details.ml_prediction !== undefined && (
-                                  <>
-                                    <h4 style={{ fontSize: '14px', marginBottom: '16px', opacity: 0.8 }}>ML ANALYSIS</h4>
-                                    <div style={{ marginBottom: '20px' }}>
-                                      <div>
-                                        <span style={{ fontSize: '11px', opacity: 0.5 }}>ML PREDICTION: </span>
-                                        <span style={{ fontSize: '13px', fontWeight: '600' }}>
-                                          {(stock.analysis_details.ml_prediction * 100).toFixed(2)}% expected return
-                                        </span>
-                                      </div>
-                                      <div style={{ marginTop: '8px' }}>
-                                        <span style={{ fontSize: '11px', opacity: 0.5 }}>QUALITY SCORE: </span>
-                                        <span style={{ fontSize: '13px', fontWeight: '600' }}>
-                                          {(stock.analysis_details.quality_score * 100).toFixed(0)}%
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                          <div style={{ 
-                            fontSize: '48px',
-                            fontWeight: '900',
-                            opacity: 0.1
-                          }}>
-                            {idx + 1}
                           </div>
                         </div>
-                      </div>
-                    ))}
-                    {results.market_conditions && results.market_conditions.vix && (
+                      ))}
+                      {results.market_conditions && results.market_conditions.vix && (
+                        <div style={{ 
+                          marginTop: '24px', 
+                          padding: '16px',
+                          background: 'rgba(255, 255, 255, 0.02)',
+                          borderRadius: '12px',
+                          fontSize: '12px',
+                          opacity: 0.6
+                        }}>
+                          Analysis performed with VIX at {results.market_conditions.vix}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    // No positive predictions found message
+                    <div style={{ 
+                      textAlign: 'center',
+                      padding: '60px 20px',
+                      background: 'rgba(255, 255, 255, 0.02)',
+                      borderRadius: '16px',
+                      margin: '20px 0'
+                    }}>
                       <div style={{ 
-                        marginTop: '24px', 
-                        padding: '16px',
-                        background: 'rgba(255, 255, 255, 0.02)',
-                        borderRadius: '12px',
-                        fontSize: '12px',
-                        opacity: 0.6
+                        fontSize: '16px',
+                        fontWeight: '600',
+                        color: 'rgba(255, 255, 255, 0.8)',
+                        marginBottom: '16px',
+                        letterSpacing: '1px'
                       }}>
-                        Analysis performed with VIX at {results.market_conditions.vix}
+                        NO POSITIVE PREDICTIONS FOUND
                       </div>
-                    )}
-                  </div>
+                      <div style={{ 
+                        fontSize: '13px',
+                        color: 'rgba(255, 255, 255, 0.5)',
+                        lineHeight: '1.6'
+                      }}>
+                        The analysis did not identify any stocks meeting the minimum criteria 
+                        for this {analysisType === 'sector' ? 'sector' : 'sub-industry'}.
+                      </div>
+                      <div style={{ 
+                        fontSize: '12px',
+                        color: 'rgba(255, 255, 255, 0.4)',
+                        marginTop: '12px'
+                      }}>
+                        Try selecting a different target or adjusting the market cap filter.
+                      </div>
+                    </div>
+                  )
                 ) : (
                   <div style={{ 
                     textAlign: 'center',
