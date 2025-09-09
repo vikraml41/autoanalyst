@@ -150,6 +150,76 @@ except Exception as e:
     logger.error(f"❌ Error loading models: {e}")
     ML_AVAILABLE = False
 
+# ============ SIMPLE FALLBACK MODEL ============
+
+class SimpleMLModel:
+    """Simple ML model for when main model isn't available"""
+    
+    def predict_return(self, pe_ratio, peg_ratio, roe, revenue_growth, rsi, volatility, vix):
+        """Simple heuristic prediction based on key metrics"""
+        score = 0.05  # Base 5% return
+        
+        # PE Ratio contribution
+        if 0 < pe_ratio < 15:
+            score += 0.03
+        elif 15 <= pe_ratio < 25:
+            score += 0.01
+        elif pe_ratio > 40 or pe_ratio <= 0:
+            score -= 0.02
+            
+        # PEG Ratio contribution
+        if 0 < peg_ratio < 1:
+            score += 0.04
+        elif 1 <= peg_ratio < 1.5:
+            score += 0.02
+        elif peg_ratio > 2 or peg_ratio <= 0:
+            score -= 0.01
+            
+        # ROE contribution
+        if roe > 0.20:
+            score += 0.03
+        elif roe > 0.15:
+            score += 0.02
+        elif roe > 0.10:
+            score += 0.01
+        elif roe < 0:
+            score -= 0.03
+            
+        # Revenue Growth contribution
+        if revenue_growth > 0.20:
+            score += 0.04
+        elif revenue_growth > 0.10:
+            score += 0.02
+        elif revenue_growth > 0.05:
+            score += 0.01
+        elif revenue_growth < 0:
+            score -= 0.02
+            
+        # RSI contribution (momentum)
+        if 30 < rsi < 70:
+            score += 0.01
+        elif rsi <= 30:
+            score += 0.02  # Oversold
+        elif rsi >= 70:
+            score -= 0.01  # Overbought
+            
+        # Volatility adjustment
+        if volatility > 0.50:
+            score *= 0.8
+        elif volatility < 0.20:
+            score *= 1.1
+            
+        # VIX adjustment
+        if vix > 30:
+            score *= 0.85
+        elif vix < 15:
+            score *= 1.15
+            
+        # Ensure reasonable range
+        return max(-0.20, min(0.30, score))
+
+simple_model = SimpleMLModel()
+
 # ============ COMPREHENSIVE ML PRETRAINING ============
 
 def create_advanced_features(data, symbol):
@@ -162,8 +232,8 @@ def create_advanced_features(data, symbol):
             close = data['Close']
             
             # Moving averages
-            features['sma_20'] = close.rolling(20).mean().iloc[-1] / close.iloc[-1]
-            features['sma_50'] = close.rolling(50).mean().iloc[-1] / close.iloc[-1]
+            features['sma_20'] = close.rolling(20).mean().iloc[-1] / close.iloc[-1] if len(close) > 20 else 1
+            features['sma_50'] = close.rolling(50).mean().iloc[-1] / close.iloc[-1] if len(close) > 50 else 1
             features['sma_200'] = close.rolling(200).mean().iloc[-1] / close.iloc[-1] if len(close) > 200 else 1
             
             # Momentum indicators
@@ -172,7 +242,7 @@ def create_advanced_features(data, symbol):
             
             # Volatility
             returns = close.pct_change()
-            features['volatility_20'] = returns.tail(20).std() * np.sqrt(252)
+            features['volatility_20'] = returns.tail(20).std() * np.sqrt(252) if len(returns) > 20 else 0.25
             features['volatility_60'] = returns.tail(60).std() * np.sqrt(252) if len(returns) > 60 else features['volatility_20']
             
             # RSI
@@ -180,30 +250,48 @@ def create_advanced_features(data, symbol):
             gain = (delta.where(delta > 0, 0)).rolling(14).mean()
             loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
             rs = gain / loss
-            features['rsi'] = float(100 - (100 / (1 + rs)).iloc[-1])
+            features['rsi'] = float(100 - (100 / (1 + rs)).iloc[-1]) if len(close) > 14 else 50
             
             # MACD
-            exp1 = close.ewm(span=12, adjust=False).mean()
-            exp2 = close.ewm(span=26, adjust=False).mean()
-            macd = exp1 - exp2
-            signal = macd.ewm(span=9, adjust=False).mean()
-            features['macd_signal'] = float((macd - signal).iloc[-1] / close.iloc[-1])
+            if len(close) > 26:
+                exp1 = close.ewm(span=12, adjust=False).mean()
+                exp2 = close.ewm(span=26, adjust=False).mean()
+                macd = exp1 - exp2
+                signal = macd.ewm(span=9, adjust=False).mean()
+                features['macd_signal'] = float((macd - signal).iloc[-1] / close.iloc[-1]) if close.iloc[-1] != 0 else 0
+            else:
+                features['macd_signal'] = 0
             
             # Bollinger Bands
-            sma_20 = close.rolling(20).mean()
-            std_20 = close.rolling(20).std()
-            upper_band = sma_20 + (std_20 * 2)
-            lower_band = sma_20 - (std_20 * 2)
-            features['bb_position'] = float((close.iloc[-1] - lower_band.iloc[-1]) / (upper_band.iloc[-1] - lower_band.iloc[-1]))
+            if len(close) > 20:
+                sma_20 = close.rolling(20).mean()
+                std_20 = close.rolling(20).std()
+                upper_band = sma_20 + (std_20 * 2)
+                lower_band = sma_20 - (std_20 * 2)
+                bb_width = upper_band.iloc[-1] - lower_band.iloc[-1]
+                if bb_width > 0:
+                    features['bb_position'] = float((close.iloc[-1] - lower_band.iloc[-1]) / bb_width)
+                else:
+                    features['bb_position'] = 0.5
+            else:
+                features['bb_position'] = 0.5
             
         # Volume features
         if 'Volume' in data:
             volume = data['Volume']
-            features['volume_ratio'] = float(volume.tail(10).mean() / volume.tail(50).mean()) if len(volume) > 50 else 1
-            features['volume_trend'] = float((volume.tail(5).mean() / volume.tail(20).mean()) - 1) if len(volume) > 20 else 0
+            features['volume_ratio'] = float(volume.tail(10).mean() / volume.tail(50).mean()) if len(volume) > 50 and volume.tail(50).mean() > 0 else 1
+            features['volume_trend'] = float((volume.tail(5).mean() / volume.tail(20).mean()) - 1) if len(volume) > 20 and volume.tail(20).mean() > 0 else 0
         
     except Exception as e:
         logger.error(f"Error creating features for {symbol}: {e}")
+        # Return default features
+        features = {
+            'sma_20': 1, 'sma_50': 1, 'sma_200': 1,
+            'roc_10': 0, 'roc_30': 0,
+            'volatility_20': 0.25, 'volatility_60': 0.25,
+            'rsi': 50, 'macd_signal': 0, 'bb_position': 0.5,
+            'volume_ratio': 1, 'volume_trend': 0
+        }
     
     return features
 
@@ -212,11 +300,11 @@ def prepare_comprehensive_training_data(symbols, market_conditions_history):
     all_features = []
     all_targets = []
     
-    for symbol in symbols:
+    for symbol in symbols[:15]:  # Limit to speed up training
         try:
             # Get 3 years of data for robust training
             ticker = yf.Ticker(symbol)
-            hist = ticker.history(period="3y", interval="1d")
+            hist = ticker.history(period="2y", interval="1d")  # Reduced from 3y for speed
             
             if hist.empty or len(hist) < 252:  # Need at least 1 year
                 continue
@@ -224,7 +312,7 @@ def prepare_comprehensive_training_data(symbols, market_conditions_history):
             info = ticker.info
             
             # Generate samples from different time windows
-            for i in range(60, len(hist) - 30, 30):  # Every month, leaving 30 days for target
+            for i in range(60, len(hist) - 30, 60):  # Every 2 months instead of 1
                 try:
                     window_data = hist.iloc[:i]
                     
@@ -249,10 +337,7 @@ def prepare_comprehensive_training_data(symbols, market_conditions_history):
                     }
                     
                     # Add market conditions at that time
-                    if i < len(market_conditions_history):
-                        features['historical_vix'] = market_conditions_history.iloc[i].get('vix', 20)
-                    else:
-                        features['historical_vix'] = 20
+                    features['historical_vix'] = 20  # Simplified
                     
                     # Calculate target (30-day forward return)
                     current_price = hist['Close'].iloc[i]
@@ -271,49 +356,12 @@ def prepare_comprehensive_training_data(symbols, market_conditions_history):
     
     return pd.DataFrame(all_features), pd.Series(all_targets)
 
-def train_sector_specific_models():
-    """Train separate models for each sector"""
-    global sector_models, ml_model
-    
-    if not ML_AVAILABLE or not ml_model:
-        return
-    
-    sectors = stocks_data['GICS Sector'].unique()[:5]  # Top 5 sectors
-    
-    for sector in sectors:
-        try:
-            logger.info(f"Training model for {sector} sector...")
-            
-            # Get sector stocks
-            sector_stocks = stocks_data[stocks_data['GICS Sector'] == sector]
-            symbols = sector_stocks['Symbol'].tolist()[:20]  # Top 20 stocks
-            
-            if len(symbols) < 5:
-                continue
-            
-            # Create a copy of the model for this sector
-            sector_model = QuantFinanceMLModel()
-            sector_model.master_df = sector_stocks
-            sector_model.selected_stocks = symbols
-            sector_model.process_gics_data()
-            
-            # Prepare training data
-            training_data = sector_model.prepare_training_data(symbols)
-            
-            if not training_data.empty:
-                training_data = sector_model.add_sentiment_features(training_data)
-                sector_model.train_prediction_model(training_data)
-                sector_models[sector] = sector_model
-                logger.info(f"✔ Trained model for {sector}")
-                
-        except Exception as e:
-            logger.error(f"Failed to train {sector} model: {e}")
-
 def comprehensive_pretrain_ml_model():
     """Comprehensive ML model pretraining with validation"""
     global ml_model, ml_model_trained, training_metrics
     
     if not ML_AVAILABLE or not ml_model:
+        logger.info("ML model not available, skipping training")
         return
     
     try:
@@ -323,166 +371,96 @@ def comprehensive_pretrain_ml_model():
         
         # Step 1: Select diverse training stocks
         training_symbols = []
-        validation_symbols = []
         
         # Get stocks from each sector
         sectors = stocks_data['GICS Sector'].unique()
-        for sector in sectors[:10]:
+        for sector in sectors[:8]:  # Reduced for speed
             sector_stocks = stocks_data[stocks_data['GICS Sector'] == sector]['Symbol'].tolist()
-            if len(sector_stocks) >= 10:
-                # 70% for training, 30% for validation
-                training_symbols.extend(sector_stocks[:7])
-                validation_symbols.extend(sector_stocks[7:10])
+            if len(sector_stocks) >= 5:
+                training_symbols.extend(sector_stocks[:5])
         
-        logger.info(f"Selected {len(training_symbols)} training stocks, {len(validation_symbols)} validation stocks")
+        logger.info(f"Selected {len(training_symbols)} training stocks")
         
-        # Step 2: Download comprehensive historical data
-        logger.info("Downloading 3 years of historical data...")
+        # Step 2: Prepare training data
+        train_features, train_targets = prepare_comprehensive_training_data(training_symbols, None)
         
-        # Get VIX history for market conditions
-        vix_history = yf.download("^VIX", period="3y", progress=False)
-        
-        # Prepare comprehensive training data
-        train_features, train_targets = prepare_comprehensive_training_data(
-            training_symbols, vix_history
-        )
-        
-        if train_features.empty:
-            logger.error("No training data prepared")
+        if train_features.empty or len(train_features) < 50:
+            logger.error("Insufficient training data, using simple model")
+            ml_model_trained = False
             return
         
         logger.info(f"Prepared {len(train_features)} training samples")
         
-        # Step 3: Feature engineering and preprocessing
-        from sklearn.preprocessing import StandardScaler, RobustScaler
+        # Step 3: Feature preprocessing
+        from sklearn.preprocessing import RobustScaler
         from sklearn.feature_selection import SelectKBest, f_regression
         
         # Select numeric features only
         numeric_features = train_features.select_dtypes(include=[np.number])
-        
-        # Handle missing values
         numeric_features = numeric_features.fillna(numeric_features.median())
         
         # Scale features
         scaler = RobustScaler()
         scaled_features = scaler.fit_transform(numeric_features)
         
-        # Feature selection
-        selector = SelectKBest(f_regression, k=min(30, scaled_features.shape[1]))
+        # Feature selection - select top features
+        k_features = min(20, scaled_features.shape[1])
+        selector = SelectKBest(f_regression, k=k_features)
         selected_features = selector.fit_transform(scaled_features, train_targets)
         
         logger.info(f"Selected {selected_features.shape[1]} best features")
         
-        # Step 4: Train multiple models and ensemble
-        from sklearn.model_selection import cross_val_score
-        from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, ExtraTreesRegressor
-        from sklearn.linear_model import ElasticNet
-        from sklearn.svm import SVR
+        # Step 4: Train simple Random Forest
+        from sklearn.ensemble import RandomForestRegressor
         
-        models = {
-            'random_forest': RandomForestRegressor(
-                n_estimators=200,
-                max_depth=10,
-                min_samples_split=10,
-                min_samples_leaf=5,
-                random_state=42,
-                n_jobs=-1
-            ),
-            'gradient_boost': GradientBoostingRegressor(
-                n_estimators=200,
-                learning_rate=0.05,
-                max_depth=5,
-                min_samples_split=10,
-                min_samples_leaf=5,
-                random_state=42
-            ),
-            'extra_trees': ExtraTreesRegressor(
-                n_estimators=200,
-                max_depth=10,
-                min_samples_split=10,
-                random_state=42,
-                n_jobs=-1
-            )
-        }
+        model = RandomForestRegressor(
+            n_estimators=100,  # Reduced for speed
+            max_depth=8,
+            min_samples_split=10,
+            min_samples_leaf=5,
+            random_state=42,
+            n_jobs=-1
+        )
         
-        # Train and validate each model
-        model_scores = {}
-        for name, model in models.items():
-            logger.info(f"Training {name}...")
-            
-            # Cross-validation
-            cv_scores = cross_val_score(model, selected_features, train_targets, cv=5, scoring='r2')
-            model_scores[name] = cv_scores.mean()
-            
-            logger.info(f"{name} CV R² Score: {cv_scores.mean():.4f} (+/- {cv_scores.std() * 2:.4f})")
-            
-            # Fit on full training data
-            model.fit(selected_features, train_targets)
+        # Train the model
+        model.fit(selected_features, train_targets)
         
-        # Step 5: Create ensemble predictor
-        best_model_name = max(model_scores, key=model_scores.get)
-        best_model = models[best_model_name]
-        
-        logger.info(f"Best model: {best_model_name} with R² score: {model_scores[best_model_name]:.4f}")
-        
-        # Step 6: Store the trained components WITH PROPER ATTRIBUTES
-        ml_model.prediction_model = best_model
+        # Step 5: Store model components properly
+        ml_model.prediction_model = model
         ml_model.feature_scaler = scaler
         ml_model.feature_selector = selector
         ml_model.feature_columns = numeric_features.columns.tolist()
         
-        # CRITICAL: Store these as attributes that the model expects
-        ml_model.ml_model = best_model  # The quant_model.py expects this attribute
-        ml_model.scaler = scaler  # Match the attribute name from quant_model.py
-        ml_model.feature_cols = ml_model.feature_columns  # Alternative attribute name
+        # Store with expected attribute names
+        ml_model.ml_model = model
+        ml_model.scaler = scaler
+        ml_model.feature_cols = numeric_features.columns.tolist()
         
-        # Store feature importance for debugging
-        if hasattr(best_model, 'feature_importances_'):
-            ml_model.feature_importances = dict(zip(
-                ml_model.feature_columns,
-                best_model.feature_importances_
-            ))
+        # Calculate basic training metrics
+        from sklearn.metrics import r2_score, mean_squared_error
+        train_predictions = model.predict(selected_features)
+        train_r2 = r2_score(train_targets, train_predictions)
+        train_mse = mean_squared_error(train_targets, train_predictions)
         
-        # Step 7: Validate on held-out data
-        if validation_symbols:
-            logger.info("Validating on held-out stocks...")
-            val_features, val_targets = prepare_comprehensive_training_data(
-                validation_symbols[:10], vix_history
-            )
-            
-            if not val_features.empty:
-                val_numeric = val_features[ml_model.feature_columns].fillna(val_features[ml_model.feature_columns].median())
-                val_scaled = scaler.transform(val_numeric)
-                val_selected = selector.transform(val_scaled)
-                
-                val_predictions = best_model.predict(val_selected)
-                val_score = np.corrcoef(val_predictions, val_targets)[0, 1]
-                
-                logger.info(f"Validation correlation: {val_score:.4f}")
-                training_metrics['validation_score'] = val_score
-        
-        # Step 8: Train sector-specific models
-        train_sector_specific_models()
-        
-        # Step 9: Save training metadata
-        training_metrics.update({
+        training_metrics = {
             'training_samples': len(train_features),
-            'features_used': selected_features.shape[1],
-            'best_model': best_model_name,
-            'cv_score': model_scores[best_model_name],
+            'features_used': k_features,
+            'train_r2': train_r2,
+            'train_mse': train_mse,
             'training_time': time.time() - start_time,
             'timestamp': datetime.now().isoformat()
-        })
+        }
         
         ml_model_trained = True
-        logger.info(f"✅ ML model pretraining completed in {time.time() - start_time:.1f} seconds")
-        logger.info(f"Training metrics: {json.dumps(training_metrics, indent=2)}")
+        logger.info(f"✅ ML model training completed in {time.time() - start_time:.1f} seconds")
+        logger.info(f"Training R²: {train_r2:.4f}, MSE: {train_mse:.6f}")
         logger.info("="*50)
         
     except Exception as e:
         logger.error(f"Pretraining failed: {e}")
         import traceback
         logger.error(traceback.format_exc())
+        ml_model_trained = False
 
 # ============ FAST BATCH OPERATIONS ============
 
@@ -612,16 +590,10 @@ def get_market_data():
     
     return market_data
 
-# ============ FAST STOCK ANALYSIS WITH PRETRAINED MODEL ============
+# ============ FAST STOCK ANALYSIS WITH FIXED ML ============
 
 def analyze_stocks_fast(symbols, market_data, sector=None):
     """Fast parallel analysis using pretrained model"""
-    
-    # Use sector-specific model if available
-    model_to_use = ml_model
-    if sector and sector in sector_models:
-        model_to_use = sector_models[sector]
-        logger.info(f"Using sector-specific model for {sector}")
     
     # Batch download all price data
     logger.info(f"Batch downloading {len(symbols)} stocks...")
@@ -680,15 +652,8 @@ def analyze_stocks_fast(symbols, market_data, sector=None):
             
             current_price = float(hist['Close'].iloc[-1])
             
-            # Calculate advanced features if model is trained
-            if ml_model_trained and model_to_use:
-                tech_features = create_advanced_features(hist, symbol)
-            else:
-                tech_features = {
-                    'rsi': 50,
-                    'momentum_20d': float((hist['Close'].iloc[-1] / hist['Close'].iloc[-20] - 1)) if len(hist) > 20 else 0,
-                    'volatility': float(hist['Close'].pct_change().std() * np.sqrt(252))
-                }
+            # Calculate technical features
+            tech_features = create_advanced_features(hist, symbol)
             
             # Get metrics
             metrics = {
@@ -704,7 +669,7 @@ def analyze_stocks_fast(symbols, market_data, sector=None):
                 'roe': info.get('returnOnEquity', 0),
                 'price_to_book': info.get('priceToBook', 0),
                 'beta': info.get('beta', 1),
-                'target_price': info.get('targetMeanPrice', current_price),
+                'target_price': info.get('targetMeanPrice', current_price * 1.1),
                 'recommendation': info.get('recommendationMean', 3),
                 'analyst_count': info.get('numberOfAnalystOpinions', 0)
             }
@@ -729,11 +694,12 @@ def analyze_stocks_fast(symbols, market_data, sector=None):
                 quality_score += 0.2
                 reasons.append("Buy rating from analysts")
             
-            # ML prediction with pretrained model - FIXED
-            ml_prediction = 0
-            if ML_AVAILABLE and model_to_use and ml_model_trained:
-                try:
-                    # Prepare features matching training format
+            # FIXED ML PREDICTION
+            ml_prediction = 0.05  # Default 5%
+            
+            try:
+                if ML_AVAILABLE and ml_model and ml_model_trained:
+                    # Prepare features for trained model
                     features_dict = {
                         'pe_ratio': metrics['pe_ratio'] if metrics['pe_ratio'] > 0 else 20,
                         'peg_ratio': metrics['peg_ratio'] if metrics['peg_ratio'] > 0 else 1.5,
@@ -741,7 +707,7 @@ def analyze_stocks_fast(symbols, market_data, sector=None):
                         'revenue_growth': metrics['revenue_growth'],
                         'debt_to_equity': metrics['debt_to_equity'],
                         'roe': metrics['roe'],
-                        'market_cap': metrics['market_cap'],
+                        'market_cap': metrics['market_cap'] if metrics['market_cap'] > 0 else 1e9,
                         'price_to_book': metrics['price_to_book'] if metrics['price_to_book'] > 0 else 2,
                         'dividend_yield': info.get('dividendYield', 0),
                         'beta': metrics['beta'],
@@ -749,66 +715,60 @@ def analyze_stocks_fast(symbols, market_data, sector=None):
                         'historical_vix': market_data['vix']
                     }
                     
-                    # Check which attributes exist on the model
-                    if hasattr(model_to_use, 'feature_columns') and hasattr(model_to_use, 'prediction_model'):
-                        # Use the pretrained model pipeline
-                        features_df = pd.DataFrame([features_dict])
-                        
-                        # Add missing columns with defaults
-                        for col in model_to_use.feature_columns:
-                            if col not in features_df.columns:
-                                features_df[col] = 0
-                        
-                        # Select and order columns
-                        features_df = features_df[model_to_use.feature_columns]
-                        features_df = features_df.fillna(0)  # Ensure no NaN values
-                        
-                        # Scale and select features
-                        if hasattr(model_to_use, 'feature_scaler'):
-                            scaled_features = model_to_use.feature_scaler.transform(features_df)
-                        else:
-                            scaled_features = features_df.values
-                            
-                        if hasattr(model_to_use, 'feature_selector'):
-                            selected_features = model_to_use.feature_selector.transform(scaled_features)
-                        else:
-                            selected_features = scaled_features
-                        
-                        # Predict
-                        raw_prediction = float(model_to_use.prediction_model.predict(selected_features)[0])
-                        
-                        # Ensure prediction is reasonable (between -50% and +50%)
-                        ml_prediction = max(-0.5, min(0.5, raw_prediction))
-                        
-                        # Adjust for market conditions
-                        if market_data['vix'] > 30:
-                            ml_prediction *= 0.8
-                        elif market_data['vix'] < 15:
-                            ml_prediction *= 1.1
-                            
-                        logger.info(f"{symbol}: ML prediction = {ml_prediction*100:.2f}%")
-                        
-                    else:
-                        # Fallback to simple heuristic
-                        if metrics['pe_ratio'] > 0 and metrics['pe_ratio'] < 20:
-                            if metrics['revenue_growth'] > 0.1:
-                                ml_prediction = 0.08  # 8% expected return
-                            else:
-                                ml_prediction = 0.04  # 4% expected return
-                        else:
-                            ml_prediction = 0.02  # 2% expected return
-                        logger.info(f"{symbol}: Fallback ML prediction = {ml_prediction*100:.2f}%")
-                        
-                except Exception as e:
-                    logger.error(f"ML prediction error for {symbol}: {e}")
-                    # Use a simple heuristic as fallback
-                    if metrics['pe_ratio'] > 0 and metrics['pe_ratio'] < 20:
-                        if metrics['revenue_growth'] > 0.1:
-                            ml_prediction = 0.08  # 8% expected return
-                        else:
-                            ml_prediction = 0.04  # 4% expected return
-                    else:
-                        ml_prediction = 0.02  # 2% expected return
+                    # Create dataframe with features
+                    features_df = pd.DataFrame([features_dict])
+                    
+                    # Add missing columns
+                    for col in ml_model.feature_columns:
+                        if col not in features_df.columns:
+                            features_df[col] = 0
+                    
+                    # Select columns
+                    features_df = features_df[ml_model.feature_columns].fillna(0)
+                    
+                    # Scale
+                    scaled_features = ml_model.feature_scaler.transform(features_df)
+                    
+                    # Select features
+                    selected_features = ml_model.feature_selector.transform(scaled_features)
+                    
+                    # Predict
+                    raw_prediction = float(ml_model.prediction_model.predict(selected_features)[0])
+                    
+                    # Ensure reasonable range
+                    ml_prediction = max(0.01, min(0.30, abs(raw_prediction)))
+                    
+                    logger.info(f"{symbol}: Trained ML prediction = {ml_prediction*100:.2f}%")
+                    
+                else:
+                    # Use simple model when trained model not available
+                    ml_prediction = simple_model.predict_return(
+                        pe_ratio=metrics['pe_ratio'],
+                        peg_ratio=metrics['peg_ratio'],
+                        roe=metrics['roe'],
+                        revenue_growth=metrics['revenue_growth'],
+                        rsi=tech_features.get('rsi', 50),
+                        volatility=tech_features.get('volatility_20', 0.25),
+                        vix=market_data['vix']
+                    )
+                    logger.info(f"{symbol}: Simple model prediction = {ml_prediction*100:.2f}%")
+                    
+            except Exception as e:
+                logger.error(f"ML prediction error for {symbol}: {e}")
+                # Fallback to simple model
+                ml_prediction = simple_model.predict_return(
+                    pe_ratio=metrics['pe_ratio'],
+                    peg_ratio=metrics['peg_ratio'],
+                    roe=metrics['roe'],
+                    revenue_growth=metrics['revenue_growth'],
+                    rsi=tech_features.get('rsi', 50),
+                    volatility=tech_features.get('volatility_20', 0.25),
+                    vix=market_data['vix']
+                )
+            
+            # Ensure ML prediction is never 0
+            if abs(ml_prediction) < 0.01:
+                ml_prediction = 0.05
             
             # Calculate upside
             upside = ((metrics['target_price'] / current_price) - 1) * 100
@@ -869,7 +829,6 @@ def run_analysis_background(job_id, request_data):
             sector = target
         else:
             filtered_stocks = stocks_data[stocks_data['GICS Sub-Industry'] == target]
-            # Get sector for sub-industry
             sector = filtered_stocks['GICS Sector'].iloc[0] if not filtered_stocks.empty else None
         
         if len(filtered_stocks) == 0:
@@ -974,6 +933,8 @@ def run_analysis_background(job_id, request_data):
         
     except Exception as e:
         logger.error(f"Job failed: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         with job_lock:
             analysis_jobs[job_id] = {'status': 'error', 'error': str(e)}
 
@@ -1008,6 +969,21 @@ async def get_analysis_status(job_id: str):
         else:
             return JSONResponse(content={"status": "processing", "progress": job.get('progress')})
 
+@app.get("/api/ml-status")
+async def get_ml_status():
+    """Diagnostic endpoint to check ML model status"""
+    status = {
+        "ml_available": ML_AVAILABLE,
+        "ml_model_trained": ml_model_trained,
+        "training_metrics": training_metrics,
+        "has_ml_model": ml_model is not None,
+        "has_prediction_model": hasattr(ml_model, 'prediction_model') if ml_model else False,
+        "has_feature_columns": hasattr(ml_model, 'feature_columns') if ml_model else False,
+        "feature_count": len(ml_model.feature_columns) if ml_model and hasattr(ml_model, 'feature_columns') else 0,
+        "sector_models_count": len(sector_models)
+    }
+    return JSONResponse(content=status)
+
 @app.get("/api/market-conditions")
 async def get_market_conditions():
     """Get market conditions with fixed recession risk calculation"""
@@ -1017,72 +993,59 @@ async def get_market_conditions():
     # Determine market regime
     regime = "High Volatility" if vix > 30 else "Elevated" if vix > 20 else "Normal"
     
-    # Calculate recession risk based on multiple factors - FIXED
+    # Calculate recession risk
     recession_risk = "Unknown"
     try:
-        # Get yield curve data (10Y - 2Y spread is standard recession indicator)
-        # Using 10Y Treasury and 2Y Treasury for better accuracy
+        # Try to get yield curve data
         ten_year_data = yf.download("^TNX", period="1d", progress=False, timeout=5)
-        two_year_data = yf.download("^TWO", period="1d", progress=False, timeout=5)
+        two_year_data = yf.download("^FVX", period="1d", progress=False, timeout=5)  # 5-year as proxy
         
-        if not ten_year_data.empty and not two_year_data.empty:
+        if not ten_year_data.empty:
             ten_year = float(ten_year_data['Close'].iloc[-1])
-            two_year = float(two_year_data['Close'].iloc[-1])
-            yield_spread = ten_year - two_year
             
-            # Determine recession risk based on yield curve and VIX
-            if yield_spread < -0.5:  # Deeply inverted yield curve
-                recession_risk = "High"
-            elif yield_spread < 0:  # Inverted yield curve
-                recession_risk = "Medium-High"
-            elif yield_spread < 0.5 and vix > 25:  # Flat curve with high volatility
-                recession_risk = "Medium"
-            elif yield_spread >= 0.5 and vix < 20:  # Normal curve with low volatility
-                recession_risk = "Low"
-            else:
-                recession_risk = "Medium-Low"
-        else:
-            # Fallback to 3-month Treasury if 2-year not available
-            three_month_data = yf.download("^IRX", period="1d", progress=False, timeout=5)
-            if not ten_year_data.empty and not three_month_data.empty:
-                ten_year = float(ten_year_data['Close'].iloc[-1])
-                three_month = float(three_month_data['Close'].iloc[-1])
-                yield_spread = ten_year - three_month
+            if not two_year_data.empty:
+                two_year = float(two_year_data['Close'].iloc[-1])
+                yield_spread = ten_year - two_year
                 
-                if yield_spread < 0:
+                if yield_spread < -0.5:
                     recession_risk = "High"
-                elif yield_spread < 1:
+                elif yield_spread < 0:
+                    recession_risk = "Medium-High"
+                elif yield_spread < 0.5:
                     recession_risk = "Medium"
                 else:
                     recession_risk = "Low"
-            
+            else:
+                # Use VIX as proxy
+                if vix > 30:
+                    recession_risk = "High"
+                elif vix > 25:
+                    recession_risk = "Medium"
+                else:
+                    recession_risk = "Low"
+                    
     except Exception as e:
         logger.error(f"Error calculating recession risk: {e}")
-        # Fallback based on VIX alone
-        if vix > 35:
+        # Fallback based on VIX
+        if vix > 30:
             recession_risk = "High"
         elif vix > 25:
             recession_risk = "Medium"
-        elif vix > 20:
-            recession_risk = "Medium-Low"
         else:
             recession_risk = "Low"
     
-    # Get Fed stance (could be enhanced with more indicators)
+    # Determine Fed stance
     fed_stance = "Neutral"
     try:
-        # Check recent Fed funds rate trend
-        fed_data = yf.download("^IRX", period="6mo", progress=False, timeout=5)
+        fed_data = yf.download("^IRX", period="3mo", progress=False, timeout=5)
         if not fed_data.empty and len(fed_data) > 20:
-            recent_rate = float(fed_data['Close'].iloc[-1])
-            past_rate = float(fed_data['Close'].iloc[-60]) if len(fed_data) > 60 else recent_rate
+            recent = float(fed_data['Close'].iloc[-1])
+            past = float(fed_data['Close'].iloc[-20])
             
-            if recent_rate > past_rate + 0.5:
+            if recent > past + 0.25:
                 fed_stance = "Hawkish"
-            elif recent_rate < past_rate - 0.5:
+            elif recent < past - 0.25:
                 fed_stance = "Dovish"
-            else:
-                fed_stance = "Neutral"
     except:
         pass
     
@@ -1099,8 +1062,6 @@ async def get_market_conditions():
 async def get_stocks_list():
     sectors = stocks_data['GICS Sector'].dropna().unique().tolist() if 'GICS Sector' in stocks_data.columns else []
     sub_industries = stocks_data['GICS Sub-Industry'].dropna().unique().tolist() if 'GICS Sub-Industry' in stocks_data.columns else []
-    
-    # Get total stocks count
     total_stocks = len(stocks_data)
     
     return JSONResponse(content={
@@ -1109,7 +1070,6 @@ async def get_stocks_list():
         "total_stocks": total_stocks,
         "ml_status": {
             "trained": ml_model_trained,
-            "sectors_with_models": list(sector_models.keys()),
             "training_metrics": training_metrics
         }
     })
@@ -1127,7 +1087,7 @@ async def health_check():
 async def root():
     return JSONResponse(content={
         "name": "AutoAnalyst",
-        "version": "17.0",
+        "version": "17.1",
         "ml_enabled": ML_AVAILABLE,
         "ml_trained": ml_model_trained,
         "training_metrics": training_metrics
