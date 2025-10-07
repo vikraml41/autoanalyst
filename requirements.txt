@@ -1,22 +1,34 @@
-# Core Web Framework
+# Core Web Framework - Install first
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
-python-multipart==0.0.6
-aiofiles==23.2.1
-aiohttp==3.9.5
 pydantic==2.4.2
-pydantic-core==2.10.1
+python-multipart==0.0.6
+
+# Async HTTP with explicit dependencies
+aiohttp==3.9.5
+aiosignal>=1.3.1
+attrs>=23.1.0
+frozenlist>=1.4.0
+multidict>=6.0.2
+yarl>=1.9.0
+async-timeout>=4.0.0
+
+# Additional Web deps
+aiofiles==23.2.1
 
 # Data Processing
 pandas==2.1.3
-numpy==1.24.3
+numpy==1.26.4
 scipy==1.11.4
 
-# Machine Learning
+# Machine Learning - DISABLED FOR FREE TIER MEMORY LIMITS
+# Uncomment these ONLY if you have 2GB+ RAM (paid Render plan)
+# torch==2.1.1
+# transformers==4.35.2
+# xgboost==2.0.2
+
+# Lightweight ML
 scikit-learn==1.3.2
-torch==2.1.1
-transformers==4.35.2
-xgboost==2.0.2
 joblib==1.3.2
 
 # Financial Data
@@ -37,10 +49,10 @@ lxml==5.1.0
 feedparser==6.0.10
 requests==2.31.0
 
-# Visualization
-matplotlib==3.8.1
-seaborn==0.13.0
-plotly==5.18.0
+# Visualization - DISABLED to save memory on free tier
+# matplotlib==3.8.1
+# seaborn==0.13.0
+# plotly==5.18.0
 
 # Additional Dependencies
 # pandas-ta==0.3.14b  # Uncomment if you want advanced technical indicators
