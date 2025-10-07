@@ -1359,6 +1359,311 @@ class EnhancedValuation:
         except:
             return {'target_price': 0, 'upside': 0}
 
+# ============ FASTAPI SERVER ============
+
+from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+import uuid
+import threading
+
+# Initialize FastAPI app
+app = FastAPI(title="doDiligence API", version="2.0.0")
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Global instances
+quant_model = None
+market_analyzer = None
+valuator = None
+
+# Job storage
+analysis_jobs = {}
+job_lock = threading.Lock()
+
+# Request models
+class AnalysisRequest(BaseModel):
+    analysis_type: str  # 'sector' or 'sub_industry'
+    target: str
+    market_cap_size: str = 'all'
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize models on startup"""
+    global quant_model, market_analyzer, valuator
+
+    logger.info("🚀 Initializing models...")
+    try:
+        quant_model = QuantFinanceMLModel()
+        market_analyzer = MarketConditionsAnalyzer()
+        valuator = EnhancedValuation()
+        logger.info("✅ Models initialized successfully")
+    except Exception as e:
+        logger.error(f"❌ Model initialization error: {e}")
+
+@app.get("/")
+async def root():
+    """Root endpoint"""
+    return {
+        "name": "doDiligence API",
+        "version": "2.0.0",
+        "status": "running",
+        "model_loaded": quant_model is not None
+    }
+
+@app.get("/api/market-conditions")
+async def get_market_conditions():
+    """Get current market conditions"""
+    try:
+        if not market_analyzer:
+            return {
+                "regime": "Unknown",
+                "fed_stance": "Neutral",
+                "vix": 0,
+                "recession_risk": "Unknown"
+            }
+
+        # Get VIX
+        vix_data = yf.Ticker("^VIX").history(period="1d")
+        vix = float(vix_data['Close'].iloc[-1]) if not vix_data.empty else 20.0
+
+        # Get market regime
+        regime = market_analyzer.get_market_regime()
+
+        # Determine Fed stance based on current data
+        fed_stance = "Neutral"
+        if vix > 25:
+            fed_stance = "Dovish"
+        elif vix < 15:
+            fed_stance = "Hawkish"
+
+        # Recession risk
+        risk_metrics = market_analyzer.calculate_risk_metrics()
+        recession_risk = "Low"
+        if vix > 30 or risk_metrics.get('volatility', 0) > 0.25:
+            recession_risk = "High"
+        elif vix > 20 or risk_metrics.get('volatility', 0) > 0.18:
+            recession_risk = "Moderate"
+
+        return {
+            "regime": regime,
+            "fed_stance": fed_stance,
+            "vix": round(vix, 2),
+            "recession_risk": recession_risk
+        }
+
+    except Exception as e:
+        logger.error(f"Market conditions error: {e}")
+        return {
+            "regime": "Unknown",
+            "fed_stance": "Neutral",
+            "vix": 20.0,
+            "recession_risk": "Unknown"
+        }
+
+@app.get("/api/stocks/list")
+async def get_stocks_list():
+    """Get available sectors and sub-industries"""
+    try:
+        if not quant_model or not hasattr(quant_model, 'sp500_stocks'):
+            return {
+                "sectors": ["Technology", "Health Care", "Financials", "Consumer Discretionary"],
+                "sub_industries": []
+            }
+
+        sectors = sorted(quant_model.sp500_stocks['GICS Sector'].unique().tolist())
+
+        # Get sub-industries if available
+        sub_industries = []
+        if 'GICS Sub-Industry' in quant_model.sp500_stocks.columns:
+            sub_industries = sorted(quant_model.sp500_stocks['GICS Sub-Industry'].dropna().unique().tolist())
+
+        return {
+            "sectors": sectors,
+            "sub_industries": sub_industries
+        }
+
+    except Exception as e:
+        logger.error(f"Stocks list error: {e}")
+        return {
+            "sectors": ["Technology", "Health Care", "Financials"],
+            "sub_industries": []
+        }
+
+def run_analysis_job(job_id: str, analysis_type: str, target: str, market_cap_size: str):
+    """Background job for analysis"""
+    try:
+        with job_lock:
+            analysis_jobs[job_id]['status'] = 'processing'
+            analysis_jobs[job_id]['progress'] = 'Analyzing stocks...'
+
+        if not quant_model:
+            raise Exception("Model not initialized")
+
+        # Get stocks for the target
+        if analysis_type == 'sector':
+            stocks = quant_model.sp500_stocks[
+                quant_model.sp500_stocks['GICS Sector'] == target
+            ]['Symbol'].tolist()
+        else:  # sub_industry
+            stocks = quant_model.sp500_stocks[
+                quant_model.sp500_stocks['GICS Sub-Industry'] == target
+            ]['Symbol'].tolist()
+
+        # Filter by market cap if needed
+        if market_cap_size != 'all':
+            cap_ranges = {
+                'large': (10e9, float('inf')),
+                'mid': (2e9, 10e9),
+                'small': (300e6, 2e9)
+            }
+            min_cap, max_cap = cap_ranges.get(market_cap_size, (0, float('inf')))
+
+            filtered_stocks = []
+            for symbol in stocks[:50]:  # Limit for speed
+                try:
+                    info = yf.Ticker(symbol).info
+                    market_cap = info.get('marketCap', 0)
+                    if min_cap <= market_cap <= max_cap:
+                        filtered_stocks.append(symbol)
+                except:
+                    continue
+            stocks = filtered_stocks
+
+        # Limit stocks for performance
+        stocks = stocks[:20]
+
+        with job_lock:
+            analysis_jobs[job_id]['progress'] = f'Analyzing {len(stocks)} stocks...'
+
+        # Analyze stocks
+        results = []
+        for i, symbol in enumerate(stocks):
+            try:
+                with job_lock:
+                    analysis_jobs[job_id]['progress'] = f'Analyzing {symbol} ({i+1}/{len(stocks)})'
+
+                prediction = quant_model.predict_stock_performance(symbol)
+
+                if prediction.get('prediction', 0) > 0:  # Only positive predictions
+                    ticker = yf.Ticker(symbol)
+                    info = ticker.info
+
+                    current_price = info.get('currentPrice', info.get('regularMarketPrice', 0))
+
+                    # Calculate valuation
+                    valuation = valuator.calculate_comprehensive_valuation(
+                        symbol,
+                        prediction.get('prediction', 0),
+                        prediction.get('features', {}).get('sentiment_score', 0),
+                        1.0
+                    )
+
+                    # Format market cap
+                    market_cap = info.get('marketCap', 0)
+                    if market_cap > 1e9:
+                        market_cap_str = f"${market_cap/1e9:.1f}B"
+                    elif market_cap > 1e6:
+                        market_cap_str = f"${market_cap/1e6:.1f}M"
+                    else:
+                        market_cap_str = "N/A"
+
+                    results.append({
+                        "symbol": symbol,
+                        "company_name": info.get('longName', symbol),
+                        "market_cap": market_cap_str,
+                        "metrics": {
+                            "current_price": round(current_price, 2),
+                            "target_price": round(valuation.get('target_price', current_price * 1.1), 2),
+                            "upside_potential": round(valuation.get('upside', 0.1) * 100, 2),
+                            "confidence_score": round(prediction.get('confidence', 0.5) * 100, 0)
+                        },
+                        "analysis_details": {
+                            "fundamentals": {
+                                "pe_ratio": info.get('trailingPE', 0),
+                                "revenue_growth": info.get('revenueGrowth', 0),
+                                "profit_margin": info.get('profitMargins', 0),
+                                "roe": info.get('returnOnEquity', 0),
+                                "debt_to_equity": info.get('debtToEquity', 0)
+                            },
+                            "ml_prediction": prediction.get('prediction', 0),
+                            "quality_score": prediction.get('confidence', 0.5)
+                        }
+                    })
+            except Exception as e:
+                logger.error(f"Error analyzing {symbol}: {e}")
+                continue
+
+        # Sort by upside potential
+        results.sort(key=lambda x: x['metrics']['upside_potential'], reverse=True)
+
+        # Get market conditions
+        vix_data = yf.Ticker("^VIX").history(period="1d")
+        vix = float(vix_data['Close'].iloc[-1]) if not vix_data.empty else 20.0
+
+        with job_lock:
+            analysis_jobs[job_id]['status'] = 'completed'
+            analysis_jobs[job_id]['results'] = {
+                "top_stocks": results[:10],  # Top 10
+                "market_conditions": {
+                    "vix": round(vix, 2)
+                }
+            }
+
+    except Exception as e:
+        logger.error(f"Analysis job error: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+
+        with job_lock:
+            analysis_jobs[job_id]['status'] = 'error'
+            analysis_jobs[job_id]['error'] = str(e)
+
+@app.post("/api/analysis")
+async def start_analysis(request: AnalysisRequest, background_tasks: BackgroundTasks):
+    """Start analysis job"""
+    try:
+        job_id = str(uuid.uuid4())
+
+        with job_lock:
+            analysis_jobs[job_id] = {
+                'status': 'pending',
+                'progress': 'Starting...',
+                'results': None,
+                'error': None
+            }
+
+        # Run analysis in background
+        background_tasks.add_task(
+            run_analysis_job,
+            job_id,
+            request.analysis_type,
+            request.target,
+            request.market_cap_size
+        )
+
+        return {"job_id": job_id}
+
+    except Exception as e:
+        logger.error(f"Start analysis error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/analysis/{job_id}")
+async def get_analysis_status(job_id: str):
+    """Get analysis job status"""
+    with job_lock:
+        if job_id not in analysis_jobs:
+            raise HTTPException(status_code=404, detail="Job not found")
+
+        return analysis_jobs[job_id]
+
 # ============ MAIN EXECUTION ============
 
 if __name__ == "__main__":

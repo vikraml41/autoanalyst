@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: autoanalyst
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: cd backend && uvicorn backend:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: HF_API_TOKEN
+        sync: false
+      - key: REPLICATE_API_TOKEN
+        sync: false
