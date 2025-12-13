@@ -97,4 +97,4 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8000))
 
     logger.info(f"Starting FastAPI server on port {port}")
-    uvicorn.run(app, host='0.0.0.0', port=port, log_level="info")
+    uvicorn.run("api_server:app", host='0.0.0.0', port=port, log_level="info", reload=False)

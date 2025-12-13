@@ -12,8 +12,10 @@ All code is ready to deploy to Render.com. Here's what you need:
 
 **Settings:**
 - **Build Command:** `pip install -r requirements.txt`
-- **Start Command:** `python api_server.py`
+- **Start Command:** `uvicorn api_server:app --host 0.0.0.0 --port $PORT`
 - **Root Directory:** `backend`
+
+**Alternative Start Command:** `python api_server.py`
 
 The backend already:
 - ✅ Uses `PORT` environment variable (Render sets this automatically)
