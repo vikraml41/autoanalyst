@@ -1,42 +1,35 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { TrendingUp, Activity, BarChart3, ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { TrendingUp, Activity, BarChart3, DollarSign } from 'lucide-react';
 
-const API_URL = window.location.hostname === 'localhost' 
-  ? 'http://localhost:8000'
-  : 'https://autoanalyst-dz11.onrender.com';
+// Determine API URL based on environment
+const getApiUrl = () => {
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return 'http://localhost:8000';
+  }
+  // For Render.com deployment - update this to your actual backend URL
+  return process.env.REACT_APP_API_URL || 'https://autoanalyst-dz11.onrender.com';
+};
+
+const API_URL = getApiUrl();
 
 function App() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [marketStatus, setMarketStatus] = useState('CHECKING');
-  const [marketConditions, setMarketConditions] = useState({
-    regime: 'Loading',
-    fedStance: 'Loading',
-    vix: 'Loading',
-    recessionRisk: 'Loading'
-  });
-  const [sectors, setSectors] = useState([]);
-  const [subIndustries, setSubIndustries] = useState([]);
-  const [analysisType, setAnalysisType] = useState('sector');
-  const [selectedTarget, setSelectedTarget] = useState('');
-  const [marketCapSize, setMarketCapSize] = useState('all');
+  const [tickerInput, setTickerInput] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [results, setResults] = useState(null);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [expandedStock, setExpandedStock] = useState(null);
   const [analysisProgress, setAnalysisProgress] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const dropdownRef = useRef(null);
-  const pollIntervalRef = useRef(null);
 
   // Clock and market status update
   useEffect(() => {
     const timer = setInterval(() => {
       const now = new Date();
       setCurrentTime(now);
-      
+
       const hours = now.getUTCHours() - 5; // EST
       const day = now.getDay();
-      
+
       if (day === 0 || day === 6) {
         setMarketStatus('WEEKEND');
       } else if (hours < 9 || (hours === 9 && now.getUTCMinutes() < 30)) {
@@ -47,164 +40,62 @@ function App() {
         setMarketStatus('OPEN');
       }
     }, 1000);
-    
+
     return () => clearInterval(timer);
   }, []);
 
   useEffect(() => {
-    const initialize = async () => {
-      setIsLoading(true);
-      await Promise.all([
-        fetchMarketConditions(),
-        checkDataStatus()
-      ]);
-      setTimeout(() => setIsLoading(false), 1500);
-    };
-    initialize();
+    setTimeout(() => setIsLoading(false), 1500);
   }, []);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // Cleanup polling on unmount
-  useEffect(() => {
-    return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-      }
-    };
-  }, []);
-
-  const fetchMarketConditions = async () => {
-    try {
-      const response = await fetch(`${API_URL}/api/market-conditions`);
-      if (response.ok) {
-        const data = await response.json();
-        setMarketConditions({
-          regime: data.regime || 'Unknown',
-          fedStance: data.fed_stance || 'Neutral',
-          vix: data.vix ? (typeof data.vix === 'number' ? data.vix.toFixed(2) : data.vix) : 'N/A',
-          recessionRisk: data.recession_risk || 'Unknown'
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching market conditions:', error);
-    }
-  };
-
-  const checkDataStatus = async () => {
-    try {
-      const response = await fetch(`${API_URL}/api/stocks/list`);
-      if (response.ok) {
-        const data = await response.json();
-        setSectors(data.sectors || []);
-        setSubIndustries(data.sub_industries || []);
-      }
-    } catch (error) {
-      console.error('Error fetching stocks list:', error);
-    }
-  };
 
   const executeAnalysis = async () => {
-    if (!selectedTarget) return;
-    
-    // Clear any existing polling
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current);
-    }
-    
+    if (!tickerInput.trim()) return;
+
+    const ticker = tickerInput.trim().toUpperCase();
     setIsAnalyzing(true);
     setResults(null);
-    setExpandedStock(null);
-    setAnalysisProgress('Starting analysis...');
+    setAnalysisProgress('Initializing stock analysis...');
 
     try {
-      // Start the analysis job
-      const startResponse = await fetch(`${API_URL}/api/analysis`, {
+      const response = await fetch(`${API_URL}/api/stock-analysis`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          analysis_type: analysisType,
-          target: selectedTarget,
-          market_cap_size: marketCapSize
-        })
+        body: JSON.stringify({ ticker })
       });
 
-      if (!startResponse.ok) {
-        throw new Error('Failed to start analysis');
+      if (!response.ok) {
+        throw new Error('Failed to analyze stock');
       }
 
-      const { job_id } = await startResponse.json();
-      console.log('Analysis job started:', job_id);
-      
-      // Poll for results
-      pollIntervalRef.current = setInterval(async () => {
-        try {
-          const statusResponse = await fetch(`${API_URL}/api/analysis/${job_id}`);
-          const data = await statusResponse.json();
-          
-          if (data.status === 'completed') {
-            clearInterval(pollIntervalRef.current);
-            pollIntervalRef.current = null;
-            setResults(data.results);
-            setAnalysisProgress('');
-            setIsAnalyzing(false);
-            
-            // Refresh market conditions after analysis
-            fetchMarketConditions();
-          } else if (data.status === 'error') {
-            clearInterval(pollIntervalRef.current);
-            pollIntervalRef.current = null;
-            setAnalysisProgress('Analysis failed: ' + (data.error || 'Unknown error'));
-            setIsAnalyzing(false);
-            setTimeout(() => setAnalysisProgress(''), 5000);
-          } else if (data.status === 'processing') {
-            setAnalysisProgress(data.progress || 'Processing...');
-          }
-        } catch (error) {
-          console.error('Polling error:', error);
-        }
-      }, 2000); // Poll every 2 seconds
-
-      // Timeout after 3 minutes
-      setTimeout(() => {
-        if (pollIntervalRef.current) {
-          clearInterval(pollIntervalRef.current);
-          pollIntervalRef.current = null;
-        }
-        if (isAnalyzing) {
-          setAnalysisProgress('Analysis timed out - please try again with fewer stocks');
-          setIsAnalyzing(false);
-          setTimeout(() => setAnalysisProgress(''), 5000);
-        }
-      }, 180000);
+      const data = await response.json();
+      setResults(data);
+      setAnalysisProgress('');
+      setIsAnalyzing(false);
 
     } catch (error) {
       console.error('Analysis error:', error);
-      setAnalysisProgress('Failed to start analysis');
+      setAnalysisProgress('Failed to analyze stock - please check the ticker and try again');
       setIsAnalyzing(false);
-      setTimeout(() => setAnalysisProgress(''), 3000);
+      setTimeout(() => setAnalysisProgress(''), 5000);
+    }
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !isAnalyzing && tickerInput.trim()) {
+      executeAnalysis();
     }
   };
 
   const styles = `
     @import url('https://fonts.googleapis.com/css2?family=Questrial&display=swap');
-    
+
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
       font-family: 'Avant Garde', 'ITC Avant Garde Gothic', 'Questrial', -apple-system, sans-serif !important;
     }
-    
+
     body {
       font-family: 'Avant Garde', 'ITC Avant Garde Gothic', 'Questrial', -apple-system, sans-serif !important;
       background: #000000;
@@ -343,7 +234,7 @@ function App() {
       border-radius: 24px;
       padding: 32px;
       backdrop-filter: blur(20px);
-      box-shadow: 
+      box-shadow:
         inset 0 0 40px rgba(255, 255, 255, 0.05),
         0 0 40px rgba(255, 255, 255, 0.05);
       overflow: hidden;
@@ -396,120 +287,30 @@ function App() {
       100% { background-position: 200% 50%; }
     }
 
-    /* Custom Dropdown */
-    .custom-dropdown {
-      position: relative;
+    .ticker-input {
+      background: rgba(0, 0, 0, 0.5);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 12px;
+      padding: 16px;
+      color: white;
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 2px;
       width: 100%;
-    }
-
-    .dropdown-header {
-      background: rgba(0, 0, 0, 0.5);
-      border: 2px solid rgba(255, 255, 255, 0.3);
-      border-radius: 12px;
-      padding: 14px;
-      color: white;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      text-transform: uppercase;
       backdrop-filter: blur(10px);
       transition: all 0.3s ease;
     }
 
-    .dropdown-header:hover {
-      border-color: rgba(255, 255, 255, 0.5);
+    .ticker-input:focus {
+      outline: none;
+      border-color: rgba(255, 255, 255, 0.6);
       background: rgba(255, 255, 255, 0.05);
     }
 
-    .dropdown-list {
-      position: absolute;
-      top: calc(100% + 8px);
-      left: 0;
-      right: 0;
-      background: rgba(0, 0, 0, 0.98);
-      border: 2px solid rgba(255, 255, 255, 0.3);
-      border-radius: 12px;
-      backdrop-filter: blur(20px);
-      max-height: 300px;
-      overflow-y: auto;
-      z-index: 50000;
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.9);
-    }
-
-    .dropdown-item {
-      padding: 12px 16px;
-      color: white;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-      font-weight: 500;
-    }
-
-    .dropdown-item:last-child {
-      border-bottom: none;
-    }
-
-    .dropdown-item:hover {
-      background: rgba(255, 255, 255, 0.1);
-      padding-left: 20px;
-    }
-
-    .dropdown-item.selected {
-      background: rgba(255, 255, 255, 0.15);
-      font-weight: 600;
-    }
-
-    /* Tab Buttons */
-    .tab-button {
-      background: rgba(0, 0, 0, 0.5);
-      border: 2px solid rgba(255, 255, 255, 0.2);
-      color: white;
-      padding: 12px 24px;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      font-weight: 600;
-      font-size: 13px;
+    .ticker-input::placeholder {
+      color: rgba(255, 255, 255, 0.3);
       letter-spacing: 1px;
-      backdrop-filter: blur(10px);
-    }
-
-    .tab-button:first-child {
-      border-radius: 12px 0 0 12px;
-      border-right: none;
-    }
-
-    .tab-button:last-child {
-      border-radius: 0 12px 12px 0;
-    }
-
-    .tab-button.active {
-      background: rgba(255, 255, 255, 0.1);
-      border-color: rgba(255, 255, 255, 0.4);
-    }
-
-    /* Market Cap Buttons */
-    .cap-button {
-      background: transparent;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      color: white;
-      padding: 10px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 1px;
-      transition: all 0.3s ease;
-    }
-
-    .cap-button.active {
-      background: rgba(255, 255, 255, 0.1);
-      border-color: rgba(255, 255, 255, 0.4);
-    }
-
-    .cap-button:hover:not(.active) {
-      background: rgba(255, 255, 255, 0.05);
     }
 
     .liquid-button {
@@ -529,7 +330,7 @@ function App() {
       backdrop-filter: blur(10px);
     }
 
-    .liquid-button:hover {
+    .liquid-button:hover:not(:disabled) {
       transform: translateY(-2px);
       box-shadow: 0 10px 30px rgba(255, 255, 255, 0.1);
       border-color: rgba(255, 255, 255, 0.5);
@@ -539,43 +340,6 @@ function App() {
     .liquid-button:disabled {
       opacity: 0.3;
       cursor: not-allowed;
-    }
-
-    .result-card {
-      position: relative;
-      background: rgba(0, 0, 0, 0.5);
-      border: 2px solid rgba(255, 255, 255, 0.3);
-      border-radius: 16px;
-      padding: 24px;
-      margin-bottom: 16px;
-      overflow: hidden;
-      backdrop-filter: blur(10px);
-      box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.05);
-    }
-
-    .analysis-button {
-      margin-top: 20px;
-      background: transparent;
-      border: 1px solid rgba(255, 255, 255, 0.3);
-      color: white;
-      padding: 8px 16px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 1px;
-      transition: all 0.3s ease;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .analysis-details {
-      margin-top: 20px;
-      padding: 20px;
-      background: rgba(255, 255, 255, 0.02);
-      border-radius: 12px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     .progress-indicator {
@@ -599,48 +363,42 @@ function App() {
       color: #000000;
     }
 
-    /* Mobile Responsive Fixes */
+    /* Chart Bars */
+    .chart-bar {
+      background: linear-gradient(90deg, rgba(255,255,255,0.2), rgba(255,255,255,0.05));
+      border-radius: 4px;
+      height: 100%;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .chart-bar::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+      animation: shimmer 2s infinite;
+    }
+
+    @keyframes shimmer {
+      100% { left: 100%; }
+    }
+
+    /* Mobile Responsive */
     @media (max-width: 768px) {
-      .grid-main {
+      .dashboard-grid {
         grid-template-columns: 1fr !important;
       }
-      
+
       .loading-title {
         font-size: 48px;
       }
-      
+
       .logo-text {
         font-size: 22px !important;
-      }
-      
-      .header-container {
-        padding: 15px 20px !important;
-      }
-      
-      .header-layout {
-        flex-direction: column !important;
-        align-items: flex-start !important;
-        gap: 12px !important;
-      }
-      
-      .header-info {
-        width: 100%;
-        display: flex !important;
-        justify-content: space-between !important;
-        font-size: 11px !important;
-        gap: 10px !important;
-      }
-      
-      .market-cap-grid {
-        grid-template-columns: repeat(2, 1fr) !important;
-      }
-      
-      .main-padding {
-        padding: 20px !important;
-      }
-      
-      .market-overview-grid {
-        grid-template-columns: repeat(2, 1fr) !important;
       }
     }
   `;
@@ -668,10 +426,10 @@ function App() {
         position: 'relative'
       }}>
         {/* Holographic Header */}
-        <div className="holographic-header header-container" style={{ padding: '20px 40px', position: 'relative' }}>
-          <div className="header-layout" style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
+        <div className="holographic-header" style={{ padding: '20px 40px', position: 'relative' }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
             alignItems: 'center',
             position: 'relative',
             zIndex: 2
@@ -679,9 +437,9 @@ function App() {
             <h1 className="logo-text">
               doDiligence
             </h1>
-            <div className="header-info" style={{ 
-              display: 'flex', 
-              gap: '30px', 
+            <div style={{
+              display: 'flex',
+              gap: '30px',
               alignItems: 'center',
               color: '#000000',
               fontWeight: '600',
@@ -691,17 +449,17 @@ function App() {
                 MARKET: <span style={{ fontWeight: '800' }}>{marketStatus}</span>
               </div>
               <div>
-                {currentTime.toLocaleTimeString('en-US', { 
-                  hour: '2-digit', 
-                  minute: '2-digit', 
-                  second: '2-digit' 
+                {currentTime.toLocaleTimeString('en-US', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit'
                 })}
               </div>
               <div>
-                {currentTime.toLocaleDateString('en-US', { 
-                  month: 'short', 
-                  day: 'numeric', 
-                  year: 'numeric' 
+                {currentTime.toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric'
                 })}
               </div>
             </div>
@@ -709,85 +467,28 @@ function App() {
         </div>
 
         {/* Main Content */}
-        <div className="main-padding" style={{ padding: '40px' }}>
-          {/* Market Overview */}
-          <div className="market-overview-grid" style={{
+        <div style={{ padding: '40px' }}>
+          {/* Analysis Section */}
+          <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+            gridTemplateColumns: '400px 1fr',
             gap: '24px',
             marginBottom: '40px'
           }}>
-            {[
-              { label: 'MARKET REGIME', value: marketConditions.regime },
-              { label: 'FED STANCE', value: marketConditions.fedStance },
-              { 
-                label: 'VOLATILITY INDEX (VIX)', 
-                value: marketConditions.vix,
-                color: parseFloat(marketConditions.vix) < 20 ? '#00ff88' : 
-                       parseFloat(marketConditions.vix) < 30 ? '#ffaa00' : '#ff3333'
-              },
-              { label: 'RECESSION RISK', value: marketConditions.recessionRisk }
-            ].map((item, idx) => (
-              <div key={idx} className="liquid-glass-card">
-                <div className="glass-content">
-                  <div style={{ 
-                    fontSize: '11px', 
-                    letterSpacing: '2px',
-                    opacity: 0.5,
-                    marginBottom: '16px',
-                    fontWeight: '600'
-                  }}>
-                    {item.label}
-                  </div>
-                  <div style={{ 
-                    fontSize: '28px',
-                    fontWeight: '700',
-                    color: item.color || '#ffffff'
-                  }}>
-                    {item.value}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Analysis Section */}
-          <div className="grid-main" style={{ 
-            display: 'grid', 
-            gridTemplateColumns: '400px 1fr', 
-            gap: '24px' 
-          }}>
             {/* Controls */}
-            <div className="liquid-glass-card" style={{ overflow: 'visible' }}>
+            <div className="liquid-glass-card">
               <div className="glass-content">
-                <h2 style={{ 
-                  fontSize: '18px', 
+                <h2 style={{
+                  fontSize: '18px',
                   fontWeight: '700',
                   letterSpacing: '1px',
                   marginBottom: '32px'
                 }}>
-                  ANALYSIS CONTROL
+                  STOCK ANALYZER
                 </h2>
-                
-                {/* Tab Buttons */}
-                <div style={{ marginBottom: '24px', display: 'flex' }}>
-                  <button 
-                    className={`tab-button ${analysisType === 'sector' ? 'active' : ''}`}
-                    onClick={() => setAnalysisType('sector')}
-                  >
-                    SECTOR
-                  </button>
-                  <button 
-                    className={`tab-button ${analysisType === 'sub_industry' ? 'active' : ''}`}
-                    onClick={() => setAnalysisType('sub_industry')}
-                  >
-                    SUB-INDUSTRY
-                  </button>
-                </div>
 
-                {/* Market Cap Filter */}
                 <div style={{ marginBottom: '24px' }}>
-                  <label style={{ 
+                  <label style={{
                     fontSize: '11px',
                     letterSpacing: '2px',
                     fontWeight: '600',
@@ -795,94 +496,28 @@ function App() {
                     display: 'block',
                     marginBottom: '12px'
                   }}>
-                    MARKET CAP FILTER
+                    ENTER STOCK TICKER
                   </label>
-                  <div className="market-cap-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
-                    {[
-                      { value: 'all', label: 'ALL CAPS' },
-                      { value: 'large', label: 'LARGE CAP' },
-                      { value: 'mid', label: 'MID CAP' },
-                      { value: 'small', label: 'SMALL CAP' }
-                    ].map(option => (
-                      <button
-                        key={option.value}
-                        className={`cap-button ${marketCapSize === option.value ? 'active' : ''}`}
-                        onClick={() => setMarketCapSize(option.value)}
-                        style={{
-                          background: marketCapSize === option.value 
-                            ? 'rgba(255, 255, 255, 0.1)' 
-                            : 'transparent',
-                          border: `1px solid ${marketCapSize === option.value 
-                            ? 'rgba(255, 255, 255, 0.4)' 
-                            : 'rgba(255, 255, 255, 0.2)'}`,
-                        }}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                  <div style={{ 
-                    marginTop: '8px', 
-                    fontSize: '10px', 
-                    opacity: 0.5,
-                    textAlign: 'center'
-                  }}>
-                    {marketCapSize === 'large' && '>$10B Market Cap'}
-                    {marketCapSize === 'mid' && '$2B - $10B Market Cap'}
-                    {marketCapSize === 'small' && '$300M - $2B Market Cap'}
-                    {marketCapSize === 'all' && 'All Market Capitalizations'}
-                  </div>
-                </div>
-
-                {/* Custom Dropdown */}
-                <div style={{ marginBottom: '32px' }}>
-                  <label style={{ 
-                    fontSize: '11px',
-                    letterSpacing: '2px',
-                    fontWeight: '600',
-                    opacity: 0.5,
-                    display: 'block',
-                    marginBottom: '8px'
-                  }}>
-                    SELECT TARGET
-                  </label>
-                  <div className="custom-dropdown" ref={dropdownRef}>
-                    <div 
-                      className="dropdown-header"
-                      onClick={() => setDropdownOpen(!dropdownOpen)}
-                    >
-                      <span>{selectedTarget || 'Choose Target'}</span>
-                      <span style={{ transform: dropdownOpen ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.3s' }}>▼</span>
-                    </div>
-                    {dropdownOpen && (
-                      <div className="dropdown-list">
-                        {(analysisType === 'sector' ? sectors : subIndustries).map(item => (
-                          <div 
-                            key={item} 
-                            className={`dropdown-item ${selectedTarget === item ? 'selected' : ''}`}
-                            onClick={() => {
-                              setSelectedTarget(item);
-                              setDropdownOpen(false);
-                            }}
-                          >
-                            {item}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <input
+                    type="text"
+                    className="ticker-input"
+                    placeholder="e.g., AAPL, TSLA, MSFT"
+                    value={tickerInput}
+                    onChange={(e) => setTickerInput(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    disabled={isAnalyzing}
+                  />
                 </div>
 
                 <button
                   className="liquid-button"
                   onClick={executeAnalysis}
-                  disabled={isAnalyzing || !selectedTarget}
+                  disabled={isAnalyzing || !tickerInput.trim()}
                   style={{ width: '100%' }}
                 >
-                  {isAnalyzing ? 'PROCESSING' : 'EXECUTE'}
+                  {isAnalyzing ? 'ANALYZING' : 'ANALYZE STOCK'}
                 </button>
 
-                {/* Progress Indicator */}
                 {analysisProgress && (
                   <div className="progress-indicator">
                     <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.8)', animation: 'pulse 2s ease-in-out infinite' }}>
@@ -890,203 +525,453 @@ function App() {
                     </div>
                   </div>
                 )}
+
+                {/* Info Box */}
+                <div style={{
+                  marginTop: '32px',
+                  padding: '20px',
+                  background: 'rgba(255, 255, 255, 0.02)',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255, 255, 255, 0.1)'
+                }}>
+                  <div style={{ fontSize: '11px', letterSpacing: '1px', opacity: 0.6, marginBottom: '12px' }}>
+                    ANALYSIS INCLUDES:
+                  </div>
+                  <div style={{ fontSize: '12px', lineHeight: '1.8', opacity: 0.7 }}>
+                    • DCF Valuation (6-Step)<br/>
+                    • Revenue Forecasting (5-Year)<br/>
+                    • Comparable Companies<br/>
+                    • ML Synthesis & Recommendation
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Results */}
-            <div className="liquid-glass-card">
-              <div className="glass-content">
-                <h2 style={{ 
-                  fontSize: '18px',
-                  fontWeight: '700',
-                  letterSpacing: '1px',
-                  marginBottom: '32px'
-                }}>
-                  RESULTS
-                </h2>
-                
-                {results && results.top_stocks ? (
-                  results.top_stocks.length > 0 ? (
+            {/* Quick Results Overview */}
+            {results && results.executive_summary ? (
+              <div className="liquid-glass-card">
+                <div className="glass-content">
+                  <div style={{ marginBottom: '32px' }}>
+                    <div className="holographic-text" style={{ fontSize: '42px', fontWeight: '900', marginBottom: '8px' }}>
+                      {results.ticker}
+                    </div>
+                    <div style={{ fontSize: '18px', opacity: 0.7, marginBottom: '4px' }}>
+                      {results.executive_summary.company_name}
+                    </div>
+                    <div style={{ fontSize: '13px', opacity: 0.5, letterSpacing: '1px' }}>
+                      {results.executive_summary.sector}
+                    </div>
+                  </div>
+
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                    gap: '20px',
+                    marginBottom: '32px'
+                  }}>
                     <div>
-                      {results.top_stocks.map((stock, idx) => (
-                        <div key={stock.symbol} className="result-card">
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                            <div style={{ flex: 1 }}>
-                              <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', marginBottom: '20px' }}>
-                                <div className="holographic-text" style={{ 
-                                  fontSize: '24px',
-                                  fontWeight: '800'
-                                }}>
-                                  {stock.symbol}
-                                </div>
-                                {stock.market_cap && (
-                                  <div style={{ 
-                                    fontSize: '12px', 
-                                    opacity: 0.6,
-                                    fontWeight: '500'
-                                  }}>
-                                    {stock.market_cap}
-                                  </div>
-                                )}
+                      <div style={{ fontSize: '10px', opacity: 0.5, fontWeight: '600', letterSpacing: '1px', marginBottom: '8px' }}>
+                        CURRENT PRICE
+                      </div>
+                      <div style={{ fontSize: '28px', fontWeight: '700' }}>
+                        ${results.executive_summary.current_price?.toFixed(2) || 'N/A'}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '10px', opacity: 0.5, fontWeight: '600', letterSpacing: '1px', marginBottom: '8px' }}>
+                        TARGET PRICE
+                      </div>
+                      <div style={{ fontSize: '28px', fontWeight: '700', color: '#00ff88' }}>
+                        ${results.executive_summary.consensus_target?.toFixed(2) || 'N/A'}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '10px', opacity: 0.5, fontWeight: '600', letterSpacing: '1px', marginBottom: '8px' }}>
+                        UPSIDE POTENTIAL
+                      </div>
+                      <div style={{
+                        fontSize: '28px',
+                        fontWeight: '700',
+                        color: results.executive_summary.recommendation?.upside_potential > 0 ? '#00ff88' : '#ff3333'
+                      }}>
+                        {results.executive_summary.recommendation?.upside_potential > 0 ? '+' : ''}
+                        {(results.executive_summary.recommendation?.upside_potential * 100).toFixed(1)}%
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Recommendation Badge */}
+                  <div style={{
+                    padding: '20px',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    borderRadius: '12px',
+                    border: '2px solid rgba(255, 255, 255, 0.2)',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: '11px', opacity: 0.5, marginBottom: '8px', letterSpacing: '2px' }}>
+                      FINAL RECOMMENDATION
+                    </div>
+                    <div style={{
+                      fontSize: '24px',
+                      fontWeight: '900',
+                      letterSpacing: '2px',
+                      color: results.executive_summary.recommendation?.action?.includes('BUY') ? '#00ff88' :
+                             results.executive_summary.recommendation?.action?.includes('HOLD') ? '#ffaa00' : '#ff3333'
+                    }}>
+                      {results.executive_summary.recommendation?.action || 'N/A'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : !isAnalyzing && (
+              <div className="liquid-glass-card">
+                <div className="glass-content" style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minHeight: '300px',
+                  opacity: 0.3,
+                  fontSize: '14px',
+                  letterSpacing: '2px',
+                  fontWeight: '600'
+                }}>
+                  ENTER A TICKER TO BEGIN ANALYSIS
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Detailed Dashboard */}
+          {results && results.dcf_analysis && (
+            <div className="dashboard-grid" style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gap: '24px'
+            }}>
+              {/* DCF Analysis Card */}
+              <div className="liquid-glass-card">
+                <div className="glass-content">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+                    <TrendingUp size={24} style={{ opacity: 0.7 }} />
+                    <h3 style={{ fontSize: '18px', fontWeight: '700', letterSpacing: '1px' }}>
+                      DCF VALUATION
+                    </h3>
+                  </div>
+
+                  <div style={{ marginBottom: '24px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                      <span style={{ fontSize: '13px', opacity: 0.6 }}>Intrinsic Value</span>
+                      <span style={{ fontSize: '16px', fontWeight: '700' }}>
+                        ${results.dcf_analysis.valuation?.intrinsic_value_per_share?.toFixed(2) || 'N/A'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                      <span style={{ fontSize: '13px', opacity: 0.6 }}>WACC</span>
+                      <span style={{ fontSize: '16px', fontWeight: '700' }}>
+                        {(results.dcf_analysis.discount_rate?.wacc * 100).toFixed(2)}%
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                      <span style={{ fontSize: '13px', opacity: 0.6 }}>Premium/(Discount)</span>
+                      <span style={{
+                        fontSize: '16px',
+                        fontWeight: '700',
+                        color: results.dcf_analysis.valuation?.premium_discount > 0 ? '#00ff88' : '#ff3333'
+                      }}>
+                        {(results.dcf_analysis.valuation?.premium_discount * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Cash Flow Visualization */}
+                  {results.dcf_analysis.cash_flows?.forecasts && results.dcf_analysis.cash_flows.forecasts.length > 0 && (
+                    <div style={{ marginTop: '20px' }}>
+                      <div style={{ fontSize: '11px', opacity: 0.5, marginBottom: '12px', letterSpacing: '1px' }}>
+                        5-YEAR CASH FLOW FORECAST
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', height: '80px' }}>
+                        {results.dcf_analysis.cash_flows.forecasts.slice(0, 5).map((cf, idx) => {
+                          const maxCf = Math.max(...results.dcf_analysis.cash_flows.forecasts.slice(0, 5).map(Math.abs));
+                          const height = maxCf > 0 ? (Math.abs(cf) / maxCf) * 100 : 10;
+                          return (
+                            <div key={idx} style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                              <div
+                                className="chart-bar"
+                                style={{
+                                  height: `${height}%`,
+                                  minHeight: '10px'
+                                }}
+                              />
+                              <div style={{ fontSize: '10px', opacity: 0.4, marginTop: '4px', textAlign: 'center' }}>
+                                Y{idx + 1}
                               </div>
-                              {stock.company_name && (
-                                <div style={{ 
-                                  fontSize: '14px', 
-                                  opacity: 0.7,
-                                  marginBottom: '16px'
-                                }}>
-                                  {stock.company_name}
-                                </div>
-                              )}
-                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
-                                <div>
-                                  <div style={{ fontSize: '10px', opacity: 0.5, fontWeight: '600', letterSpacing: '1px' }}>CURRENT</div>
-                                  <div style={{ fontSize: '18px', fontWeight: '700', marginTop: '4px' }}>${stock.metrics.current_price}</div>
-                                </div>
-                                <div>
-                                  <div style={{ fontSize: '10px', opacity: 0.5, fontWeight: '600', letterSpacing: '1px' }}>TARGET</div>
-                                  <div style={{ fontSize: '18px', fontWeight: '700', marginTop: '4px' }}>${stock.metrics.target_price}</div>
-                                </div>
-                                <div>
-                                  <div style={{ fontSize: '10px', opacity: 0.5, fontWeight: '600', letterSpacing: '1px' }}>UPSIDE</div>
-                                  <div style={{ 
-                                    fontSize: '18px',
-                                    fontWeight: '700',
-                                    marginTop: '4px',
-                                    color: stock.metrics.upside_potential > 0 ? '#00ff88' : '#ff3333'
-                                  }}>
-                                    {stock.metrics.upside_potential > 0 ? '+' : ''}{stock.metrics.upside_potential}%
-                                  </div>
-                                </div>
-                                <div>
-                                  <div style={{ fontSize: '10px', opacity: 0.5, fontWeight: '600', letterSpacing: '1px' }}>CONFIDENCE</div>
-                                  <div style={{ fontSize: '18px', fontWeight: '700', marginTop: '4px' }}>{stock.metrics.confidence_score}%</div>
-                                </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={{
+                    marginTop: '20px',
+                    padding: '12px',
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    opacity: 0.7,
+                    lineHeight: '1.6'
+                  }}>
+                    {results.dcf_analysis.recommendation}
+                  </div>
+                </div>
+              </div>
+
+              {/* Revenue Forecast Card */}
+              <div className="liquid-glass-card">
+                <div className="glass-content">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+                    <BarChart3 size={24} style={{ opacity: 0.7 }} />
+                    <h3 style={{ fontSize: '18px', fontWeight: '700', letterSpacing: '1px' }}>
+                      REVENUE FORECAST
+                    </h3>
+                  </div>
+
+                  <div style={{ marginBottom: '24px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                      <span style={{ fontSize: '13px', opacity: 0.6 }}>Revenue CAGR</span>
+                      <span style={{ fontSize: '16px', fontWeight: '700' }}>
+                        {(results.revenue_forecast.growth_analysis?.cagr * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                      <span style={{ fontSize: '13px', opacity: 0.6 }}>Growth Trend</span>
+                      <span style={{ fontSize: '16px', fontWeight: '700' }}>
+                        {results.revenue_forecast.growth_analysis?.trend || 'N/A'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                      <span style={{ fontSize: '13px', opacity: 0.6 }}>Current Revenue</span>
+                      <span style={{ fontSize: '16px', fontWeight: '700' }}>
+                        ${(results.revenue_forecast.forecast?.current_revenue / 1e9).toFixed(2)}B
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Revenue Growth Visualization */}
+                  {results.revenue_forecast.forecast?.forecasted_revenue && results.revenue_forecast.forecast.forecasted_revenue.length > 0 && (
+                    <div style={{ marginTop: '20px' }}>
+                      <div style={{ fontSize: '11px', opacity: 0.5, marginBottom: '12px', letterSpacing: '1px' }}>
+                        5-YEAR REVENUE PROJECTION
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', height: '80px' }}>
+                        {results.revenue_forecast.forecast.forecasted_revenue.slice(0, 5).map((rev, idx) => {
+                          const maxRev = Math.max(...results.revenue_forecast.forecast.forecasted_revenue.slice(0, 5));
+                          const height = maxRev > 0 ? (rev / maxRev) * 100 : 10;
+                          return (
+                            <div key={idx} style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                              <div
+                                className="chart-bar"
+                                style={{
+                                  height: `${height}%`,
+                                  minHeight: '10px',
+                                  background: 'linear-gradient(90deg, rgba(0,255,136,0.3), rgba(0,255,136,0.1))'
+                                }}
+                              />
+                              <div style={{ fontSize: '10px', opacity: 0.4, marginTop: '4px', textAlign: 'center' }}>
+                                Y{idx + 1}
                               </div>
-                              
-                              {/* Analysis Details Button */}
-                              <button
-                                className="analysis-button"
-                                onClick={() => setExpandedStock(expandedStock === stock.symbol ? null : stock.symbol)}
-                              >
-                                {expandedStock === stock.symbol ? 'HIDE ANALYSIS' : 'VIEW FULL ANALYSIS'}
-                                {expandedStock === stock.symbol ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                              </button>
-                              
-                              {/* Expanded Analysis Details */}
-                              {expandedStock === stock.symbol && stock.analysis_details && (
-                                <div className="analysis-details">
-                                  <h4 style={{ fontSize: '14px', marginBottom: '16px', opacity: 0.8 }}>FUNDAMENTAL ANALYSIS</h4>
-                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
-                                    {Object.entries(stock.analysis_details.fundamentals || {}).map(([key, value]) => (
-                                      <div key={key}>
-                                        <span style={{ fontSize: '11px', opacity: 0.5 }}>{key.replace(/_/g, ' ').toUpperCase()}: </span>
-                                        <span style={{ fontSize: '13px', fontWeight: '600' }}>
-                                          {typeof value === 'number' ? 
-                                            (key.includes('ratio') || key.includes('multiple') ? value.toFixed(2) : 
-                                             key.includes('margin') || key.includes('growth') || key.includes('roe') ? 
-                                             (value * 100).toFixed(1) + '%' : value.toFixed(2)) 
-                                            : value}
-                                        </span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                  
-                                  {stock.analysis_details.ml_prediction !== undefined && (
-                                    <>
-                                      <h4 style={{ fontSize: '14px', marginBottom: '16px', opacity: 0.8 }}>ML ANALYSIS</h4>
-                                      <div style={{ marginBottom: '20px' }}>
-                                        <div>
-                                          <span style={{ fontSize: '11px', opacity: 0.5 }}>ML PREDICTION: </span>
-                                          <span style={{ fontSize: '13px', fontWeight: '600' }}>
-                                            {(stock.analysis_details.ml_prediction * 100).toFixed(2)}% expected return
-                                          </span>
-                                        </div>
-                                        <div style={{ marginTop: '8px' }}>
-                                          <span style={{ fontSize: '11px', opacity: 0.5 }}>QUALITY SCORE: </span>
-                                          <span style={{ fontSize: '13px', fontWeight: '600' }}>
-                                            {(stock.analysis_details.quality_score * 100).toFixed(0)}%
-                                          </span>
-                                        </div>
-                                      </div>
-                                    </>
-                                  )}
-                                </div>
-                              )}
                             </div>
-                            <div style={{ 
-                              fontSize: '48px',
-                              fontWeight: '900',
-                              opacity: 0.1
-                            }}>
-                              {idx + 1}
-                            </div>
-                          </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={{
+                    marginTop: '20px',
+                    padding: '12px',
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    opacity: 0.7,
+                    lineHeight: '1.6'
+                  }}>
+                    {results.revenue_forecast.recommendation}
+                  </div>
+                </div>
+              </div>
+
+              {/* Comparable Companies Card */}
+              <div className="liquid-glass-card">
+                <div className="glass-content">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+                    <Activity size={24} style={{ opacity: 0.7 }} />
+                    <h3 style={{ fontSize: '18px', fontWeight: '700', letterSpacing: '1px' }}>
+                      PEER COMPARISON
+                    </h3>
+                  </div>
+
+                  <div style={{ marginBottom: '24px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                      <span style={{ fontSize: '13px', opacity: 0.6 }}>Peer Group Size</span>
+                      <span style={{ fontSize: '16px', fontWeight: '700' }}>
+                        {results.comparable_companies.peer_group?.length || 0} companies
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                      <span style={{ fontSize: '13px', opacity: 0.6 }}>Implied Price</span>
+                      <span style={{ fontSize: '16px', fontWeight: '700' }}>
+                        ${results.comparable_companies.valuation?.overall_assessment?.average_implied_price?.toFixed(2) || 'N/A'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                      <span style={{ fontSize: '13px', opacity: 0.6 }}>Relative Valuation</span>
+                      <span style={{
+                        fontSize: '16px',
+                        fontWeight: '700',
+                        color: results.comparable_companies.valuation?.overall_assessment?.overall_upside_downside > 0 ? '#00ff88' : '#ff3333'
+                      }}>
+                        {(results.comparable_companies.valuation?.overall_assessment?.overall_upside_downside * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Peer Companies List */}
+                  <div style={{ marginTop: '20px' }}>
+                    <div style={{ fontSize: '11px', opacity: 0.5, marginBottom: '12px', letterSpacing: '1px' }}>
+                      PEER COMPANIES
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                      {results.comparable_companies.peer_group?.slice(1, 5).map((peer, idx) => (
+                        <div key={idx} style={{
+                          padding: '6px 12px',
+                          background: 'rgba(255, 255, 255, 0.05)',
+                          borderRadius: '6px',
+                          fontSize: '11px',
+                          fontWeight: '600',
+                          letterSpacing: '1px'
+                        }}>
+                          {peer}
                         </div>
                       ))}
-                      {results.market_conditions && results.market_conditions.vix && (
-                        <div style={{ 
-                          marginTop: '24px', 
-                          padding: '16px',
-                          background: 'rgba(255, 255, 255, 0.02)',
-                          borderRadius: '12px',
-                          fontSize: '12px',
-                          opacity: 0.6
-                        }}>
-                          Analysis performed with VIX at {results.market_conditions.vix}
-                        </div>
-                      )}
                     </div>
-                  ) : (
-                    // No positive predictions found message
-                    <div style={{ 
-                      textAlign: 'center',
-                      padding: '60px 20px',
-                      background: 'rgba(255, 255, 255, 0.02)',
-                      borderRadius: '16px',
-                      margin: '20px 0'
-                    }}>
-                      <div style={{ 
-                        fontSize: '16px',
-                        fontWeight: '600',
-                        color: 'rgba(255, 255, 255, 0.8)',
-                        marginBottom: '16px',
-                        letterSpacing: '1px'
-                      }}>
-                        NO POSITIVE PREDICTIONS FOUND
-                      </div>
-                      <div style={{ 
-                        fontSize: '13px',
-                        color: 'rgba(255, 255, 255, 0.5)',
-                        lineHeight: '1.6'
-                      }}>
-                        The analysis did not identify any stocks meeting the minimum criteria 
-                        for this {analysisType === 'sector' ? 'sector' : 'sub-industry'}.
-                      </div>
-                      <div style={{ 
-                        fontSize: '12px',
-                        color: 'rgba(255, 255, 255, 0.4)',
-                        marginTop: '12px'
-                      }}>
-                        Try selecting a different target or adjusting the market cap filter.
-                      </div>
-                    </div>
-                  )
-                ) : (
-                  <div style={{ 
-                    textAlign: 'center',
-                    padding: '80px 20px',
-                    opacity: 0.3,
-                    fontSize: '12px',
-                    letterSpacing: '2px',
-                    fontWeight: '600'
-                  }}>
-                    {isAnalyzing ? 'ANALYZING...' : 'NO DATA AVAILABLE'}
                   </div>
-                )}
+
+                  <div style={{
+                    marginTop: '20px',
+                    padding: '12px',
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    opacity: 0.7,
+                    lineHeight: '1.6'
+                  }}>
+                    {results.comparable_companies.recommendation}
+                  </div>
+                </div>
+              </div>
+
+              {/* ML Synthesis Card */}
+              <div className="liquid-glass-card">
+                <div className="glass-content">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+                    <DollarSign size={24} style={{ opacity: 0.7 }} />
+                    <h3 style={{ fontSize: '18px', fontWeight: '700', letterSpacing: '1px' }}>
+                      ML SYNTHESIS
+                    </h3>
+                  </div>
+
+                  <div style={{ marginBottom: '24px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                      <span style={{ fontSize: '13px', opacity: 0.6 }}>ML Score</span>
+                      <span style={{ fontSize: '16px', fontWeight: '700' }}>
+                        {results.ml_synthesis.ml_score?.toFixed(3) || 'N/A'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                      <span style={{ fontSize: '13px', opacity: 0.6 }}>Model Consensus</span>
+                      <span style={{ fontSize: '16px', fontWeight: '700' }}>
+                        ${results.ml_synthesis.target_price?.toFixed(2) || 'N/A'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Model Weights Visualization */}
+                  <div style={{ marginTop: '20px' }}>
+                    <div style={{ fontSize: '11px', opacity: 0.5, marginBottom: '12px', letterSpacing: '1px' }}>
+                      MODEL WEIGHTS
+                    </div>
+                    {Object.entries(results.ml_synthesis.model_weights || {}).map(([model, weight]) => (
+                      <div key={model} style={{ marginBottom: '12px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                          <span style={{ fontSize: '11px', opacity: 0.6, textTransform: 'uppercase' }}>{model}</span>
+                          <span style={{ fontSize: '11px', opacity: 0.8 }}>{(weight * 100).toFixed(0)}%</span>
+                        </div>
+                        <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px' }}>
+                          <div style={{
+                            width: `${weight * 100}%`,
+                            height: '100%',
+                            background: 'linear-gradient(90deg, rgba(255,255,255,0.4), rgba(255,255,255,0.2))',
+                            borderRadius: '3px'
+                          }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Price Range */}
+                  <div style={{
+                    marginTop: '20px',
+                    padding: '16px',
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    borderRadius: '8px'
+                  }}>
+                    <div style={{ fontSize: '11px', opacity: 0.5, marginBottom: '12px', letterSpacing: '1px' }}>
+                      PRICE SCENARIOS
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+                      <div>
+                        <div style={{ fontSize: '10px', opacity: 0.4 }}>BULL</div>
+                        <div style={{ fontSize: '14px', fontWeight: '700', color: '#00ff88' }}>
+                          ${results.executive_summary.recommendation?.price_range?.bull_case?.toFixed(2)}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '10px', opacity: 0.4 }}>BASE</div>
+                        <div style={{ fontSize: '14px', fontWeight: '700' }}>
+                          ${results.executive_summary.recommendation?.price_range?.base_case?.toFixed(2)}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '10px', opacity: 0.4 }}>BEAR</div>
+                        <div style={{ fontSize: '14px', fontWeight: '700', color: '#ff3333' }}>
+                          ${results.executive_summary.recommendation?.price_range?.bear_case?.toFixed(2)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Full Analysis Text */}
+              <div className="liquid-glass-card" style={{ gridColumn: '1 / -1' }}>
+                <div className="glass-content">
+                  <h3 style={{ fontSize: '18px', fontWeight: '700', letterSpacing: '1px', marginBottom: '20px' }}>
+                    COMPREHENSIVE ANALYSIS
+                  </h3>
+                  <div style={{
+                    fontSize: '13px',
+                    lineHeight: '1.8',
+                    opacity: 0.7,
+                    whiteSpace: 'pre-wrap',
+                    fontFamily: 'monospace'
+                  }}>
+                    {results.ml_synthesis.comprehensive_analysis}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </>

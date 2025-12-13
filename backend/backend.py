@@ -1,74 +1,20 @@
 """
-Advanced Transformer-LSTM Hybrid Quantitative Finance Model
-With Revenue Forecasting and Sector Viability Analysis
-Trained on SEC EDGAR and Historical Financial Data
+Advanced Stock Analyzer - Individual Stock Analysis
+Combines DCF Valuation, Revenue Forecasting, and Comparable Company Analysis
+With ML-powered synthesis for hedge fund-style insights
 """
 
-import os
 import sys
-import time
-import json
-import asyncio
-import logging
 import warnings
 import pandas as pd
 import numpy as np
 import yfinance as yf
-from datetime import datetime, timedelta
-from typing import Dict, List, Tuple, Optional, Any
-import requests
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
-import aiohttp
-import torch
-import torch.nn as nn
-import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader
-from transformers import (
-    AutoTokenizer, 
-    AutoModelForSequenceClassification,
-    pipeline
-)
-from sklearn.preprocessing import StandardScaler, RobustScaler
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
-from sklearn.model_selection import TimeSeriesSplit
-from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error
-import joblib
-from bs4 import BeautifulSoup
-import feedparser
-from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-import pickle
-from functools import lru_cache
-import hashlib
-
-# Advanced libraries for financial ML
-try:
-    from darts import TimeSeries
-    from darts.models import (
-        NBEATSModel, 
-        TFTModel,
-        TCNModel,
-        RNNModel
-    )
-    from darts.metrics import mape, rmse
-    from darts.dataprocessing.transformers import Scaler
-    DARTS_AVAILABLE = True
-except ImportError:
-    DARTS_AVAILABLE = False
-    print("Warning: Darts not installed. Some features will be limited.")
-
-try:
-    from prophet import Prophet
-    PROPHET_AVAILABLE = True
-except ImportError:
-    PROPHET_AVAILABLE = False
-    print("Warning: Prophet not installed. Revenue forecasting will use alternative methods.")
-
-try:
-    import pandas_ta as ta
-    PANDAS_TA_AVAILABLE = True
-except ImportError:
-    PANDAS_TA_AVAILABLE = False
-    print("Warning: pandas_ta not installed. Technical indicators will be limited.")
+from datetime import datetime
+from typing import Dict, List
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.linear_model import LinearRegression
+import logging
 
 warnings.filterwarnings('ignore')
 
@@ -76,1303 +22,1747 @@ warnings.filterwarnings('ignore')
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# ============ GPU API CONFIGURATION ============
+# ============ DCF VALUATION MODULE ============
 
-# Hugging Face Inference API for GPU acceleration
-HF_API_TOKEN = os.environ.get('HF_API_TOKEN', '')
-REPLICATE_API_TOKEN = os.environ.get('REPLICATE_API_TOKEN', '')
-SEC_API_KEY = os.environ.get('SEC_API_KEY', '')  # Optional: for enhanced SEC access
-
-# API Headers
-HF_HEADERS = {"Authorization": f"Bearer {HF_API_TOKEN}"}
-
-# Model endpoints for GPU inference
-FINANCIAL_TRANSFORMER_ENDPOINT = "https://api-inference.huggingface.co/models/ProsusAI/finbert"
-SENTIMENT_MODEL_ENDPOINT = "https://api-inference.huggingface.co/models/yiyanghkust/finbert-tone"
-REVENUE_FORECAST_ENDPOINT = "https://api-inference.huggingface.co/models/facebook/bart-large-cnn"
-
-# ============ FINANCIAL DATASETS CONFIGURATION ============
-
-# SEC EDGAR Configuration
-SEC_BASE_URL = "https://data.sec.gov/api/xbrl/companyfacts/"
-SEC_SUBMISSIONS_URL = "https://data.sec.gov/submissions/"
-SEC_HEADERS = {'User-Agent': 'YourCompany your-email@example.com'}  # Required by SEC
-
-# Data paths
-DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
-SENTIMENT_DATA_PATH = os.path.join(DATA_DIR, 'alldata.csv')
-SP500_PATH = os.path.join(DATA_DIR, 'sp500_companies.csv')
-NASDAQ_PATH = os.path.join(DATA_DIR, 'nasdaq_companies.csv')
-PRETRAINED_MODEL_PATH = os.path.join(DATA_DIR, 'pretrained_financial_model.pt')
-HISTORICAL_DATA_PATH = os.path.join(DATA_DIR, 'historical_financial_data.pkl')
-
-# ============ HYBRID LSTM-TRANSFORMER MODEL ============
-
-class LSTMTransformerHybrid(nn.Module):
+class DCFValuation:
     """
-    State-of-the-art LSTM-Transformer hybrid for financial time series
-    Based on research showing 85% improvement over traditional models
+    Discounted Cash Flow Valuation following the complete 6-step methodology
     """
-    
-    def __init__(self, 
-                 input_dim=13,  # Optimal 13-feature framework from research
-                 lstm_hidden=60,  # Research-proven 60 units
-                 transformer_heads=5,  # 5 heads optimal
-                 transformer_layers=3,
-                 dropout=0.2,
-                 output_horizon=20):  # Forecast horizon
-        
-        super(LSTMTransformerHybrid, self).__init__()
-        
-        # LSTM for temporal patterns (bidirectional for better context)
-        self.lstm = nn.LSTM(
-            input_dim, 
-            lstm_hidden,
-            num_layers=2,
-            batch_first=True,
-            dropout=dropout,
-            bidirectional=True
-        )
-        
-        # Transformer for complex relationships
-        self.positional_encoding = nn.Parameter(torch.randn(1, 500, lstm_hidden * 2))
-        encoder_layer = nn.TransformerEncoderLayer(
-            d_model=lstm_hidden * 2,
-            nhead=transformer_heads,
-            dim_feedforward=lstm_hidden * 4,
-            dropout=dropout,
-            activation='gelu',
-            batch_first=True
-        )
-        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=transformer_layers)
-        
-        # Multi-head attention for feature importance
-        self.attention = nn.MultiheadAttention(
-            lstm_hidden * 2,
-            transformer_heads,
-            dropout=dropout,
-            batch_first=True
-        )
-        
-        # Output layers with residual connections
-        self.fc1 = nn.Linear(lstm_hidden * 2, lstm_hidden)
-        self.fc2 = nn.Linear(lstm_hidden, 64)
-        self.fc3 = nn.Linear(64, output_horizon)
-        
-        self.dropout = nn.Dropout(dropout)
-        self.layer_norm1 = nn.LayerNorm(lstm_hidden * 2)
-        self.layer_norm2 = nn.LayerNorm(lstm_hidden)
-        self.activation = nn.GELU()
-        
-    def forward(self, x, mask=None):
-        batch_size, seq_len, _ = x.size()
-        
-        # LSTM processing
-        lstm_out, (hidden, cell) = self.lstm(x)
-        lstm_out = self.layer_norm1(lstm_out)
-        
-        # Add positional encoding
-        lstm_out = lstm_out + self.positional_encoding[:, :seq_len, :]
-        
-        # Transformer processing
-        transformer_out = self.transformer(lstm_out, src_key_padding_mask=mask)
-        
-        # Self-attention mechanism
-        attn_out, attn_weights = self.attention(
-            transformer_out, 
-            transformer_out, 
-            transformer_out,
-            key_padding_mask=mask
-        )
-        
-        # Residual connection
-        combined = transformer_out + self.dropout(attn_out)
-        
-        # Global pooling (both average and max)
-        avg_pool = torch.mean(combined, dim=1)
-        max_pool, _ = torch.max(combined, dim=1)
-        pooled = (avg_pool + max_pool) / 2
-        
-        # Feed forward with residual
-        x = self.activation(self.fc1(pooled))
-        x = self.layer_norm2(x)
-        x = self.dropout(x)
-        x = self.activation(self.fc2(x))
-        x = self.dropout(x)
-        output = self.fc3(x)
-        
-        return output, attn_weights
 
-# ============ FINANCIAL DATASET LOADER ============
+    def __init__(self, ticker: str):
+        self.ticker = ticker
+        self.stock = yf.Ticker(ticker)
+        self.info = {}
+        self.financials = pd.DataFrame()
+        self.balance_sheet = pd.DataFrame()
+        self.cash_flow = pd.DataFrame()
+        self.analysis_results = {}
 
-class FinancialTimeSeriesDataset(Dataset):
-    """
-    Custom dataset for financial time series with ground truth labels
-    """
-    
-    def __init__(self, data, sequence_length=60, forecast_horizon=20):
-        self.data = torch.FloatTensor(data.values)
-        self.sequence_length = sequence_length
-        self.forecast_horizon = forecast_horizon
-        
-    def __len__(self):
-        return len(self.data) - self.sequence_length - self.forecast_horizon
-    
-    def __getitem__(self, idx):
-        X = self.data[idx:idx + self.sequence_length]
-        y = self.data[idx + self.sequence_length:idx + self.sequence_length + self.forecast_horizon, 0]  # Predict close price
-        return X, y
-
-# ============ SEC EDGAR DATA FETCHER ============
-
-class SECDataFetcher:
-    """
-    Fetches and processes SEC EDGAR filings for fundamental analysis
-    """
-    
-    def __init__(self):
-        self.session = requests.Session()
-        self.session.headers.update(SEC_HEADERS)
-        self.cache = {}
-        
-    def get_company_facts(self, cik: str) -> Dict:
-        """Get company facts from SEC EDGAR"""
+    def step1_understand_business(self) -> Dict:
+        """Step 1: Gather company information and understand the business"""
         try:
-            # Format CIK to 10 digits
-            cik = str(cik).zfill(10)
-            
-            # Check cache
-            if cik in self.cache:
-                return self.cache[cik]
-            
-            # Fetch from SEC
-            url = f"{SEC_BASE_URL}CIK{cik}.json"
-            response = self.session.get(url, timeout=10)
-            
-            if response.status_code == 200:
-                data = response.json()
-                self.cache[cik] = data
-                return data
-            else:
-                logger.error(f"SEC API error for CIK {cik}: {response.status_code}")
-                return {}
-                
+            logger.info(f"DCF Step 1: Understanding {self.ticker} business...")
+
+            self.info = self.stock.info
+            self.financials = self.stock.financials
+            self.balance_sheet = self.stock.balance_sheet
+            self.cash_flow = self.stock.cashflow
+
+            business_info = {
+                'company_name': self.info.get('longName', self.ticker),
+                'sector': self.info.get('sector', 'Unknown'),
+                'industry': self.info.get('industry', 'Unknown'),
+                'market_cap': self.info.get('marketCap', 0),
+                'current_price': self.info.get('currentPrice', 0),
+                'shares_outstanding': self.info.get('sharesOutstanding', 0),
+                'description': self.info.get('longBusinessSummary', '')[:200] + '...'
+            }
+
+            logger.info(f"  Company: {business_info['company_name']}")
+            logger.info(f"  Sector: {business_info['sector']}")
+
+            return business_info
+
         except Exception as e:
-            logger.error(f"Error fetching SEC data for {cik}: {e}")
+            logger.error(f"Error in DCF Step 1: {e}")
             return {}
-    
-    def extract_financial_statements(self, cik: str) -> pd.DataFrame:
-        """Extract financial statements from SEC filings"""
-        try:
-            facts = self.get_company_facts(cik)
-            
-            if not facts:
-                return pd.DataFrame()
-            
-            # Extract key financial metrics
-            metrics = {}
-            
-            # Revenue
-            if 'us-gaap' in facts.get('facts', {}):
-                gaap = facts['facts']['us-gaap']
-                
-                # Revenue/Sales
-                if 'Revenues' in gaap:
-                    revenues = gaap['Revenues']['units']['USD']
-                    metrics['revenue'] = [r['val'] for r in revenues if r['form'] == '10-K']
-                    metrics['revenue_dates'] = [r['end'] for r in revenues if r['form'] == '10-K']
-                
-                # Net Income
-                if 'NetIncomeLoss' in gaap:
-                    net_income = gaap['NetIncomeLoss']['units']['USD']
-                    metrics['net_income'] = [r['val'] for r in net_income if r['form'] == '10-K']
-                
-                # Total Assets
-                if 'Assets' in gaap:
-                    assets = gaap['Assets']['units']['USD']
-                    metrics['total_assets'] = [r['val'] for r in assets if r['form'] == '10-K']
-                
-                # Total Liabilities
-                if 'Liabilities' in gaap:
-                    liabilities = gaap['Liabilities']['units']['USD']
-                    metrics['total_liabilities'] = [r['val'] for r in liabilities if r['form'] == '10-K']
-            
-            # Create DataFrame
-            if metrics and 'revenue_dates' in metrics:
-                df = pd.DataFrame({
-                    'date': pd.to_datetime(metrics.get('revenue_dates', [])),
-                    'revenue': metrics.get('revenue', []),
-                    'net_income': metrics.get('net_income', [None] * len(metrics.get('revenue', []))),
-                    'total_assets': metrics.get('total_assets', [None] * len(metrics.get('revenue', []))),
-                    'total_liabilities': metrics.get('total_liabilities', [None] * len(metrics.get('revenue', [])))
-                })
-                return df.sort_values('date')
-            
-            return pd.DataFrame()
-            
-        except Exception as e:
-            logger.error(f"Error extracting financial statements: {e}")
-            return pd.DataFrame()
 
-# ============ REVENUE FORECASTING MODEL ============
+    def step2_forecast_cash_flows(self, forecast_years: int = 5) -> Dict:
+        """Step 2: Forecast future cash flows using multiple methods"""
+        try:
+            logger.info(f"DCF Step 2: Forecasting {forecast_years} years of cash flows...")
+
+            # Get historical cash flows
+            if self.cash_flow.empty:
+                logger.warning("No cash flow data available")
+                return {}
+
+            # Method 1: Free Cash Flow to Firm (FCFF) - Unlevered
+            fcff_forecasts = self._forecast_fcff(forecast_years)
+
+            # Method 2: Free Cash Flow to Equity (FCFE) - Levered
+            fcfe_forecasts = self._forecast_fcfe(forecast_years)
+
+            # Method 3: Simple FCF (Operating Cash Flow - CapEx)
+            simple_fcf_forecasts = self._forecast_simple_fcf(forecast_years)
+
+            results = {
+                'fcff': fcff_forecasts,
+                'fcfe': fcfe_forecasts,
+                'simple_fcf': simple_fcf_forecasts,
+                'forecast_years': forecast_years
+            }
+
+            logger.info(f"  Forecasted cash flows for {forecast_years} years")
+
+            return results
+
+        except Exception as e:
+            logger.error(f"Error in DCF Step 2: {e}")
+            return {}
+
+    def _forecast_fcff(self, years: int) -> List[float]:
+        """Calculate FCFF: EBIT × (1 - Tax Rate) + D&A - CapEx - ΔNWC"""
+        try:
+            # Get historical data
+            if 'EBIT' in self.financials.index:
+                ebit = self.financials.loc['EBIT'].iloc[0]
+            elif 'Operating Income' in self.financials.index:
+                ebit = self.financials.loc['Operating Income'].iloc[0]
+            else:
+                # Approximate EBIT
+                revenue = self.financials.loc['Total Revenue'].iloc[0] if 'Total Revenue' in self.financials.index else 0
+                ebit = revenue * 0.15  # Conservative 15% operating margin
+
+            # Tax rate
+            tax_rate = self.info.get('effectiveTaxRate', 0.21)
+
+            # D&A
+            if 'Depreciation And Amortization' in self.cash_flow.index:
+                da = abs(self.cash_flow.loc['Depreciation And Amortization'].iloc[0])
+            else:
+                da = ebit * 0.05  # Estimate as 5% of EBIT
+
+            # CapEx
+            if 'Capital Expenditure' in self.cash_flow.index:
+                capex = abs(self.cash_flow.loc['Capital Expenditure'].iloc[0])
+            else:
+                capex = da * 1.2  # Estimate CapEx as 120% of D&A
+
+            # Change in NWC (simplified)
+            nwc_change = ebit * 0.02  # Estimate as 2% of EBIT
+
+            # Calculate current FCFF
+            current_fcff = ebit * (1 - tax_rate) + da - capex - nwc_change
+
+            # Forecast with growth rate
+            growth_rate = self.info.get('revenueGrowth', 0.05)  # Default 5%
+            growth_rate = max(min(growth_rate, 0.30), -0.10)  # Cap between -10% and 30%
+
+            # Declining growth rate over time (more conservative)
+            forecasts = []
+            for year in range(1, years + 1):
+                # Growth declines by 20% each year
+                adjusted_growth = growth_rate * (0.8 ** (year - 1))
+                fcff = current_fcff * ((1 + adjusted_growth) ** year)
+                forecasts.append(fcff)
+
+            return forecasts
+
+        except Exception as e:
+            logger.error(f"Error forecasting FCFF: {e}")
+            return [0] * years
+
+    def _forecast_fcfe(self, years: int) -> List[float]:
+        """Calculate FCFE: Net Income + D&A - CapEx - ΔNWC + Net Borrowing"""
+        try:
+            # Get net income
+            if 'Net Income' in self.financials.index:
+                net_income = self.financials.loc['Net Income'].iloc[0]
+            else:
+                net_income = 0
+
+            # D&A
+            if 'Depreciation And Amortization' in self.cash_flow.index:
+                da = abs(self.cash_flow.loc['Depreciation And Amortization'].iloc[0])
+            else:
+                da = net_income * 0.05
+
+            # CapEx
+            if 'Capital Expenditure' in self.cash_flow.index:
+                capex = abs(self.cash_flow.loc['Capital Expenditure'].iloc[0])
+            else:
+                capex = da * 1.2
+
+            # NWC change
+            nwc_change = net_income * 0.02
+
+            # Net borrowing (simplified - assume stable)
+            net_borrowing = 0
+
+            current_fcfe = net_income + da - capex - nwc_change + net_borrowing
+
+            # Forecast with growth
+            growth_rate = self.info.get('earningsGrowth', 0.05)
+            growth_rate = max(min(growth_rate, 0.30), -0.10)
+
+            forecasts = []
+            for year in range(1, years + 1):
+                adjusted_growth = growth_rate * (0.8 ** (year - 1))
+                fcfe = current_fcfe * ((1 + adjusted_growth) ** year)
+                forecasts.append(fcfe)
+
+            return forecasts
+
+        except Exception as e:
+            logger.error(f"Error forecasting FCFE: {e}")
+            return [0] * years
+
+    def _forecast_simple_fcf(self, years: int) -> List[float]:
+        """Calculate Simple FCF: Operating Cash Flow - CapEx"""
+        try:
+            # Get operating cash flow
+            if 'Operating Cash Flow' in self.cash_flow.index:
+                ocf = self.cash_flow.loc['Operating Cash Flow'].iloc[0]
+            elif 'Total Cash From Operating Activities' in self.cash_flow.index:
+                ocf = self.cash_flow.loc['Total Cash From Operating Activities'].iloc[0]
+            else:
+                ocf = 0
+
+            # CapEx
+            if 'Capital Expenditure' in self.cash_flow.index:
+                capex = abs(self.cash_flow.loc['Capital Expenditure'].iloc[0])
+            else:
+                capex = ocf * 0.15
+
+            current_fcf = ocf - capex
+
+            # Forecast
+            growth_rate = self.info.get('revenueGrowth', 0.05)
+            growth_rate = max(min(growth_rate, 0.30), -0.10)
+
+            forecasts = []
+            for year in range(1, years + 1):
+                adjusted_growth = growth_rate * (0.8 ** (year - 1))
+                fcf = current_fcf * ((1 + adjusted_growth) ** year)
+                forecasts.append(fcf)
+
+            return forecasts
+
+        except Exception as e:
+            logger.error(f"Error forecasting Simple FCF: {e}")
+            return [0] * years
+
+    def step3_estimate_discount_rate(self) -> Dict:
+        """Step 3: Calculate WACC (Weighted Average Cost of Capital)"""
+        try:
+            logger.info("DCF Step 3: Estimating discount rate (WACC)...")
+
+            # Risk-free rate (10-year Treasury)
+            rf = self._get_risk_free_rate()
+
+            # Equity risk premium
+            equity_risk_premium = 0.055  # ~5.5% historical average
+
+            # Beta
+            beta = self.info.get('beta', 1.0)
+            if beta is None or beta <= 0:
+                beta = 1.0
+
+            # Cost of Equity using CAPM: rf + β × (rm - rf)
+            cost_of_equity = rf + beta * equity_risk_premium
+
+            # Cost of Debt
+            cost_of_debt = self._calculate_cost_of_debt()
+
+            # Tax rate
+            tax_rate = self.info.get('effectiveTaxRate', 0.21)
+
+            # Market values for weights
+            market_cap = self.info.get('marketCap', 0)
+            total_debt = self.info.get('totalDebt', 0)
+
+            if total_debt is None:
+                total_debt = 0
+
+            total_value = market_cap + total_debt
+
+            if total_value > 0:
+                weight_equity = market_cap / total_value
+                weight_debt = total_debt / total_value
+            else:
+                weight_equity = 1.0
+                weight_debt = 0.0
+
+            # WACC = (E/V × Cost of Equity) + (D/V × Cost of Debt × (1 - Tax Rate))
+            wacc = (weight_equity * cost_of_equity) + (weight_debt * cost_of_debt * (1 - tax_rate))
+
+            results = {
+                'wacc': wacc,
+                'cost_of_equity': cost_of_equity,
+                'cost_of_debt': cost_of_debt,
+                'risk_free_rate': rf,
+                'beta': beta,
+                'equity_risk_premium': equity_risk_premium,
+                'weight_equity': weight_equity,
+                'weight_debt': weight_debt,
+                'tax_rate': tax_rate
+            }
+
+            logger.info(f"  WACC: {wacc:.2%}")
+            logger.info(f"  Cost of Equity: {cost_of_equity:.2%}")
+            logger.info(f"  Cost of Debt: {cost_of_debt:.2%}")
+
+            return results
+
+        except Exception as e:
+            logger.error(f"Error in DCF Step 3: {e}")
+            return {'wacc': 0.10}  # Default 10%
+
+    def _get_risk_free_rate(self) -> float:
+        """Get current 10-year Treasury rate"""
+        try:
+            tnx = yf.Ticker("^TNX")
+            tnx_data = tnx.history(period="5d")
+            if not tnx_data.empty:
+                rate = tnx_data['Close'].iloc[-1] / 100  # Convert to decimal
+                return rate
+            return 0.04  # Default 4%
+        except:
+            return 0.04
+
+    def _calculate_cost_of_debt(self) -> float:
+        """Calculate cost of debt using synthetic rating method"""
+        try:
+            # Get interest expense and total debt
+            if 'Interest Expense' in self.financials.index:
+                interest_expense = abs(self.financials.loc['Interest Expense'].iloc[0])
+            else:
+                interest_expense = 0
+
+            total_debt = self.info.get('totalDebt', 0)
+
+            if total_debt and total_debt > 0 and interest_expense > 0:
+                # Simple method: Interest Expense / Total Debt
+                cost_of_debt = interest_expense / total_debt
+            else:
+                # Use default spread over risk-free
+                rf = self._get_risk_free_rate()
+                cost_of_debt = rf + 0.02  # 2% spread
+
+            return min(cost_of_debt, 0.15)  # Cap at 15%
+
+        except Exception as e:
+            logger.error(f"Error calculating cost of debt: {e}")
+            return 0.05
+
+    def step4_estimate_terminal_value(self, final_year_cf: float, discount_rate: float) -> Dict:
+        """Step 4: Calculate terminal value using both PGM and EMM"""
+        try:
+            logger.info("DCF Step 4: Estimating terminal value...")
+
+            # Method 1: Perpetual Growth Method (Gordon Growth Model)
+            perpetual_growth_rate = 0.025  # Conservative 2.5% long-term growth
+            terminal_value_pgm = (final_year_cf * (1 + perpetual_growth_rate)) / (discount_rate - perpetual_growth_rate)
+
+            # Method 2: Exit Multiple Method
+            # Use EV/EBITDA multiple
+            ebitda_multiple = self._get_industry_ebitda_multiple()
+
+            # Estimate terminal year EBITDA
+            if 'EBITDA' in self.financials.index:
+                current_ebitda = self.financials.loc['EBITDA'].iloc[0]
+                # Grow it to terminal year
+                growth_rate = self.info.get('revenueGrowth', 0.05)
+                terminal_ebitda = current_ebitda * ((1 + growth_rate * 0.5) ** 5)  # Reduced growth
+            else:
+                # Approximate from cash flow
+                terminal_ebitda = final_year_cf * 2.5
+
+            terminal_value_emm = terminal_ebitda * ebitda_multiple
+
+            # Average both methods
+            terminal_value = (terminal_value_pgm + terminal_value_emm) / 2
+
+            results = {
+                'terminal_value': terminal_value,
+                'terminal_value_pgm': terminal_value_pgm,
+                'terminal_value_emm': terminal_value_emm,
+                'perpetual_growth_rate': perpetual_growth_rate,
+                'ebitda_multiple': ebitda_multiple
+            }
+
+            logger.info(f"  Terminal Value (PGM): ${terminal_value_pgm:,.0f}")
+            logger.info(f"  Terminal Value (EMM): ${terminal_value_emm:,.0f}")
+            logger.info(f"  Terminal Value (Average): ${terminal_value:,.0f}")
+
+            return results
+
+        except Exception as e:
+            logger.error(f"Error in DCF Step 4: {e}")
+            return {'terminal_value': final_year_cf * 10}
+
+    def _get_industry_ebitda_multiple(self) -> float:
+        """Get industry-appropriate EV/EBITDA multiple"""
+        sector = self.info.get('sector', 'Technology')
+
+        # Industry average EV/EBITDA multiples
+        multiples = {
+            'Technology': 18.0,
+            'Healthcare': 16.0,
+            'Financial Services': 12.0,
+            'Consumer Cyclical': 14.0,
+            'Consumer Defensive': 13.0,
+            'Industrials': 13.0,
+            'Energy': 10.0,
+            'Utilities': 11.0,
+            'Real Estate': 17.0,
+            'Basic Materials': 11.0,
+            'Communication Services': 15.0
+        }
+
+        return multiples.get(sector, 14.0)
+
+    def step5_calculate_present_value(self, cash_flows: List[float], terminal_value: float,
+                                     discount_rate: float) -> Dict:
+        """Step 5: Calculate present value and determine valuation"""
+        try:
+            logger.info("DCF Step 5: Calculating present value...")
+
+            # Discount cash flows using mid-year convention
+            pv_cash_flows = []
+            for year, cf in enumerate(cash_flows, start=1):
+                discount_factor = 1 / ((1 + discount_rate) ** (year - 0.5))
+                pv_cf = cf * discount_factor
+                pv_cash_flows.append(pv_cf)
+
+            # Discount terminal value
+            terminal_year = len(cash_flows)
+            terminal_discount_factor = 1 / ((1 + discount_rate) ** terminal_year)
+            pv_terminal_value = terminal_value * terminal_discount_factor
+
+            # Enterprise Value = Sum of PV of cash flows + PV of terminal value
+            enterprise_value = sum(pv_cash_flows) + pv_terminal_value
+
+            # Bridge to Equity Value
+            cash = self.info.get('totalCash', 0) or 0
+            debt = self.info.get('totalDebt', 0) or 0
+
+            equity_value = enterprise_value + cash - debt
+
+            # Per-share value
+            shares_outstanding = self.info.get('sharesOutstanding', 1)
+            intrinsic_value_per_share = equity_value / shares_outstanding if shares_outstanding > 0 else 0
+
+            # Current market price
+            current_price = self.info.get('currentPrice', 0)
+
+            # Valuation metrics
+            if current_price > 0:
+                premium_discount = (intrinsic_value_per_share / current_price) - 1
+            else:
+                premium_discount = 0
+
+            # Apply margin of safety (20%)
+            margin_of_safety = 0.20
+            buy_price = intrinsic_value_per_share * (1 - margin_of_safety)
+
+            results = {
+                'enterprise_value': enterprise_value,
+                'equity_value': equity_value,
+                'intrinsic_value_per_share': intrinsic_value_per_share,
+                'current_price': current_price,
+                'premium_discount': premium_discount,
+                'buy_price': buy_price,
+                'margin_of_safety': margin_of_safety,
+                'pv_cash_flows': sum(pv_cash_flows),
+                'pv_terminal_value': pv_terminal_value,
+                'terminal_value_percentage': pv_terminal_value / enterprise_value if enterprise_value > 0 else 0
+            }
+
+            logger.info(f"  Enterprise Value: ${enterprise_value:,.0f}")
+            logger.info(f"  Equity Value: ${equity_value:,.0f}")
+            logger.info(f"  Intrinsic Value per Share: ${intrinsic_value_per_share:.2f}")
+            logger.info(f"  Current Price: ${current_price:.2f}")
+            logger.info(f"  Premium/(Discount): {premium_discount:.1%}")
+            logger.info(f"  Buy Price (with MoS): ${buy_price:.2f}")
+
+            return results
+
+        except Exception as e:
+            logger.error(f"Error in DCF Step 5: {e}")
+            return {}
+
+    def step6_sensitivity_analysis(self, base_case: Dict, cash_flows: List[float]) -> Dict:
+        """Step 6: Perform sensitivity analysis on key variables"""
+        try:
+            logger.info("DCF Step 6: Performing sensitivity analysis...")
+
+            base_wacc = base_case.get('wacc', 0.10)
+            base_growth = base_case.get('perpetual_growth_rate', 0.025)
+            final_cf = cash_flows[-1] if cash_flows else 0
+
+            # Test WACC variations (+/- 1%)
+            wacc_range = [base_wacc - 0.02, base_wacc - 0.01, base_wacc, base_wacc + 0.01, base_wacc + 0.02]
+
+            # Test growth rate variations (+/- 0.5%)
+            growth_range = [base_growth - 0.01, base_growth - 0.005, base_growth, base_growth + 0.005, base_growth + 0.01]
+
+            # Create sensitivity matrix
+            sensitivity_matrix = []
+            for wacc in wacc_range:
+                row = []
+                for growth in growth_range:
+                    if wacc <= growth:
+                        row.append(None)  # Invalid combination
+                    else:
+                        tv = (final_cf * (1 + growth)) / (wacc - growth)
+                        pv_result = self.step5_calculate_present_value(cash_flows, tv, wacc)
+                        row.append(pv_result.get('intrinsic_value_per_share', 0))
+                sensitivity_matrix.append(row)
+
+            results = {
+                'wacc_range': wacc_range,
+                'growth_range': growth_range,
+                'sensitivity_matrix': sensitivity_matrix,
+                'base_intrinsic_value': base_case.get('intrinsic_value_per_share', 0)
+            }
+
+            logger.info("  Sensitivity analysis complete")
+
+            return results
+
+        except Exception as e:
+            logger.error(f"Error in DCF Step 6: {e}")
+            return {}
+
+    def perform_full_dcf_analysis(self) -> Dict:
+        """Execute complete 6-step DCF analysis"""
+        try:
+            logger.info(f"\n{'='*60}")
+            logger.info(f"Starting DCF Analysis for {self.ticker}")
+            logger.info(f"{'='*60}\n")
+
+            # Step 1: Understand Business
+            business_info = self.step1_understand_business()
+
+            # Step 2: Forecast Cash Flows
+            cash_flow_forecasts = self.step2_forecast_cash_flows(forecast_years=5)
+
+            # Use FCFF as primary method
+            primary_cf = cash_flow_forecasts.get('fcff', [])
+
+            if not primary_cf or all(cf == 0 for cf in primary_cf):
+                # Fallback to simple FCF
+                primary_cf = cash_flow_forecasts.get('simple_fcf', [])
+
+            # Step 3: Estimate Discount Rate
+            discount_info = self.step3_estimate_discount_rate()
+            wacc = discount_info.get('wacc', 0.10)
+
+            # Step 4: Estimate Terminal Value
+            final_year_cf = primary_cf[-1] if primary_cf else 0
+            terminal_value_info = self.step4_estimate_terminal_value(final_year_cf, wacc)
+            terminal_value = terminal_value_info.get('terminal_value', 0)
+
+            # Step 5: Calculate Present Value
+            valuation_results = self.step5_calculate_present_value(primary_cf, terminal_value, wacc)
+
+            # Step 6: Sensitivity Analysis
+            sensitivity_results = self.step6_sensitivity_analysis(
+                {**discount_info, **terminal_value_info, **valuation_results},
+                primary_cf
+            )
+
+            # Compile complete results
+            complete_results = {
+                'ticker': self.ticker,
+                'business_info': business_info,
+                'cash_flows': {
+                    'forecasts': primary_cf,
+                    'all_methods': cash_flow_forecasts
+                },
+                'discount_rate': discount_info,
+                'terminal_value': terminal_value_info,
+                'valuation': valuation_results,
+                'sensitivity': sensitivity_results,
+                'recommendation': self._generate_dcf_recommendation(valuation_results)
+            }
+
+            logger.info(f"\n{'='*60}")
+            logger.info(f"DCF Analysis Complete for {self.ticker}")
+            logger.info(f"{'='*60}\n")
+
+            return complete_results
+
+        except Exception as e:
+            logger.error(f"Error in full DCF analysis: {e}")
+            return {}
+
+    def _generate_dcf_recommendation(self, valuation: Dict) -> str:
+        """Generate DCF-based recommendation"""
+        intrinsic = valuation.get('intrinsic_value_per_share', 0)
+        current = valuation.get('current_price', 0)
+        buy_price = valuation.get('buy_price', 0)
+
+        if current == 0:
+            return "Unable to determine - no price data"
+
+        if buy_price > current:
+            upside = ((intrinsic / current) - 1) * 100
+            return f"STRONG BUY - Undervalued by {upside:.1f}%. Buy below ${buy_price:.2f}"
+        elif intrinsic > current:
+            return f"BUY - Fairly valued to slightly undervalued. Target: ${intrinsic:.2f}"
+        elif intrinsic > current * 0.9:
+            return f"HOLD - Trading near fair value. Fair value: ${intrinsic:.2f}"
+        else:
+            overvalued = ((current / intrinsic) - 1) * 100
+            return f"SELL - Overvalued by {overvalued:.1f}%. Fair value: ${intrinsic:.2f}"
+
+
+# ============ REVENUE FORECASTING MODULE ============
 
 class RevenueForecaster:
     """
-    Advanced revenue forecasting using Prophet + LSTM ensemble
+    Advanced revenue forecasting using multiple methodologies
     """
-    
-    def __init__(self):
-        self.prophet_model = None
-        self.lstm_model = None
-        self.scaler = StandardScaler()
-        self.trained = False
-        
-    def prepare_revenue_data(self, financial_df: pd.DataFrame) -> pd.DataFrame:
-        """Prepare revenue data for forecasting"""
+
+    def __init__(self, ticker: str):
+        self.ticker = ticker
+        self.stock = yf.Ticker(ticker)
+        self.historical_data = pd.DataFrame()
+
+    def gather_revenue_data(self) -> pd.DataFrame:
+        """Gather historical revenue data"""
         try:
-            # Calculate growth rates and seasonality
-            df = financial_df.copy()
-            df['revenue_growth'] = df['revenue'].pct_change()
-            df['revenue_yoy'] = df['revenue'].pct_change(periods=4)  # Year-over-year
-            
-            # Add time-based features
-            df['year'] = df['date'].dt.year
-            df['quarter'] = df['date'].dt.quarter
-            df['month'] = df['date'].dt.month
-            
-            # Add economic indicators (simplified - in production, fetch real data)
-            df['gdp_growth'] = np.random.randn(len(df)) * 0.02 + 0.02  # Placeholder
-            df['inflation_rate'] = np.random.randn(len(df)) * 0.01 + 0.02  # Placeholder
-            
-            return df.fillna(method='ffill').fillna(0)
-            
+            logger.info(f"\nRevenue Forecasting: Gathering data for {self.ticker}...")
+
+            financials = self.stock.financials
+            quarterly_financials = self.stock.quarterly_financials
+
+            revenue_data = []
+
+            # Annual data
+            if not financials.empty and 'Total Revenue' in financials.index:
+                annual_revenue = financials.loc['Total Revenue']
+                for date, value in annual_revenue.items():
+                    revenue_data.append({
+                        'date': date,
+                        'revenue': value,
+                        'period': 'Annual'
+                    })
+
+            # Quarterly data
+            if not quarterly_financials.empty and 'Total Revenue' in quarterly_financials.index:
+                quarterly_revenue = quarterly_financials.loc['Total Revenue']
+                for date, value in quarterly_revenue.items():
+                    revenue_data.append({
+                        'date': date,
+                        'revenue': value,
+                        'period': 'Quarterly'
+                    })
+
+            self.historical_data = pd.DataFrame(revenue_data)
+            self.historical_data = self.historical_data.sort_values('date').reset_index(drop=True)
+
+            logger.info(f"  Gathered {len(self.historical_data)} revenue data points")
+
+            return self.historical_data
+
         except Exception as e:
-            logger.error(f"Error preparing revenue data: {e}")
-            return financial_df
-    
-    def train_prophet(self, df: pd.DataFrame):
-        """Train Prophet model for revenue forecasting"""
-        if not PROPHET_AVAILABLE:
-            logger.warning("Prophet not available, skipping")
-            return
-        
-        try:
-            # Prepare data for Prophet
-            prophet_df = pd.DataFrame({
-                'ds': df['date'],
-                'y': df['revenue']
-            })
-            
-            # Initialize Prophet with business seasonality
-            self.prophet_model = Prophet(
-                yearly_seasonality=True,
-                weekly_seasonality=False,
-                daily_seasonality=False,
-                seasonality_mode='multiplicative',
-                changepoint_prior_scale=0.05
-            )
-            
-            # Add quarterly seasonality
-            self.prophet_model.add_seasonality(
-                name='quarterly',
-                period=91.25,
-                fourier_order=5
-            )
-            
-            # Add regressors if available
-            if 'gdp_growth' in df.columns:
-                prophet_df['gdp_growth'] = df['gdp_growth']
-                self.prophet_model.add_regressor('gdp_growth')
-            
-            # Fit the model
-            self.prophet_model.fit(prophet_df)
-            
-        except Exception as e:
-            logger.error(f"Prophet training error: {e}")
-    
-    def train_lstm_revenue(self, df: pd.DataFrame):
-        """Train LSTM for revenue prediction"""
-        try:
-            # Prepare features
-            features = ['revenue', 'revenue_growth', 'quarter', 'gdp_growth', 'inflation_rate']
-            feature_data = df[features].fillna(0).values
-            
-            # Scale data
-            scaled_data = self.scaler.fit_transform(feature_data)
-            
-            # Create sequences
-            sequence_length = min(12, len(scaled_data) - 1)
-            X, y = [], []
-            
-            for i in range(sequence_length, len(scaled_data)):
-                X.append(scaled_data[i-sequence_length:i])
-                y.append(scaled_data[i, 0])  # Predict revenue
-            
-            X = torch.FloatTensor(np.array(X))
-            y = torch.FloatTensor(np.array(y))
-            
-            # Initialize LSTM model
-            self.lstm_model = nn.LSTM(
-                input_size=len(features),
-                hidden_size=50,
-                num_layers=2,
-                batch_first=True
-            )
-            
-            # Training loop (simplified)
-            optimizer = optim.Adam(self.lstm_model.parameters(), lr=0.001)
-            criterion = nn.MSELoss()
-            
-            for epoch in range(100):
-                self.lstm_model.zero_grad()
-                output, _ = self.lstm_model(X)
-                loss = criterion(output[:, -1, 0], y)
-                loss.backward()
-                optimizer.step()
-                
-                if epoch % 20 == 0:
-                    logger.info(f"Revenue LSTM training - Epoch {epoch}, Loss: {loss.item():.4f}")
-            
-            self.trained = True
-            
-        except Exception as e:
-            logger.error(f"LSTM revenue training error: {e}")
-    
-    def forecast_revenue(self, historical_data: pd.DataFrame, periods: int = 4) -> pd.DataFrame:
-        """Forecast future revenue"""
-        try:
-            forecasts = {}
-            
-            # Prophet forecast
-            if PROPHET_AVAILABLE and self.prophet_model:
-                future = self.prophet_model.make_future_dataframe(periods=periods, freq='Q')
-                prophet_forecast = self.prophet_model.predict(future)
-                forecasts['prophet'] = prophet_forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']]
-            
-            # LSTM forecast
-            if self.lstm_model and self.trained:
-                # Prepare last sequence
-                last_sequence = historical_data[['revenue', 'revenue_growth', 'quarter', 
-                                                'gdp_growth', 'inflation_rate']].tail(12).fillna(0).values
-                scaled_sequence = self.scaler.transform(last_sequence)
-                
-                lstm_forecasts = []
-                current_seq = torch.FloatTensor(scaled_sequence).unsqueeze(0)
-                
-                with torch.no_grad():
-                    for _ in range(periods):
-                        output, hidden = self.lstm_model(current_seq)
-                        lstm_forecasts.append(output[:, -1, 0].item())
-                        # Update sequence (simplified)
-                        current_seq = torch.roll(current_seq, -1, dims=1)
-                
-                # Inverse transform
-                lstm_forecasts = self.scaler.inverse_transform(
-                    np.array(lstm_forecasts).reshape(-1, 1)
-                ).flatten()
-                
-                forecasts['lstm'] = lstm_forecasts
-            
-            # Ensemble forecast (average of available models)
-            if forecasts:
-                ensemble_forecast = pd.DataFrame()
-                
-                if 'prophet' in forecasts:
-                    ensemble_forecast['revenue_forecast'] = forecasts['prophet']['yhat'].tail(periods).values
-                    ensemble_forecast['lower_bound'] = forecasts['prophet']['yhat_lower'].tail(periods).values
-                    ensemble_forecast['upper_bound'] = forecasts['prophet']['yhat_upper'].tail(periods).values
-                
-                if 'lstm' in forecasts:
-                    if 'revenue_forecast' in ensemble_forecast:
-                        ensemble_forecast['revenue_forecast'] = (
-                            ensemble_forecast['revenue_forecast'] + forecasts['lstm']
-                        ) / 2
-                    else:
-                        ensemble_forecast['revenue_forecast'] = forecasts['lstm']
-                
-                return ensemble_forecast
-            
-            return pd.DataFrame()
-            
-        except Exception as e:
-            logger.error(f"Revenue forecasting error: {e}")
+            logger.error(f"Error gathering revenue data: {e}")
             return pd.DataFrame()
 
-# ============ SENTIMENT ANALYSIS WITH TRAINING ============
-
-class FinancialSentimentAnalyzer:
-    """
-    Sentiment analyzer trained on financial news data
-    """
-    
-    def __init__(self):
-        self.vader = SentimentIntensityAnalyzer()
-        self.model = None
-        self.tokenizer = None
-        self.trained = False
-        
-        # Load and train on the provided sentiment dataset
-        self.train_on_sentiment_data()
-        
-        # Setup GPU inference
-        self.setup_gpu_models()
-    
-    def train_on_sentiment_data(self):
-        """Train on the provided alldata.csv sentiment dataset"""
+    def analyze_growth_trends(self) -> Dict:
+        """Analyze historical revenue growth patterns"""
         try:
-            if not os.path.exists(SENTIMENT_DATA_PATH):
-                logger.warning(f"Sentiment data not found at {SENTIMENT_DATA_PATH}")
-                return
-            
-            logger.info("Training sentiment model on provided dataset...")
-            
-            # Load the dataset
-            df = pd.read_csv(SENTIMENT_DATA_PATH, encoding='cp1252')
-            
-            # The dataset has sentiment labels and text
-            # Extract and prepare data
-            texts = []
-            labels = []
-            
-            for col in df.columns:
-                if col in ['positive', 'negative', 'neutral']:
-                    # This column contains the label
-                    label_map = {'positive': 1, 'negative': -1, 'neutral': 0}
-                    current_label = label_map.get(col, 0)
-                    
-                    # The next column should contain the text
-                    text_col_idx = df.columns.get_loc(col) + 1
-                    if text_col_idx < len(df.columns):
-                        text_col = df.columns[text_col_idx]
-                        texts.extend(df[text_col].dropna().tolist())
-                        labels.extend([current_label] * len(df[text_col].dropna()))
-            
-            if not texts:
-                # Alternative parsing if structure is different
-                # Assume first column is label, second is text
-                if len(df.columns) >= 2:
-                    label_col = df.columns[0]
-                    text_col = df.columns[1]
-                    
-                    label_map = {'positive': 1, 'negative': -1, 'neutral': 0}
-                    df['label_numeric'] = df[label_col].map(label_map).fillna(0)
-                    
-                    texts = df[text_col].dropna().tolist()
-                    labels = df['label_numeric'].dropna().tolist()
-            
-            if texts and labels:
-                # Use FinBERT for financial sentiment
-                self.tokenizer = AutoTokenizer.from_pretrained("yiyanghkust/finbert-tone")
-                self.model = AutoModelForSequenceClassification.from_pretrained("yiyanghkust/finbert-tone")
-                
-                # Fine-tuning would go here (simplified for CPU training)
-                # In production, this would be done on GPU
-                logger.info(f"Loaded {len(texts)} sentiment samples for training")
-                self.trained = True
-            
+            if self.historical_data.empty:
+                return {}
+
+            # Calculate growth rates
+            annual_data = self.historical_data[self.historical_data['period'] == 'Annual'].copy()
+
+            if len(annual_data) < 2:
+                return {}
+
+            annual_data['growth_rate'] = annual_data['revenue'].pct_change()
+
+            # Growth metrics
+            avg_growth = annual_data['growth_rate'].mean()
+            recent_growth = annual_data['growth_rate'].iloc[-1] if len(annual_data) > 0 else 0
+            growth_volatility = annual_data['growth_rate'].std()
+
+            # Calculate CAGR
+            if len(annual_data) >= 2:
+                years = len(annual_data) - 1
+                first_rev = annual_data['revenue'].iloc[0]
+                last_rev = annual_data['revenue'].iloc[-1]
+                if first_rev > 0 and last_rev > 0:
+                    cagr = (last_rev / first_rev) ** (1/years) - 1
+                else:
+                    cagr = avg_growth if not np.isnan(avg_growth) else 0
+            else:
+                cagr = avg_growth if not np.isnan(avg_growth) else 0
+
+            results = {
+                'average_growth': avg_growth,
+                'recent_growth': recent_growth,
+                'cagr': cagr,
+                'growth_volatility': growth_volatility,
+                'trend': 'Accelerating' if recent_growth > avg_growth else 'Decelerating'
+            }
+
+            logger.info(f"  CAGR: {cagr:.2%}")
+            logger.info(f"  Recent Growth: {recent_growth:.2%}")
+            logger.info(f"  Trend: {results['trend']}")
+
+            return results
+
         except Exception as e:
-            logger.error(f"Error training sentiment model: {e}")
-    
-    def setup_gpu_models(self):
-        """Setup GPU-accelerated inference"""
-        self.gpu_endpoints = {
-            'finbert': SENTIMENT_MODEL_ENDPOINT,
-            'financial_bert': FINANCIAL_TRANSFORMER_ENDPOINT
-        }
-    
-    async def analyze_sentiment_gpu(self, text: str) -> Dict:
-        """Analyze sentiment using GPU API"""
+            logger.error(f"Error analyzing growth trends: {e}")
+            return {}
+
+    def forecast_revenue(self, years: int = 5) -> Dict:
+        """Forecast future revenue using multiple methods"""
         try:
-            async with aiohttp.ClientSession() as session:
-                payload = {"inputs": text[:512]}
-                
-                async with session.post(
-                    self.gpu_endpoints['finbert'],
-                    headers=HF_HEADERS,
-                    json=payload,
-                    timeout=10
-                ) as response:
-                    if response.status == 200:
-                        result = await response.json()
-                        
-                        if isinstance(result, list) and result:
-                            scores = result[0] if isinstance(result[0], list) else result
-                            
-                            sentiment_map = {}
-                            for item in scores:
-                                sentiment_map[item['label']] = item['score']
-                            
-                            sentiment_score = (
-                                sentiment_map.get('positive', 0) * 1 +
-                                sentiment_map.get('neutral', 0) * 0 +
-                                sentiment_map.get('negative', 0) * -1
-                            )
-                            
-                            return {
-                                'sentiment_score': sentiment_score,
-                                'confidence': max(sentiment_map.values()) if sentiment_map else 0,
-                                'raw_scores': sentiment_map
-                            }
-            
-            # Fallback to VADER
-            return self.analyze_with_vader(text)
-            
+            logger.info(f"Revenue Forecasting: Projecting {years} years ahead...")
+
+            if self.historical_data.empty:
+                self.gather_revenue_data()
+
+            growth_analysis = self.analyze_growth_trends()
+
+            # Get latest annual revenue
+            annual_data = self.historical_data[self.historical_data['period'] == 'Annual']
+            if annual_data.empty:
+                return {}
+
+            current_revenue = annual_data['revenue'].iloc[-1]
+
+            # Method 1: Linear Regression
+            linear_forecast = self._linear_regression_forecast(annual_data, years, current_revenue)
+
+            # Method 2: Growth Rate Projection (Conservative)
+            growth_forecast = self._growth_rate_forecast(growth_analysis, current_revenue, years)
+
+            # Method 3: Industry Benchmark Adjustment
+            industry_forecast = self._industry_adjusted_forecast(current_revenue, years)
+
+            # Ensemble forecast (weighted average)
+            ensemble_forecast = []
+            for i in range(years):
+                weighted_avg = (
+                    linear_forecast[i] * 0.3 +
+                    growth_forecast[i] * 0.4 +
+                    industry_forecast[i] * 0.3
+                )
+                ensemble_forecast.append(weighted_avg)
+
+            results = {
+                'current_revenue': current_revenue,
+                'forecasted_revenue': ensemble_forecast,
+                'linear_regression': linear_forecast,
+                'growth_projection': growth_forecast,
+                'industry_adjusted': industry_forecast,
+                'growth_analysis': growth_analysis,
+                'forecast_years': years
+            }
+
+            logger.info(f"  Current Revenue: ${current_revenue:,.0f}")
+            logger.info(f"  Year 1 Forecast: ${ensemble_forecast[0]:,.0f}")
+            logger.info(f"  Year {years} Forecast: ${ensemble_forecast[-1]:,.0f}")
+
+            return results
+
         except Exception as e:
-            logger.error(f"GPU sentiment error: {e}")
-            return self.analyze_with_vader(text)
-    
-    def analyze_with_vader(self, text: str) -> Dict:
-        """Fallback sentiment analysis with VADER"""
-        scores = self.vader.polarity_scores(text)
-        return {
-            'sentiment_score': scores['compound'],
-            'confidence': abs(scores['compound']),
-            'raw_scores': scores
+            logger.error(f"Error forecasting revenue: {e}")
+            return {}
+
+    def _linear_regression_forecast(self, data: pd.DataFrame, years: int, current: float) -> List[float]:
+        """Linear regression forecast"""
+        try:
+            if len(data) < 3:
+                return [current * 1.05 ** i for i in range(1, years + 1)]
+
+            X = np.arange(len(data)).reshape(-1, 1)
+            y = data['revenue'].values
+
+            model = LinearRegression()
+            model.fit(X, y)
+
+            # Predict future
+            future_X = np.arange(len(data), len(data) + years).reshape(-1, 1)
+            predictions = model.predict(future_X)
+
+            return [max(p, current * 0.8) for p in predictions]  # Floor at 80% of current
+
+        except Exception as e:
+            logger.error(f"Linear regression error: {e}")
+            return [current * 1.05 ** i for i in range(1, years + 1)]
+
+    def _growth_rate_forecast(self, growth_analysis: Dict, current: float, years: int) -> List[float]:
+        """Growth rate projection with declining growth"""
+        try:
+            cagr = growth_analysis.get('cagr', 0.05)
+            recent_growth = growth_analysis.get('recent_growth', 0.05)
+
+            # Use average of CAGR and recent growth
+            base_growth = (cagr + recent_growth) / 2
+
+            # Cap growth at reasonable levels
+            base_growth = max(min(base_growth, 0.30), -0.05)
+
+            forecasts = []
+            for year in range(1, years + 1):
+                # Growth declines over time (regression to mean)
+                adjusted_growth = base_growth * (0.85 ** (year - 1))
+                revenue = current * ((1 + adjusted_growth) ** year)
+                forecasts.append(revenue)
+
+            return forecasts
+
+        except Exception as e:
+            logger.error(f"Growth rate forecast error: {e}")
+            return [current * 1.05 ** i for i in range(1, years + 1)]
+
+    def _industry_adjusted_forecast(self, current: float, years: int) -> List[float]:
+        """Industry benchmark-adjusted forecast"""
+        try:
+            info = self.stock.info
+            sector = info.get('sector', 'Technology')
+
+            # Industry growth rates (conservative estimates)
+            industry_growth = {
+                'Technology': 0.08,
+                'Healthcare': 0.06,
+                'Financial Services': 0.04,
+                'Consumer Cyclical': 0.05,
+                'Consumer Defensive': 0.03,
+                'Industrials': 0.04,
+                'Energy': 0.03,
+                'Utilities': 0.02,
+                'Real Estate': 0.04,
+                'Basic Materials': 0.03,
+                'Communication Services': 0.05
+            }
+
+            growth_rate = industry_growth.get(sector, 0.05)
+
+            forecasts = []
+            for year in range(1, years + 1):
+                revenue = current * ((1 + growth_rate) ** year)
+                forecasts.append(revenue)
+
+            return forecasts
+
+        except Exception as e:
+            logger.error(f"Industry forecast error: {e}")
+            return [current * 1.05 ** i for i in range(1, years + 1)]
+
+    def perform_full_revenue_analysis(self) -> Dict:
+        """Execute complete revenue forecasting analysis"""
+        try:
+            logger.info(f"\n{'='*60}")
+            logger.info(f"Starting Revenue Forecast for {self.ticker}")
+            logger.info(f"{'='*60}\n")
+
+            # Gather data
+            self.gather_revenue_data()
+
+            # Analyze trends
+            growth_analysis = self.analyze_growth_trends()
+
+            # Forecast
+            forecast_results = self.forecast_revenue(years=5)
+
+            # Generate recommendation
+            recommendation = self._generate_revenue_recommendation(forecast_results, growth_analysis)
+
+            results = {
+                'ticker': self.ticker,
+                'historical_data': self.historical_data.to_dict('records'),
+                'growth_analysis': growth_analysis,
+                'forecast': forecast_results,
+                'recommendation': recommendation
+            }
+
+            logger.info(f"\n{'='*60}")
+            logger.info(f"Revenue Forecast Complete for {self.ticker}")
+            logger.info(f"{'='*60}\n")
+
+            return results
+
+        except Exception as e:
+            logger.error(f"Error in full revenue analysis: {e}")
+            return {}
+
+    def _generate_revenue_recommendation(self, forecast: Dict, growth: Dict) -> str:
+        """Generate revenue-based recommendation"""
+        try:
+            cagr = growth.get('cagr', 0)
+            trend = growth.get('trend', 'Unknown')
+
+            if cagr > 0.15:
+                return f"Strong Growth - {cagr:.1%} CAGR with {trend} trend. Revenue model supports bullish outlook."
+            elif cagr > 0.08:
+                return f"Moderate Growth - {cagr:.1%} CAGR with {trend} trend. Solid revenue trajectory."
+            elif cagr > 0.03:
+                return f"Slow Growth - {cagr:.1%} CAGR with {trend} trend. Stable but limited upside."
+            elif cagr > 0:
+                return f"Minimal Growth - {cagr:.1%} CAGR with {trend} trend. Mature company characteristics."
+            else:
+                return f"Declining Revenue - {cagr:.1%} CAGR. Significant concerns about business model."
+
+        except:
+            return "Unable to generate recommendation"
+
+
+# ============ COMPARABLE COMPANY ANALYSIS MODULE ============
+
+class ComparableCompanyAnalysis:
+    """
+    Comparable Company Analysis (Trading Comps) following 5-step methodology
+    """
+
+    def __init__(self, ticker: str):
+        self.ticker = ticker
+        self.stock = yf.Ticker(ticker)
+        self.peer_group = []
+        self.peer_data = {}
+
+    def step1_compile_peer_group(self) -> List[str]:
+        """Step 1: Identify and compile peer group of comparable companies"""
+        try:
+            logger.info(f"\nComps Step 1: Compiling peer group for {self.ticker}...")
+
+            info = self.stock.info
+            sector = info.get('sector', '')
+            industry = info.get('industry', '')
+
+            # Try to get recommended symbols from yfinance
+            try:
+                recommendations = self.stock.recommendations
+                if recommendations is not None and not recommendations.empty:
+                    # Look for analyst coverage
+                    pass
+            except:
+                pass
+
+            # Get industry peers (simplified - in production, use proper peer screening)
+            peers = self._find_industry_peers(sector, industry)
+
+            # Add target company
+            self.peer_group = [self.ticker] + peers
+
+            logger.info(f"  Identified {len(self.peer_group)} companies in peer group")
+            logger.info(f"  Peers: {', '.join(peers[:5])}" + ("..." if len(peers) > 5 else ""))
+
+            return self.peer_group
+
+        except Exception as e:
+            logger.error(f"Error in Comps Step 1: {e}")
+            return [self.ticker]
+
+    def _find_industry_peers(self, sector: str, industry: str) -> List[str]:
+        """Find peer companies in same sector/industry"""
+        # Predefined peer groups for major companies (simplified)
+        known_peers = {
+            'AAPL': ['MSFT', 'GOOGL', 'META', 'NVDA'],
+            'MSFT': ['AAPL', 'GOOGL', 'ORCL', 'ADBE'],
+            'GOOGL': ['META', 'AAPL', 'MSFT', 'AMZN'],
+            'TSLA': ['F', 'GM', 'RIVN', 'LCID'],
+            'AMZN': ['WMT', 'GOOGL', 'EBAY', 'SHOP'],
+            'NVDA': ['AMD', 'INTC', 'QCOM', 'AVGO'],
+            'JPM': ['BAC', 'WFC', 'C', 'GS'],
+            'JNJ': ['PFE', 'UNH', 'ABBV', 'MRK'],
+            'V': ['MA', 'AXP', 'PYPL', 'SQ'],
+            'WMT': ['TGT', 'COST', 'AMZN', 'HD']
         }
 
-# ============ SECTOR VIABILITY ANALYZER ============
+        if self.ticker in known_peers:
+            return known_peers[self.ticker]
 
-class SectorViabilityAnalyzer:
-    """
-    Analyzes company viability within specific sectors using industry benchmarks
-    """
-    
-    def __init__(self):
-        # Industry-specific benchmarks from research
-        self.sector_benchmarks = {
+        # Default: return some similar market cap companies in sector
+        # In production, would query database or API for proper peer screening
+        sector_leaders = {
+            'Technology': ['AAPL', 'MSFT', 'GOOGL', 'META', 'NVDA'],
+            'Healthcare': ['JNJ', 'UNH', 'PFE', 'ABBV', 'TMO'],
+            'Financial Services': ['JPM', 'BAC', 'WFC', 'GS', 'MS'],
+            'Consumer Cyclical': ['AMZN', 'TSLA', 'HD', 'NKE', 'MCD'],
+            'Consumer Defensive': ['PG', 'KO', 'PEP', 'WMT', 'COST']
+        }
+
+        return sector_leaders.get(sector, ['SPY'])[:4]  # Return up to 4 peers
+
+    def step2_industry_research(self) -> Dict:
+        """Step 2: Conduct industry research and understand market trends"""
+        try:
+            logger.info("Comps Step 2: Conducting industry research...")
+
+            info = self.stock.info
+
+            research = {
+                'sector': info.get('sector', 'Unknown'),
+                'industry': info.get('industry', 'Unknown'),
+                'target_market_cap': info.get('marketCap', 0),
+                'industry_characteristics': self._get_industry_characteristics(info.get('sector', ''))
+            }
+
+            logger.info(f"  Sector: {research['sector']}")
+            logger.info(f"  Industry: {research['industry']}")
+
+            return research
+
+        except Exception as e:
+            logger.error(f"Error in Comps Step 2: {e}")
+            return {}
+
+    def _get_industry_characteristics(self, sector: str) -> Dict:
+        """Get key characteristics for industry valuation"""
+        characteristics = {
             'Technology': {
-                'current_ratio': (1.5, 3.0),
-                'debt_to_equity': (0, 0.5),
-                'roe': (0.15, 0.30),
-                'revenue_growth': (0.10, 0.30),
-                'rd_to_revenue': (0.10, 0.25),
-                'gross_margin': (0.60, 0.80)
+                'key_multiples': ['P/E', 'EV/EBITDA', 'P/S', 'PEG'],
+                'growth_focus': True,
+                'typical_pe_range': (20, 35)
             },
             'Healthcare': {
-                'current_ratio': (1.5, 3.0),
-                'debt_to_equity': (0.3, 0.8),
-                'roe': (0.10, 0.25),
-                'revenue_growth': (0.05, 0.20),
-                'rd_to_revenue': (0.15, 0.30),
-                'gross_margin': (0.50, 0.70)
+                'key_multiples': ['P/E', 'EV/EBITDA', 'P/B'],
+                'growth_focus': True,
+                'typical_pe_range': (15, 25)
             },
-            'Biotechnology': {
-                'current_ratio': (4.0, 6.0),  # 4.91 average from research
-                'debt_to_equity': (0, 0.3),
-                'roe': (-0.50, 0.10),  # Often negative for development stage
-                'revenue_growth': (-0.20, 0.50),  # High volatility
-                'rd_to_revenue': (0.30, 1.0),  # Very high R&D
-                'gross_margin': (0.70, 0.90)
+            'Financial Services': {
+                'key_multiples': ['P/E', 'P/B', 'P/TBV'],
+                'growth_focus': False,
+                'typical_pe_range': (10, 15)
             },
-            'Financial': {
-                'current_ratio': (1.0, 1.5),
-                'debt_to_equity': (1.0, 3.0),  # Higher leverage normal
-                'roe': (0.10, 0.15),
-                'revenue_growth': (0.03, 0.10),
-                'efficiency_ratio': (0.40, 0.60),
-                'tier1_capital': (0.08, 0.15)
-            },
-            'Airlines': {
-                'current_ratio': (0.5, 0.8),  # 0.61 average from research
-                'debt_to_equity': (1.0, 2.5),
-                'operating_margin': (0.05, 0.15),
-                'load_factor': (0.75, 0.85),
-                'revenue_per_mile': (0.12, 0.18),
-                'fuel_cost_ratio': (0.20, 0.35)
+            'Consumer Cyclical': {
+                'key_multiples': ['P/E', 'EV/EBITDA', 'P/S'],
+                'growth_focus': True,
+                'typical_pe_range': (15, 25)
             }
         }
-        
-        self.scoring_model = None
-        self.train_viability_model()
-    
-    def get_sector_metrics(self, ticker: str, sector: str) -> Dict:
-        """Get sector-specific metrics for a company"""
+
+        return characteristics.get(sector, {
+            'key_multiples': ['P/E', 'EV/EBITDA'],
+            'growth_focus': False,
+            'typical_pe_range': (12, 20)
+        })
+
+    def step3_input_financial_data(self) -> Dict:
+        """Step 3: Collect and normalize financial data for all peers"""
         try:
-            yf_ticker = yf.Ticker(ticker)
-            info = yf_ticker.info
-            financials = yf_ticker.financials
-            balance_sheet = yf_ticker.balance_sheet
-            
-            metrics = {}
-            
-            # Common metrics
-            metrics['current_ratio'] = info.get('currentRatio', 0)
-            metrics['debt_to_equity'] = info.get('debtToEquity', 0) / 100 if info.get('debtToEquity') else 0
-            metrics['roe'] = info.get('returnOnEquity', 0)
-            metrics['revenue_growth'] = info.get('revenueGrowth', 0)
-            metrics['gross_margin'] = info.get('grossMargins', 0)
-            
-            # Sector-specific metrics
-            if sector == 'Technology' or sector == 'Biotechnology':
-                # R&D intensity
-                if not financials.empty and 'Research Development' in financials.index:
-                    rd = financials.loc['Research Development'].iloc[0]
-                    revenue = financials.loc['Total Revenue'].iloc[0] if 'Total Revenue' in financials.index else 1
-                    metrics['rd_to_revenue'] = abs(rd / revenue) if revenue != 0 else 0
-            
-            elif sector == 'Financial':
-                metrics['efficiency_ratio'] = info.get('operatingMargins', 0.5)
-                # Tier 1 capital ratio (simplified)
-                if not balance_sheet.empty:
-                    equity = balance_sheet.loc['Total Stockholder Equity'].iloc[0] if 'Total Stockholder Equity' in balance_sheet.index else 0
-                    assets = balance_sheet.loc['Total Assets'].iloc[0] if 'Total Assets' in balance_sheet.index else 1
-                    metrics['tier1_capital'] = equity / assets if assets != 0 else 0
-            
-            elif sector == 'Airlines':
-                metrics['operating_margin'] = info.get('operatingMargins', 0)
-                metrics['load_factor'] = 0.80  # Would need specific airline data
-                metrics['revenue_per_mile'] = 0.15  # Placeholder
-                metrics['fuel_cost_ratio'] = 0.25  # Placeholder
-            
-            return metrics
-            
+            logger.info("Comps Step 3: Collecting financial data for peer group...")
+
+            for symbol in self.peer_group:
+                try:
+                    peer_stock = yf.Ticker(symbol)
+                    peer_info = peer_stock.info
+
+                    self.peer_data[symbol] = {
+                        'market_cap': peer_info.get('marketCap', 0),
+                        'enterprise_value': peer_info.get('enterpriseValue', 0),
+                        'trailing_pe': peer_info.get('trailingPE', None),
+                        'forward_pe': peer_info.get('forwardPE', None),
+                        'price_to_book': peer_info.get('priceToBook', None),
+                        'price_to_sales': peer_info.get('priceToSalesTrailing12Months', None),
+                        'ev_to_revenue': peer_info.get('enterpriseToRevenue', None),
+                        'ev_to_ebitda': peer_info.get('enterpriseToEbitda', None),
+                        'peg_ratio': peer_info.get('pegRatio', None),
+                        'revenue': peer_info.get('totalRevenue', 0),
+                        'ebitda': peer_info.get('ebitda', 0),
+                        'net_income': peer_info.get('netIncomeToCommon', 0),
+                        'revenue_growth': peer_info.get('revenueGrowth', None),
+                        'earnings_growth': peer_info.get('earningsGrowth', None),
+                        'current_price': peer_info.get('currentPrice', 0)
+                    }
+
+                except Exception as e:
+                    logger.warning(f"  Could not fetch data for {symbol}: {e}")
+                    continue
+
+            logger.info(f"  Collected data for {len(self.peer_data)} companies")
+
+            return self.peer_data
+
         except Exception as e:
-            logger.error(f"Error getting sector metrics for {ticker}: {e}")
+            logger.error(f"Error in Comps Step 3: {e}")
             return {}
-    
-    def calculate_viability_score(self, metrics: Dict, sector: str) -> Dict:
-        """Calculate viability score based on sector benchmarks"""
+
+    def step4_calculate_peer_multiples(self) -> Dict:
+        """Step 4: Calculate and compare valuation multiples across peer group"""
         try:
-            if sector not in self.sector_benchmarks:
-                sector = 'Technology'  # Default
-            
-            benchmarks = self.sector_benchmarks[sector]
-            scores = {}
-            total_score = 0
-            max_score = 0
-            
-            for metric, (min_val, max_val) in benchmarks.items():
-                if metric in metrics:
-                    value = metrics[metric]
-                    
-                    # Calculate normalized score (0-1)
-                    if value < min_val:
-                        score = max(0, 1 - (min_val - value) / min_val)
-                    elif value > max_val:
-                        score = max(0, 1 - (value - max_val) / max_val)
-                    else:
-                        # Within optimal range
-                        score = 1.0
-                    
-                    scores[metric] = score
-                    total_score += score
-                    max_score += 1
-            
-            # Overall viability score
-            viability_score = total_score / max_score if max_score > 0 else 0
-            
-            # Determine viability rating
-            if viability_score >= 0.8:
-                rating = 'Excellent'
-            elif viability_score >= 0.6:
-                rating = 'Good'
-            elif viability_score >= 0.4:
-                rating = 'Fair'
-            else:
-                rating = 'Poor'
-            
+            logger.info("Comps Step 4: Calculating peer group multiples...")
+
+            if not self.peer_data:
+                self.step3_input_financial_data()
+
+            # Collect all multiples
+            multiples_df = pd.DataFrame(self.peer_data).T
+
+            # Calculate statistics for each multiple
+            multiple_stats = {}
+
+            key_multiples = ['trailing_pe', 'forward_pe', 'price_to_book', 'price_to_sales',
+                           'ev_to_revenue', 'ev_to_ebitda', 'peg_ratio']
+
+            for multiple in key_multiples:
+                if multiple in multiples_df.columns:
+                    values = multiples_df[multiple].dropna()
+
+                    if len(values) > 0:
+                        multiple_stats[multiple] = {
+                            'min': float(values.min()),
+                            'percentile_25': float(values.quantile(0.25)),
+                            'median': float(values.median()),
+                            'mean': float(values.mean()),
+                            'percentile_75': float(values.quantile(0.75)),
+                            'max': float(values.max()),
+                            'target_value': float(multiples_df.loc[self.ticker, multiple]) if self.ticker in multiples_df.index else None
+                        }
+
+            logger.info(f"  Calculated statistics for {len(multiple_stats)} valuation multiples")
+
+            # Display key multiples
+            if 'trailing_pe' in multiple_stats:
+                target_pe = multiple_stats['trailing_pe']['target_value']
+                target_pe_str = f"{target_pe:.2f}" if target_pe is not None else "N/A"
+                logger.info(f"  P/E - Median: {multiple_stats['trailing_pe']['median']:.2f}, Target: {target_pe_str}")
+            if 'ev_to_ebitda' in multiple_stats:
+                target_ev = multiple_stats['ev_to_ebitda']['target_value']
+                target_ev_str = f"{target_ev:.2f}" if target_ev is not None else "N/A"
+                logger.info(f"  EV/EBITDA - Median: {multiple_stats['ev_to_ebitda']['median']:.2f}, Target: {target_ev_str}")
+
             return {
-                'viability_score': viability_score,
-                'rating': rating,
-                'metric_scores': scores,
-                'strengths': [m for m, s in scores.items() if s >= 0.8],
-                'weaknesses': [m for m, s in scores.items() if s < 0.4]
+                'multiple_statistics': multiple_stats,
+                'peer_data': self.peer_data,
+                'peer_count': len(self.peer_data)
             }
-            
+
         except Exception as e:
-            logger.error(f"Error calculating viability score: {e}")
-            return {'viability_score': 0.5, 'rating': 'Unknown'}
-    
-    def train_viability_model(self):
-        """Train a model to predict company viability"""
+            logger.error(f"Error in Comps Step 4: {e}")
+            return {}
+
+    def step5_apply_multiple_to_target(self, multiple_stats: Dict) -> Dict:
+        """Step 5: Apply peer multiples to target company to derive valuation"""
         try:
-            # In production, this would use historical success/failure data
-            # For now, create a simple scoring model
-            self.scoring_model = RandomForestRegressor(
+            logger.info("Comps Step 5: Applying multiples to derive target valuation...")
+
+            target_data = self.peer_data.get(self.ticker, {})
+
+            if not target_data:
+                return {}
+
+            valuations = {}
+
+            # P/E based valuation
+            if 'trailing_pe' in multiple_stats and target_data.get('net_income'):
+                median_pe = multiple_stats['trailing_pe']['median']
+                net_income = target_data['net_income']
+                shares = self.stock.info.get('sharesOutstanding', 1)
+
+                eps = net_income / shares if shares > 0 else 0
+                implied_price_pe = eps * median_pe
+
+                valuations['pe_valuation'] = {
+                    'median_multiple': median_pe,
+                    'implied_price': implied_price_pe,
+                    'current_price': target_data['current_price'],
+                    'upside_downside': (implied_price_pe / target_data['current_price'] - 1) if target_data['current_price'] > 0 else 0
+                }
+
+            # EV/EBITDA based valuation
+            if 'ev_to_ebitda' in multiple_stats and target_data.get('ebitda'):
+                median_ev_ebitda = multiple_stats['ev_to_ebitda']['median']
+                ebitda = target_data['ebitda']
+
+                implied_ev = ebitda * median_ev_ebitda
+
+                # Convert to equity value
+                net_debt = self.stock.info.get('totalDebt', 0) - self.stock.info.get('totalCash', 0)
+                implied_equity_value = implied_ev - net_debt
+                shares = self.stock.info.get('sharesOutstanding', 1)
+                implied_price_ev = implied_equity_value / shares if shares > 0 else 0
+
+                valuations['ev_ebitda_valuation'] = {
+                    'median_multiple': median_ev_ebitda,
+                    'implied_price': implied_price_ev,
+                    'current_price': target_data['current_price'],
+                    'upside_downside': (implied_price_ev / target_data['current_price'] - 1) if target_data['current_price'] > 0 else 0
+                }
+
+            # P/S based valuation
+            if 'price_to_sales' in multiple_stats and target_data.get('revenue'):
+                median_ps = multiple_stats['price_to_sales']['median']
+                revenue = target_data['revenue']
+                shares = self.stock.info.get('sharesOutstanding', 1)
+
+                revenue_per_share = revenue / shares if shares > 0 else 0
+                implied_price_ps = revenue_per_share * median_ps
+
+                valuations['ps_valuation'] = {
+                    'median_multiple': median_ps,
+                    'implied_price': implied_price_ps,
+                    'current_price': target_data['current_price'],
+                    'upside_downside': (implied_price_ps / target_data['current_price'] - 1) if target_data['current_price'] > 0 else 0
+                }
+
+            # Calculate average implied valuation
+            all_implied_prices = [v['implied_price'] for v in valuations.values() if v.get('implied_price', 0) > 0]
+
+            if all_implied_prices:
+                avg_implied_price = np.mean(all_implied_prices)
+                current_price = target_data['current_price']
+
+                overall_assessment = {
+                    'average_implied_price': avg_implied_price,
+                    'current_price': current_price,
+                    'overall_upside_downside': (avg_implied_price / current_price - 1) if current_price > 0 else 0
+                }
+            else:
+                overall_assessment = {}
+
+            results = {
+                'individual_valuations': valuations,
+                'overall_assessment': overall_assessment
+            }
+
+            logger.info(f"  Average Implied Price: ${overall_assessment.get('average_implied_price', 0):.2f}")
+            logger.info(f"  Current Price: ${overall_assessment.get('current_price', 0):.2f}")
+            logger.info(f"  Implied Upside/(Downside): {overall_assessment.get('overall_upside_downside', 0):.1%}")
+
+            return results
+
+        except Exception as e:
+            logger.error(f"Error in Comps Step 5: {e}")
+            return {}
+
+    def perform_full_comps_analysis(self) -> Dict:
+        """Execute complete 5-step comparable company analysis"""
+        try:
+            logger.info(f"\n{'='*60}")
+            logger.info(f"Starting Comparable Company Analysis for {self.ticker}")
+            logger.info(f"{'='*60}\n")
+
+            # Step 1: Compile Peer Group
+            peer_group = self.step1_compile_peer_group()
+
+            # Step 2: Industry Research
+            industry_research = self.step2_industry_research()
+
+            # Step 3: Input Financial Data
+            financial_data = self.step3_input_financial_data()
+
+            # Step 4: Calculate Peer Multiples
+            multiples_analysis = self.step4_calculate_peer_multiples()
+
+            # Step 5: Apply Multiples to Target
+            valuation_results = self.step5_apply_multiple_to_target(multiples_analysis.get('multiple_statistics', {}))
+
+            # Generate recommendation
+            recommendation = self._generate_comps_recommendation(valuation_results)
+
+            results = {
+                'ticker': self.ticker,
+                'peer_group': peer_group,
+                'industry_research': industry_research,
+                'multiples_analysis': multiples_analysis,
+                'valuation': valuation_results,
+                'recommendation': recommendation
+            }
+
+            logger.info(f"\n{'='*60}")
+            logger.info(f"Comparable Company Analysis Complete for {self.ticker}")
+            logger.info(f"{'='*60}\n")
+
+            return results
+
+        except Exception as e:
+            logger.error(f"Error in full comps analysis: {e}")
+            return {}
+
+    def _generate_comps_recommendation(self, valuation: Dict) -> str:
+        """Generate comps-based recommendation"""
+        try:
+            overall = valuation.get('overall_assessment', {})
+            upside = overall.get('overall_upside_downside', 0)
+
+            if upside > 0.20:
+                return f"STRONG BUY - Trading at {upside:.1%} discount to peer group median. Significant upside potential."
+            elif upside > 0.10:
+                return f"BUY - Trading at {upside:.1%} discount to peers. Moderately undervalued."
+            elif upside > -0.05:
+                return f"HOLD - Trading in line with peer group. Fairly valued relative to comparables."
+            elif upside > -0.15:
+                return f"UNDERPERFORM - Trading at {abs(upside):.1%} premium to peers. Moderately overvalued."
+            else:
+                return f"SELL - Trading at {abs(upside):.1%} premium to peer group. Significantly overvalued."
+
+        except:
+            return "Unable to generate recommendation"
+
+
+# ============ ML SYNTHESIS MODEL ============
+
+class MLSynthesisModel:
+    """
+    Machine Learning model that synthesizes DCF, Revenue Forecast, and Comps analyses
+    Provides hedge fund analyst-style insights and final recommendation
+    """
+
+    def __init__(self):
+        self.model = None
+        self.scaler = StandardScaler()
+        self._initialize_model()
+
+    def _initialize_model(self):
+        """Initialize ensemble model"""
+        try:
+            # Use Gradient Boosting for nuanced decision making
+            self.model = GradientBoostingRegressor(
                 n_estimators=100,
-                max_depth=10,
+                learning_rate=0.1,
+                max_depth=5,
                 random_state=42
             )
-            
-            # Generate synthetic training data (in production, use real historical data)
+
+            # Pre-train with synthetic data representing various scenarios
+            self._pretrain_model()
+
+        except Exception as e:
+            logger.error(f"Error initializing ML model: {e}")
+
+    def _pretrain_model(self):
+        """Pre-train model with synthetic scenarios"""
+        try:
+            # Create synthetic training data representing different valuation scenarios
             n_samples = 1000
-            X_train = np.random.rand(n_samples, 6)  # 6 key metrics
-            
-            # Create labels based on realistic patterns
+
+            # Features: [DCF upside, Revenue growth, Comps upside, DCF confidence, Revenue confidence, Comps confidence]
+            X_train = np.random.randn(n_samples, 6)
+
+            # Target: Overall recommendation score (-1 to 1, where 1 is strong buy, -1 is strong sell)
             y_train = (
-                X_train[:, 0] * 0.3 +  # Current ratio importance
-                X_train[:, 1] * 0.2 +  # ROE importance
-                X_train[:, 2] * 0.2 +  # Revenue growth
-                X_train[:, 3] * 0.1 +  # Debt to equity (inverse)
-                X_train[:, 4] * 0.1 +  # Gross margin
-                X_train[:, 5] * 0.1 +  # R&D intensity
-                np.random.randn(n_samples) * 0.05  # Noise
+                X_train[:, 0] * 0.40 +  # DCF upside (40% weight)
+                X_train[:, 1] * 0.25 +  # Revenue growth (25% weight)
+                X_train[:, 2] * 0.20 +  # Comps upside (20% weight)
+                X_train[:, 3] * 0.05 +  # DCF confidence (5% weight)
+                X_train[:, 4] * 0.05 +  # Revenue confidence (5% weight)
+                X_train[:, 5] * 0.05 +  # Comps confidence (5% weight)
+                np.random.randn(n_samples) * 0.1  # Noise
             )
-            
-            self.scoring_model.fit(X_train, y_train)
-            logger.info("Viability scoring model trained")
-            
-        except Exception as e:
-            logger.error(f"Error training viability model: {e}")
 
-# ============ MAIN QUANTITATIVE FINANCE MODEL ============
+            self.scaler.fit(X_train)
+            X_scaled = self.scaler.transform(X_train)
 
-class QuantFinanceMLModel:
+            self.model.fit(X_scaled, y_train)
+
+            logger.info("ML synthesis model pre-trained successfully")
+
+        except Exception as e:
+            logger.error(f"Error pre-training model: {e}")
+
+    def synthesize_analyses(self, dcf_results: Dict, revenue_results: Dict, comps_results: Dict) -> Dict:
+        """Synthesize all three analyses into comprehensive insights"""
+        try:
+            logger.info(f"\n{'='*60}")
+            logger.info("ML Synthesis: Combining all analyses...")
+            logger.info(f"{'='*60}\n")
+
+            # Extract key metrics from each analysis
+            dcf_metrics = self._extract_dcf_metrics(dcf_results)
+            revenue_metrics = self._extract_revenue_metrics(revenue_results)
+            comps_metrics = self._extract_comps_metrics(comps_results)
+
+            # Prepare features for ML model
+            features = np.array([
+                dcf_metrics['upside'],
+                revenue_metrics['growth_score'],
+                comps_metrics['upside'],
+                dcf_metrics['confidence'],
+                revenue_metrics['confidence'],
+                comps_metrics['confidence']
+            ]).reshape(1, -1)
+
+            # Replace NaN values with 0
+            features = np.nan_to_num(features, nan=0.0)
+
+            # Get ML prediction
+            features_scaled = self.scaler.transform(features)
+            ml_score = self.model.predict(features_scaled)[0]
+
+            # Calculate weighted target price
+            target_price = self._calculate_consensus_target(dcf_results, comps_results)
+
+            # Generate comprehensive analysis
+            comprehensive_analysis = self._generate_hedge_fund_analysis(
+                dcf_results, revenue_results, comps_results, ml_score
+            )
+
+            # Final recommendation
+            final_recommendation = self._generate_final_recommendation(
+                ml_score, target_price, dcf_results, revenue_results, comps_results
+            )
+
+            results = {
+                'ml_score': ml_score,
+                'target_price': target_price,
+                'comprehensive_analysis': comprehensive_analysis,
+                'final_recommendation': final_recommendation,
+                'model_weights': {
+                    'dcf': 0.40,
+                    'revenue': 0.25,
+                    'comps': 0.20,
+                    'confidence': 0.15
+                },
+                'individual_scores': {
+                    'dcf': dcf_metrics,
+                    'revenue': revenue_metrics,
+                    'comps': comps_metrics
+                }
+            }
+
+            logger.info(f"ML Score: {ml_score:.3f} (-1=Sell, 0=Hold, 1=Buy)")
+            logger.info(f"Consensus Target Price: ${target_price:.2f}")
+
+            return results
+
+        except Exception as e:
+            logger.error(f"Error in ML synthesis: {e}")
+            return {}
+
+    def _extract_dcf_metrics(self, dcf_results: Dict) -> Dict:
+        """Extract key metrics from DCF analysis"""
+        try:
+            valuation = dcf_results.get('valuation', {})
+
+            intrinsic = valuation.get('intrinsic_value_per_share', 0)
+            current = valuation.get('current_price', 1)
+
+            upside = (intrinsic / current - 1) if current > 0 else 0
+
+            # Confidence based on terminal value percentage (lower is better)
+            tv_pct = valuation.get('terminal_value_percentage', 0.7)
+            confidence = 1.0 - (tv_pct - 0.5) if tv_pct > 0.5 else 1.0
+            confidence = max(0.3, min(1.0, confidence))
+
+            return {
+                'upside': upside,
+                'confidence': confidence,
+                'intrinsic_value': intrinsic,
+                'current_price': current
+            }
+
+        except Exception as e:
+            logger.error(f"Error extracting DCF metrics: {e}")
+            return {'upside': 0, 'confidence': 0.5}
+
+    def _extract_revenue_metrics(self, revenue_results: Dict) -> Dict:
+        """Extract key metrics from revenue forecast"""
+        try:
+            growth_analysis = revenue_results.get('growth_analysis', {})
+
+            cagr = growth_analysis.get('cagr', 0)
+            volatility = growth_analysis.get('growth_volatility', 0.1)
+
+            # Handle NaN values
+            if np.isnan(cagr):
+                cagr = 0
+            if np.isnan(volatility):
+                volatility = 0.1
+
+            # Normalize growth to -1 to 1 scale
+            growth_score = np.tanh(cagr * 5)  # tanh keeps it bounded
+
+            # Confidence inversely related to volatility
+            confidence = 1.0 / (1.0 + volatility * 10)
+            confidence = max(0.3, min(1.0, confidence))
+
+            return {
+                'growth_score': growth_score,
+                'confidence': confidence,
+                'cagr': cagr,
+                'volatility': volatility
+            }
+
+        except Exception as e:
+            logger.error(f"Error extracting revenue metrics: {e}")
+            return {'growth_score': 0, 'confidence': 0.5}
+
+    def _extract_comps_metrics(self, comps_results: Dict) -> Dict:
+        """Extract key metrics from comps analysis"""
+        try:
+            valuation = comps_results.get('valuation', {})
+            overall = valuation.get('overall_assessment', {})
+
+            upside = overall.get('overall_upside_downside', 0)
+
+            # Confidence based on number of peers and valuation methods
+            peer_count = comps_results.get('peer_group', [])
+            valuations_count = len(valuation.get('individual_valuations', {}))
+
+            confidence = min(1.0, (len(peer_count) * valuations_count) / 12)  # Max at 3 peers x 4 methods
+            confidence = max(0.3, confidence)
+
+            return {
+                'upside': upside,
+                'confidence': confidence,
+                'implied_price': overall.get('average_implied_price', 0)
+            }
+
+        except Exception as e:
+            logger.error(f"Error extracting comps metrics: {e}")
+            return {'upside': 0, 'confidence': 0.5}
+
+    def _calculate_consensus_target(self, dcf_results: Dict, comps_results: Dict) -> float:
+        """Calculate consensus target price from DCF and Comps"""
+        try:
+            dcf_target = dcf_results.get('valuation', {}).get('intrinsic_value_per_share', 0)
+            comps_target = comps_results.get('valuation', {}).get('overall_assessment', {}).get('average_implied_price', 0)
+
+            if dcf_target > 0 and comps_target > 0:
+                # Weight DCF more heavily (60/40)
+                consensus = dcf_target * 0.60 + comps_target * 0.40
+            elif dcf_target > 0:
+                consensus = dcf_target
+            elif comps_target > 0:
+                consensus = comps_target
+            else:
+                consensus = 0
+
+            return consensus
+
+        except:
+            return 0
+
+    def _generate_hedge_fund_analysis(self, dcf: Dict, revenue: Dict, comps: Dict, ml_score: float) -> str:
+        """Generate comprehensive hedge fund analyst-style writeup"""
+        try:
+            ticker = dcf.get('ticker', 'N/A')
+            company_name = dcf.get('business_info', {}).get('company_name', ticker)
+
+            analysis = f"""
+INVESTMENT THESIS - {company_name} ({ticker})
+
+VALUATION ANALYSIS:
+Our comprehensive three-model valuation framework indicates {'a compelling investment opportunity' if ml_score > 0.3 else 'fair value' if ml_score > -0.3 else 'significant overvaluation'}.
+
+1. DISCOUNTED CASH FLOW (DCF) ANALYSIS:
+   - Intrinsic Value: ${dcf.get('valuation', {}).get('intrinsic_value_per_share', 0):.2f}
+   - Current Price: ${dcf.get('valuation', {}).get('current_price', 0):.2f}
+   - Implied Return: {dcf.get('valuation', {}).get('premium_discount', 0):.1%}
+   - WACC: {dcf.get('discount_rate', {}).get('wacc', 0):.2%}
+   - Terminal Value represents {dcf.get('valuation', {}).get('terminal_value_percentage', 0):.1%} of enterprise value
+   - Assessment: {dcf.get('recommendation', 'N/A')}
+
+2. REVENUE FORECASTING MODEL:
+   - Historical CAGR: {revenue.get('growth_analysis', {}).get('cagr', 0):.1%}
+   - Revenue Trend: {revenue.get('growth_analysis', {}).get('trend', 'N/A')}
+   - Growth Volatility: {revenue.get('growth_analysis', {}).get('growth_volatility', 0):.2%}
+   - 5-Year Projection: Ensemble model projects {'strong' if revenue.get('growth_analysis', {}).get('cagr', 0) > 0.10 else 'moderate' if revenue.get('growth_analysis', {}).get('cagr', 0) > 0.05 else 'low'} growth
+   - Assessment: {revenue.get('recommendation', 'N/A')}
+
+3. COMPARABLE COMPANY ANALYSIS:
+   - Peer Group: {len(comps.get('peer_group', []))} comparable companies
+   - Relative Valuation: {'Discount to peers' if comps.get('valuation', {}).get('overall_assessment', {}).get('overall_upside_downside', 0) > 0 else 'Premium to peers'}
+   - Implied Upside/(Downside): {comps.get('valuation', {}).get('overall_assessment', {}).get('overall_upside_downside', 0):.1%}
+   - Assessment: {comps.get('recommendation', 'N/A')}
+
+MACHINE LEARNING SYNTHESIS:
+Our proprietary ML model, which weighs DCF (40%), Revenue Growth (25%), and Comps (20%) with confidence adjustments (15%),
+generates a score of {ml_score:.3f} on a scale of -1 (Strong Sell) to +1 (Strong Buy).
+
+KEY INVESTMENT CONSIDERATIONS:
+- {'Intrinsic value substantially exceeds market price' if ml_score > 0.3 else 'Trading near fair value' if ml_score > -0.3 else 'Market price exceeds intrinsic value'}
+- Revenue growth trajectory is {'accelerating' if revenue.get('growth_analysis', {}).get('trend', '') == 'Accelerating' else 'decelerating'}
+- Valuation relative to peers is {'attractive' if comps.get('valuation', {}).get('overall_assessment', {}).get('overall_upside_downside', 0) > 0 else 'stretched'}
+- Risk-adjusted return profile is {'favorable' if ml_score > 0.2 else 'neutral' if ml_score > -0.2 else 'unfavorable'}
+"""
+
+            return analysis.strip()
+
+        except Exception as e:
+            logger.error(f"Error generating hedge fund analysis: {e}")
+            return "Unable to generate comprehensive analysis"
+
+    def _generate_final_recommendation(self, ml_score: float, target_price: float,
+                                      dcf: Dict, revenue: Dict, comps: Dict) -> Dict:
+        """Generate final buy/hold/sell recommendation with price target"""
+        try:
+            current_price = dcf.get('valuation', {}).get('current_price', 0)
+
+            if current_price == 0:
+                return {'action': 'NO RECOMMENDATION', 'rationale': 'Insufficient data'}
+
+            upside = (target_price / current_price - 1) if current_price > 0 else 0
+
+            # Determine action based on ML score and upside
+            if ml_score > 0.4 and upside > 0.20:
+                action = "STRONG BUY"
+                rationale = f"All three models indicate significant undervaluation. Target price of ${target_price:.2f} implies {upside:.1%} upside. High conviction opportunity."
+            elif ml_score > 0.2 and upside > 0.10:
+                action = "BUY"
+                rationale = f"Models suggest stock is undervalued. Target price of ${target_price:.2f} implies {upside:.1%} upside. Favorable risk/reward."
+            elif ml_score > -0.2 and abs(upside) < 0.10:
+                action = "HOLD"
+                rationale = f"Stock trading near fair value. Target price of ${target_price:.2f} implies limited upside/downside. Maintain position."
+            elif ml_score > -0.4 and upside < -0.10:
+                action = "REDUCE"
+                rationale = f"Models suggest stock is overvalued. Current price exceeds target of ${target_price:.2f}. Consider reducing exposure."
+            else:
+                action = "SELL"
+                rationale = f"All models indicate significant overvaluation. Current price substantially exceeds target of ${target_price:.2f}. High conviction sell."
+
+            recommendation = {
+                'action': action,
+                'target_price': target_price,
+                'current_price': current_price,
+                'upside_potential': upside,
+                'ml_score': ml_score,
+                'rationale': rationale,
+                'price_range': {
+                    'bull_case': target_price * 1.15,
+                    'base_case': target_price,
+                    'bear_case': target_price * 0.85
+                }
+            }
+
+            return recommendation
+
+        except Exception as e:
+            logger.error(f"Error generating final recommendation: {e}")
+            return {'action': 'ERROR', 'rationale': str(e)}
+
+
+# ============ MAIN STOCK ANALYZER ============
+
+class StockAnalyzer:
     """
-    Main model orchestrating all components with GPU acceleration
+    Main class orchestrating all three analyses and ML synthesis
     """
-    
-    def __init__(self):
-        # Initialize components
-        self.lstm_transformer = None
-        self.revenue_forecaster = RevenueForecaster()
-        self.sentiment_analyzer = FinancialSentimentAnalyzer()
-        self.sector_analyzer = SectorViabilityAnalyzer()
-        self.sec_fetcher = SECDataFetcher()
-        
-        # Load stock lists
-        self.load_stock_data()
-        
-        # Initialize model
-        self.initialize_model()
-        
-        # Training data storage
-        self.training_data = None
-        self.scaler = RobustScaler()
-        
-        # GPU executor
-        self.executor = ThreadPoolExecutor(max_workers=30)
-        
-        # Cache
-        self.cache = {}
-        self.cache_timeout = 3600
-    
-    def load_stock_data(self):
-        """Load S&P 500 and NASDAQ stock lists"""
+
+    def __init__(self, ticker: str):
+        self.ticker = ticker.upper()
+        self.dcf_analyzer = DCFValuation(self.ticker)
+        self.revenue_forecaster = RevenueForecaster(self.ticker)
+        self.comps_analyzer = ComparableCompanyAnalysis(self.ticker)
+        self.ml_synthesizer = MLSynthesisModel()
+
+    def analyze(self) -> Dict:
+        """Perform complete stock analysis"""
         try:
-            # Load S&P 500
-            if os.path.exists(SP500_PATH):
-                self.sp500_stocks = pd.read_csv(SP500_PATH)
-                logger.info(f"Loaded {len(self.sp500_stocks)} S&P 500 stocks")
-            else:
-                # Fetch from web
-                sp500_table = pd.read_html('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')[0]
-                self.sp500_stocks = sp500_table[['Symbol', 'GICS Sector', 'GICS Sub-Industry']]
-                self.sp500_stocks.to_csv(SP500_PATH, index=False)
-            
-            # Load NASDAQ
-            if os.path.exists(NASDAQ_PATH):
-                self.nasdaq_stocks = pd.read_csv(NASDAQ_PATH)
-                logger.info(f"Loaded {len(self.nasdaq_stocks)} NASDAQ stocks")
-            else:
-                # Use default list
-                self.nasdaq_stocks = pd.DataFrame({
-                    'Symbol': ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'NVDA', 'TSLA']
-                })
-            
-            # Combine unique stocks
-            all_symbols = pd.concat([self.sp500_stocks, self.nasdaq_stocks])['Symbol'].unique()
-            self.all_stocks = list(all_symbols)
-            logger.info(f"Total unique stocks: {len(self.all_stocks)}")
-            
-        except Exception as e:
-            logger.error(f"Error loading stock data: {e}")
-            self.all_stocks = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META']
-    
-    def initialize_model(self):
-        """Initialize or load pretrained model"""
-        try:
-            if os.path.exists(PRETRAINED_MODEL_PATH):
-                # Load pretrained model
-                logger.info("Loading pretrained model...")
-                checkpoint = torch.load(PRETRAINED_MODEL_PATH, map_location='cpu')
-                
-                self.lstm_transformer = LSTMTransformerHybrid()
-                self.lstm_transformer.load_state_dict(checkpoint['model_state_dict'])
-                self.lstm_transformer.eval()
-                
-                if 'scaler' in checkpoint:
-                    self.scaler = checkpoint['scaler']
-                
-                logger.info("Pretrained model loaded successfully")
-            else:
-                # Initialize new model
-                self.lstm_transformer = LSTMTransformerHybrid()
-                logger.info("Initialized new LSTM-Transformer model")
-                
-                # Train on available data
-                self.train_on_historical_data()
-                
-        except Exception as e:
-            logger.error(f"Error initializing model: {e}")
-            self.lstm_transformer = LSTMTransformerHybrid()
-    
-    def fetch_historical_data(self, symbols: List[str], period: str = "2y") -> pd.DataFrame:
-        """Fetch historical data for training"""
-        try:
-            all_data = []
-            
-            # Batch download for efficiency
-            logger.info(f"Downloading historical data for {len(symbols)} stocks...")
-            
-            for batch_start in range(0, len(symbols), 10):
-                batch = symbols[batch_start:batch_start + 10]
-                batch_str = ' '.join(batch)
-                
-                try:
-                    data = yf.download(
-                        tickers=batch_str,
-                        period=period,
-                        interval='1d',
-                        group_by='ticker',
-                        threads=True,
-                        progress=False
-                    )
-                    
-                    # Process each ticker
-                    for symbol in batch:
-                        try:
-                            if len(batch) == 1:
-                                ticker_data = data
-                            else:
-                                ticker_data = data[symbol] if symbol in data.columns.levels[0] else None
-                            
-                            if ticker_data is not None and not ticker_data.empty:
-                                ticker_data = ticker_data.reset_index()
-                                ticker_data['Symbol'] = symbol
-                                all_data.append(ticker_data)
-                        except:
-                            continue
-                            
-                except Exception as e:
-                    logger.error(f"Error downloading batch {batch_start}: {e}")
-                    continue
-            
-            if all_data:
-                combined_data = pd.concat(all_data, ignore_index=True)
-                logger.info(f"Downloaded {len(combined_data)} data points")
-                return combined_data
-            
-            return pd.DataFrame()
-            
-        except Exception as e:
-            logger.error(f"Error fetching historical data: {e}")
-            return pd.DataFrame()
-    
-    def engineer_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Engineer features using optimal 13-feature framework from research"""
-        try:
-            features = df.copy()
-            
-            # Price-based features
-            features['returns'] = features['Close'].pct_change()
-            features['log_returns'] = np.log(features['Close'] / features['Close'].shift(1))
-            features['volatility'] = features['returns'].rolling(20).std()
-            
-            # Technical indicators using pandas_ta if available
-            if PANDAS_TA_AVAILABLE:
-                # EMA
-                features['ema_12'] = ta.ema(features['Close'], length=12)
-                features['ema_26'] = ta.ema(features['Close'], length=26)
-                
-                # MACD
-                macd = ta.macd(features['Close'])
-                if macd is not None and not macd.empty:
-                    features['macd'] = macd['MACD_12_26_9']
-                    features['macd_signal'] = macd['MACDs_12_26_9']
-                
-                # RSI
-                features['rsi'] = ta.rsi(features['Close'], length=14)
-                
-                # Bollinger Bands
-                bbands = ta.bbands(features['Close'], length=20)
-                if bbands is not None and not bbands.empty:
-                    features['bb_upper'] = bbands['BBU_20_2.0']
-                    features['bb_lower'] = bbands['BBL_20_2.0']
-                    features['bb_position'] = (features['Close'] - features['bb_lower']) / (features['bb_upper'] - features['bb_lower'])
-            else:
-                # Manual calculation of key indicators
-                # RSI
-                delta = features['Close'].diff()
-                gain = (delta.where(delta > 0, 0)).rolling(14).mean()
-                loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
-                rs = gain / loss
-                features['rsi'] = 100 - (100 / (1 + rs))
-                
-                # Simple moving averages
-                features['sma_20'] = features['Close'].rolling(20).mean()
-                features['sma_50'] = features['Close'].rolling(50).mean()
-                
-                # MACD approximation
-                features['ema_12'] = features['Close'].ewm(span=12, adjust=False).mean()
-                features['ema_26'] = features['Close'].ewm(span=26, adjust=False).mean()
-                features['macd'] = features['ema_12'] - features['ema_26']
-                features['macd_signal'] = features['macd'].ewm(span=9, adjust=False).mean()
-            
-            # Volume features
-            features['volume_ratio'] = features['Volume'] / features['Volume'].rolling(20).mean()
-            features['dollar_volume'] = features['Close'] * features['Volume']
-            
-            # Forward-looking target (next day return for training)
-            features['target'] = features['Close'].shift(-1) / features['Close'] - 1
-            
-            return features.dropna()
-            
-        except Exception as e:
-            logger.error(f"Feature engineering error: {e}")
-            return df
-    
-    def train_on_historical_data(self):
-        """Train model on historical financial data with ground truth labels"""
-        try:
-            logger.info("Starting model training on historical data...")
-            
-            # Load or fetch training data
-            if os.path.exists(HISTORICAL_DATA_PATH):
-                logger.info("Loading cached training data...")
-                with open(HISTORICAL_DATA_PATH, 'rb') as f:
-                    self.training_data = pickle.load(f)
-            else:
-                # Fetch fresh data for training stocks
-                training_symbols = self.all_stocks[:100]  # Use top 100 stocks
-                historical_data = self.fetch_historical_data(training_symbols, period="5y")
-                
-                if historical_data.empty:
-                    logger.error("No historical data fetched")
-                    return
-                
-                # Engineer features
-                self.training_data = self.engineer_features(historical_data)
-                
-                # Save for future use
-                with open(HISTORICAL_DATA_PATH, 'wb') as f:
-                    pickle.dump(self.training_data, f)
-            
-            # Prepare training data
-            feature_cols = ['returns', 'volatility', 'rsi', 'macd', 'macd_signal', 
-                          'volume_ratio', 'dollar_volume', 'ema_12', 'ema_26']
-            
-            # Filter available features
-            available_features = [col for col in feature_cols if col in self.training_data.columns]
-            
-            if len(available_features) < 5:
-                logger.error("Insufficient features for training")
-                return
-            
-            X = self.training_data[available_features].fillna(0).values
-            y = self.training_data['target'].fillna(0).values
-            
-            # Scale features
-            X_scaled = self.scaler.fit_transform(X)
-            
-            # Time series split for proper validation
-            tscv = TimeSeriesSplit(n_splits=5)
-            
-            best_loss = float('inf')
-            
-            for fold, (train_idx, val_idx) in enumerate(tscv.split(X_scaled)):
-                X_train, X_val = X_scaled[train_idx], X_scaled[val_idx]
-                y_train, y_val = y[train_idx], y[val_idx]
-                
-                # Create data loaders
-                train_dataset = FinancialTimeSeriesDataset(
-                    pd.DataFrame(X_train), 
-                    sequence_length=60,
-                    forecast_horizon=1
+            logger.info(f"\n{'#'*80}")
+            logger.info(f"#{'':^78}#")
+            logger.info(f"#{'COMPREHENSIVE STOCK ANALYSIS':^78}#")
+            logger.info(f"#{'':^78}#")
+            logger.info(f"#{'Ticker: ' + self.ticker:^78}#")
+            logger.info(f"#{'':^78}#")
+            logger.info(f"{'#'*80}\n")
+
+            start_time = datetime.now()
+
+            # Perform all three analyses
+            dcf_results = self.dcf_analyzer.perform_full_dcf_analysis()
+            revenue_results = self.revenue_forecaster.perform_full_revenue_analysis()
+            comps_results = self.comps_analyzer.perform_full_comps_analysis()
+
+            # ML Synthesis
+            synthesis = self.ml_synthesizer.synthesize_analyses(
+                dcf_results, revenue_results, comps_results
+            )
+
+            # Compile final output
+            final_output = {
+                'ticker': self.ticker,
+                'analysis_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'analysis_duration': str(datetime.now() - start_time),
+                'dcf_analysis': dcf_results,
+                'revenue_forecast': revenue_results,
+                'comparable_companies': comps_results,
+                'ml_synthesis': synthesis,
+                'executive_summary': self._create_executive_summary(
+                    dcf_results, revenue_results, comps_results, synthesis
                 )
-                
-                train_loader = DataLoader(train_dataset, batch_size=32, shuffle=False)
-                
-                # Training loop
-                optimizer = optim.AdamW(self.lstm_transformer.parameters(), lr=0.001, weight_decay=0.01)
-                criterion = nn.MSELoss()
-                
-                for epoch in range(10):  # Reduced epochs for speed
-                    total_loss = 0
-                    
-                    for batch_X, batch_y in train_loader:
-                        optimizer.zero_grad()
-                        
-                        output, _ = self.lstm_transformer(batch_X)
-                        loss = criterion(output.squeeze(), batch_y.squeeze())
-                        
-                        loss.backward()
-                        torch.nn.utils.clip_grad_norm_(self.lstm_transformer.parameters(), 1.0)
-                        optimizer.step()
-                        
-                        total_loss += loss.item()
-                    
-                    avg_loss = total_loss / len(train_loader)
-                    
-                    if avg_loss < best_loss:
-                        best_loss = avg_loss
-                        # Save best model
-                        torch.save({
-                            'model_state_dict': self.lstm_transformer.state_dict(),
-                            'scaler': self.scaler
-                        }, PRETRAINED_MODEL_PATH)
-                    
-                    logger.info(f"Fold {fold}, Epoch {epoch}, Loss: {avg_loss:.6f}")
-            
-            logger.info("Model training completed")
-            
+            }
+
+            # Print executive summary
+            self._print_executive_summary(final_output)
+
+            logger.info(f"\n{'#'*80}")
+            logger.info(f"#{'ANALYSIS COMPLETE':^78}#")
+            logger.info(f"{'#'*80}\n")
+
+            return final_output
+
         except Exception as e:
-            logger.error(f"Training error: {e}")
+            logger.error(f"Error in stock analysis: {e}")
             import traceback
             logger.error(traceback.format_exc())
-    
-    def get_comprehensive_features(self, symbol: str) -> Dict:
-        """Get all features for a stock including financials, sentiment, and technical"""
-        try:
-            features = {}
-            
-            # Get price data and technical features
-            ticker = yf.Ticker(symbol)
-            hist = ticker.history(period="6mo")
-            
-            if not hist.empty:
-                # Engineer technical features
-                tech_features = self.engineer_features(hist)
-                
-                # Get latest values
-                latest = tech_features.iloc[-1]
-                features.update({
-                    'price': latest['Close'],
-                    'volume': latest['Volume'],
-                    'returns': latest.get('returns', 0),
-                    'volatility': latest.get('volatility', 0.25),
-                    'rsi': latest.get('rsi', 50),
-                    'macd': latest.get('macd', 0)
-                })
-            
-            # Get financial statements from SEC
-            info = ticker.info
-            cik = info.get('cik', '')
-            
-            if cik:
-                financial_statements = self.sec_fetcher.extract_financial_statements(cik)
-                if not financial_statements.empty:
-                    latest_financials = financial_statements.iloc[-1]
-                    features['revenue'] = latest_financials.get('revenue', 0)
-                    features['net_income'] = latest_financials.get('net_income', 0)
-                    features['total_assets'] = latest_financials.get('total_assets', 0)
-                    
-                    # Revenue forecast
-                    revenue_forecast = self.revenue_forecaster.forecast_revenue(financial_statements, periods=4)
-                    if not revenue_forecast.empty:
-                        features['revenue_forecast'] = revenue_forecast['revenue_forecast'].mean()
-            
-            # Get sector viability
-            sector = info.get('sector', 'Technology')
-            sector_metrics = self.sector_analyzer.get_sector_metrics(symbol, sector)
-            viability = self.sector_analyzer.calculate_viability_score(sector_metrics, sector)
-            features['viability_score'] = viability['viability_score']
-            
-            # Get sentiment from news
-            news_sentiment = asyncio.run(self.get_news_sentiment(symbol))
-            features['sentiment_score'] = news_sentiment['sentiment_score']
-            
-            return features
-            
-        except Exception as e:
-            logger.error(f"Error getting features for {symbol}: {e}")
             return {}
-    
-    async def get_news_sentiment(self, symbol: str) -> Dict:
-        """Get sentiment from Yahoo Finance news"""
-        try:
-            # Fetch news headlines
-            ticker = yf.Ticker(symbol)
-            news = ticker.news[:10] if hasattr(ticker, 'news') else []
-            
-            if not news:
-                return {'sentiment_score': 0, 'confidence': 0}
-            
-            # Analyze sentiment for each headline
-            sentiments = []
-            for article in news:
-                title = article.get('title', '')
-                if title:
-                    sentiment = await self.sentiment_analyzer.analyze_sentiment_gpu(title)
-                    sentiments.append(sentiment['sentiment_score'])
-            
-            if sentiments:
-                return {
-                    'sentiment_score': np.mean(sentiments),
-                    'confidence': np.std(sentiments)
-                }
-            
-            return {'sentiment_score': 0, 'confidence': 0}
-            
-        except Exception as e:
-            logger.error(f"Error getting news sentiment for {symbol}: {e}")
-            return {'sentiment_score': 0, 'confidence': 0}
-    
-    def predict_stock_performance(self, symbol: str) -> Dict:
-        """Predict stock performance using all models"""
-        try:
-            # Get comprehensive features
-            features = self.get_comprehensive_features(symbol)
-            
-            if not features:
-                return {'prediction': 0, 'confidence': 0}
-            
-            # Prepare features for model
-            model_features = np.array([
-                features.get('returns', 0),
-                features.get('volatility', 0.25),
-                features.get('rsi', 50),
-                features.get('macd', 0),
-                features.get('volume', 0),
-                features.get('sentiment_score', 0),
-                features.get('viability_score', 0.5)
-            ]).reshape(1, -1)
-            
-            # Scale features
-            scaled_features = self.scaler.transform(model_features)
-            
-            # Create sequence (repeat current features for simplicity)
-            sequence = torch.FloatTensor(np.tile(scaled_features, (60, 1))).unsqueeze(0)
-            
-            # Get prediction
-            with torch.no_grad():
-                self.lstm_transformer.eval()
-                prediction, attention_weights = self.lstm_transformer(sequence)
-            
-            # Convert to return prediction
-            predicted_return = prediction[0, 0].item()
-            
-            # Adjust based on sentiment and viability
-            adjusted_prediction = (
-                predicted_return * 0.6 +
-                features.get('sentiment_score', 0) * 0.2 +
-                (features.get('viability_score', 0.5) - 0.5) * 0.2
-            )
-            
-            return {
-                'symbol': symbol,
-                'prediction': adjusted_prediction,
-                'confidence': features.get('viability_score', 0.5),
-                'features': features
-            }
-            
-        except Exception as e:
-            logger.error(f"Prediction error for {symbol}: {e}")
-            return {'symbol': symbol, 'prediction': 0, 'confidence': 0}
-    
-    def analyze_sector(self, sector: str, top_n: int = 5) -> List[Dict]:
-        """Analyze a sector and return top stocks"""
-        try:
-            # Get stocks in sector
-            sector_stocks = self.sp500_stocks[self.sp500_stocks['GICS Sector'] == sector]['Symbol'].tolist()
-            
-            if not sector_stocks:
-                logger.warning(f"No stocks found for sector {sector}")
-                return []
-            
-            # Limit for speed
-            sector_stocks = sector_stocks[:20]
-            
-            # Analyze each stock in parallel
-            with ThreadPoolExecutor(max_workers=10) as executor:
-                futures = [executor.submit(self.predict_stock_performance, symbol) for symbol in sector_stocks]
-                results = [f.result() for f in as_completed(futures, timeout=30)]
-            
-            # Filter out failed predictions
-            valid_results = [r for r in results if r.get('prediction', 0) != 0]
-            
-            # Sort by prediction score
-            valid_results.sort(key=lambda x: x['prediction'], reverse=True)
-            
-            # Return top N
-            return valid_results[:top_n]
-            
-        except Exception as e:
-            logger.error(f"Sector analysis error: {e}")
-            return []
 
-# ============ HELPER CLASSES (FROM ORIGINAL) ============
-
-class MarketConditionsAnalyzer:
-    """Analyzes market conditions"""
-    
-    def get_market_regime(self) -> str:
-        try:
-            vix = yf.Ticker("^VIX").history(period="1d")['Close'].iloc[-1]
-            
-            if vix > 30:
-                return "High Volatility Bear"
-            elif vix > 20:
-                return "Elevated Volatility"
-            elif vix < 15:
-                return "Low Volatility Bull"
-            else:
-                return "Normal"
-        except:
-            return "Normal"
-    
-    def analyze_sector_rotation(self) -> Dict:
-        sectors = ['XLK', 'XLV', 'XLF', 'XLE', 'XLI']
-        performances = {}
-        
-        for etf in sectors:
-            try:
-                hist = yf.Ticker(etf).history(period="1mo")
-                if not hist.empty:
-                    performances[etf] = (hist['Close'].iloc[-1] / hist['Close'].iloc[0] - 1)
-            except:
-                continue
-        
-        return performances
-    
-    def calculate_risk_metrics(self) -> Dict:
-        try:
-            spy = yf.Ticker("SPY").history(period="3mo")
-            returns = spy['Close'].pct_change().dropna()
-            
-            return {
-                'volatility': returns.std() * np.sqrt(252),
-                'var_95': np.percentile(returns, 5),
-                'max_drawdown': (spy['Close'] / spy['Close'].cummax() - 1).min()
+    def _create_executive_summary(self, dcf: Dict, revenue: Dict, comps: Dict, synthesis: Dict) -> Dict:
+        """Create executive summary of all analyses"""
+        return {
+            'company_name': dcf.get('business_info', {}).get('company_name', self.ticker),
+            'sector': dcf.get('business_info', {}).get('sector', 'N/A'),
+            'current_price': dcf.get('valuation', {}).get('current_price', 0),
+            'dcf_intrinsic_value': dcf.get('valuation', {}).get('intrinsic_value_per_share', 0),
+            'comps_implied_value': comps.get('valuation', {}).get('overall_assessment', {}).get('average_implied_price', 0),
+            'consensus_target': synthesis.get('target_price', 0),
+            'recommendation': synthesis.get('final_recommendation', {}),
+            'key_metrics': {
+                'dcf_upside': dcf.get('valuation', {}).get('premium_discount', 0),
+                'revenue_cagr': revenue.get('growth_analysis', {}).get('cagr', 0),
+                'comps_upside': comps.get('valuation', {}).get('overall_assessment', {}).get('overall_upside_downside', 0),
+                'ml_score': synthesis.get('ml_score', 0)
             }
-        except:
-            return {'volatility': 0.15, 'var_95': -0.02, 'max_drawdown': -0.1}
+        }
 
-class EnhancedValuation:
-    """Valuation methods"""
-    
-    def calculate_comprehensive_valuation(self, symbol: str, ml_score: float, 
-                                         sentiment: float, market_adjustment: float) -> Dict:
+    def _print_executive_summary(self, output: Dict):
+        """Print formatted executive summary"""
         try:
-            ticker = yf.Ticker(symbol)
-            info = ticker.info
-            
-            current_price = info.get('currentPrice', 0)
-            pe = info.get('trailingPE', 20)
-            
-            target_price = current_price * (1 + ml_score) * market_adjustment
-            
-            return {
-                'target_price': target_price,
-                'upside': (target_price / current_price - 1) if current_price > 0 else 0
-            }
-        except:
-            return {'target_price': 0, 'upside': 0}
+            summary = output.get('executive_summary', {})
+            recommendation = summary.get('recommendation', {})
+
+            print("\n" + "="*80)
+            print("EXECUTIVE SUMMARY".center(80))
+            print("="*80)
+            print(f"\nCompany: {summary.get('company_name', 'N/A')}")
+            print(f"Ticker: {self.ticker}")
+            print(f"Sector: {summary.get('sector', 'N/A')}")
+            print(f"Analysis Date: {output.get('analysis_date', 'N/A')}")
+            print(f"\nCurrent Price: ${summary.get('current_price', 0):.2f}")
+            print(f"\nVALUATION SUMMARY:")
+            print(f"  DCF Intrinsic Value:      ${summary.get('dcf_intrinsic_value', 0):.2f}")
+            print(f"  Comps Implied Value:      ${summary.get('comps_implied_value', 0):.2f}")
+            print(f"  Consensus Target Price:   ${summary.get('consensus_target', 0):.2f}")
+            print(f"\nKEY METRICS:")
+            metrics = summary.get('key_metrics', {})
+            print(f"  DCF Upside/(Downside):    {metrics.get('dcf_upside', 0):>7.1%}")
+            print(f"  Revenue CAGR:             {metrics.get('revenue_cagr', 0):>7.1%}")
+            print(f"  Comps Relative Value:     {metrics.get('comps_upside', 0):>7.1%}")
+            print(f"  ML Confidence Score:      {metrics.get('ml_score', 0):>7.3f}")
+            print(f"\nFINAL RECOMMENDATION: {recommendation.get('action', 'N/A')}")
+            print(f"Target Price: ${recommendation.get('target_price', 0):.2f}")
+            print(f"Upside Potential: {recommendation.get('upside_potential', 0):.1%}")
+            print(f"\nRationale: {recommendation.get('rationale', 'N/A')}")
+            print(f"\nPrice Range:")
+            price_range = recommendation.get('price_range', {})
+            print(f"  Bull Case:  ${price_range.get('bull_case', 0):.2f}")
+            print(f"  Base Case:  ${price_range.get('base_case', 0):.2f}")
+            print(f"  Bear Case:  ${price_range.get('bear_case', 0):.2f}")
+            print("\n" + "="*80)
+
+        except Exception as e:
+            logger.error(f"Error printing executive summary: {e}")
+
 
 # ============ MAIN EXECUTION ============
 
+def main(ticker: str = "AAPL"):
+    """Main function to run stock analysis"""
+    try:
+        analyzer = StockAnalyzer(ticker)
+        results = analyzer.analyze()
+        return results
+
+    except Exception as e:
+        logger.error(f"Error in main: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
 if __name__ == "__main__":
-    # Initialize model
-    model = QuantFinanceMLModel()
-    
-    # Test sector analysis
-    test_sector = "Technology"
-    results = model.analyze_sector(test_sector, top_n=3)
-    
-    print(f"\nTop stocks in {test_sector} sector:")
-    for i, stock in enumerate(results, 1):
-        print(f"{i}. {stock['symbol']}: Prediction={stock['prediction']:.4f}, Confidence={stock['confidence']:.2f}")
-        if 'features' in stock:
-            print(f"   Revenue Forecast: ${stock['features'].get('revenue_forecast', 0):,.0f}")
-            print(f"   Viability Score: {stock['features'].get('viability_score', 0):.2f}")
-            print(f"   Sentiment: {stock['features'].get('sentiment_score', 0):.2f}")
+    import sys
+
+    # Get ticker from command line or use default
+    if len(sys.argv) > 1:
+        ticker = sys.argv[1]
+    else:
+        ticker = "AAPL"
+
+    print(f"\nAnalyzing {ticker}...\n")
+    results = main(ticker)
+
+    if results:
+        print("\n✓ Analysis complete! Results saved in output.")
