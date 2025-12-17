@@ -7,7 +7,7 @@ const getApiUrl = () => {
     return 'http://localhost:8000';
   }
   // For Render.com deployment - update this to your actual backend URL
-  return process.env.REACT_APP_API_URL || 'https://autoanalyst-dz11.onrender.com';
+  return process.env.REACT_APP_API_URL || 'https://autoanalyst-1.onrender.com';
 };
 
 const API_URL = getApiUrl();
