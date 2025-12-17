@@ -15,6 +15,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.linear_model import LinearRegression
 import logging
+import time
 
 warnings.filterwarnings('ignore')
 
@@ -24,6 +25,29 @@ logger = logging.getLogger(__name__)
 
 # ============ DCF VALUATION MODULE ============
 
+def get_stock_with_retry(ticker: str, max_retries: int = 3) -> yf.Ticker:
+    """Get yfinance Ticker with retry logic for cloud environments"""
+    for attempt in range(max_retries):
+        try:
+            stock = yf.Ticker(ticker)
+            # Test if we can get info
+            info = stock.info
+            if info and (info.get('currentPrice') or info.get('regularMarketPrice') or info.get('previousClose')):
+                logger.info(f"Successfully fetched data for {ticker} on attempt {attempt + 1}")
+                return stock
+            # If no price, wait and retry
+            if attempt < max_retries - 1:
+                logger.warning(f"No price data for {ticker} on attempt {attempt + 1}, retrying...")
+                time.sleep(2)
+        except Exception as e:
+            logger.warning(f"Attempt {attempt + 1} failed for {ticker}: {e}")
+            if attempt < max_retries - 1:
+                time.sleep(2)
+    # Return stock anyway on final attempt
+    logger.warning(f"Returning stock for {ticker} after {max_retries} attempts (may have incomplete data)")
+    return yf.Ticker(ticker)
+
+
 class DCFValuation:
     """
     Discounted Cash Flow Valuation following the complete 6-step methodology
@@ -31,7 +55,7 @@ class DCFValuation:
 
     def __init__(self, ticker: str):
         self.ticker = ticker
-        self.stock = yf.Ticker(ticker)
+        self.stock = get_stock_with_retry(ticker)
         self.info = {}
         self.financials = pd.DataFrame()
         self.balance_sheet = pd.DataFrame()
@@ -43,23 +67,32 @@ class DCFValuation:
         try:
             logger.info(f"DCF Step 1: Understanding {self.ticker} business...")
 
-            self.info = self.stock.info
+            self.info = self.stock.info or {}
             self.financials = self.stock.financials
             self.balance_sheet = self.stock.balance_sheet
             self.cash_flow = self.stock.cashflow
 
+            # Get current price with fallbacks
+            current_price = (
+                self.info.get('currentPrice') or
+                self.info.get('regularMarketPrice') or
+                self.info.get('previousClose') or
+                0
+            )
+
             business_info = {
-                'company_name': self.info.get('longName', self.ticker),
-                'sector': self.info.get('sector', 'Unknown'),
-                'industry': self.info.get('industry', 'Unknown'),
-                'market_cap': self.info.get('marketCap', 0),
-                'current_price': self.info.get('currentPrice', 0),
-                'shares_outstanding': self.info.get('sharesOutstanding', 0),
-                'description': self.info.get('longBusinessSummary', '')[:200] + '...'
+                'company_name': self.info.get('longName') or self.info.get('shortName') or self.ticker,
+                'sector': self.info.get('sector') or 'Unknown',
+                'industry': self.info.get('industry') or 'Unknown',
+                'market_cap': self.info.get('marketCap') or 0,
+                'current_price': current_price,
+                'shares_outstanding': self.info.get('sharesOutstanding') or 0,
+                'description': (self.info.get('longBusinessSummary') or '')[:200] + '...'
             }
 
             logger.info(f"  Company: {business_info['company_name']}")
             logger.info(f"  Sector: {business_info['sector']}")
+            logger.info(f"  Current Price: ${current_price}")
 
             return business_info
 
@@ -434,8 +467,13 @@ class DCFValuation:
             shares_outstanding = self.info.get('sharesOutstanding', 1)
             intrinsic_value_per_share = equity_value / shares_outstanding if shares_outstanding > 0 else 0
 
-            # Current market price
-            current_price = self.info.get('currentPrice', 0)
+            # Current market price (with fallbacks)
+            current_price = (
+                self.info.get('currentPrice') or
+                self.info.get('regularMarketPrice') or
+                self.info.get('previousClose') or
+                0
+            )
 
             # Valuation metrics
             if current_price > 0:
@@ -609,7 +647,7 @@ class RevenueForecaster:
 
     def __init__(self, ticker: str):
         self.ticker = ticker
-        self.stock = yf.Ticker(ticker)
+        self.stock = get_stock_with_retry(ticker)
         self.historical_data = pd.DataFrame()
 
     def gather_revenue_data(self) -> pd.DataFrame:
@@ -906,7 +944,7 @@ class ComparableCompanyAnalysis:
 
     def __init__(self, ticker: str):
         self.ticker = ticker
-        self.stock = yf.Ticker(ticker)
+        self.stock = get_stock_with_retry(ticker)
         self.peer_group = []
         self.peer_data = {}
 
