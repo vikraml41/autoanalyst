@@ -5,12 +5,14 @@ With ML-powered synthesis for hedge fund-style insights
 """
 
 import sys
+import os
 import warnings
 import pandas as pd
 import numpy as np
 import yfinance as yf
+import requests
 from datetime import datetime
-from typing import Dict, List
+from typing import Dict, List, Optional, Tuple
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.linear_model import LinearRegression
@@ -23,29 +25,122 @@ warnings.filterwarnings('ignore')
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# ============ DCF VALUATION MODULE ============
+# ============ DATA FETCHING MODULE ============
 
-def get_stock_with_retry(ticker: str, max_retries: int = 3) -> yf.Ticker:
-    """Get yfinance Ticker with retry logic for cloud environments"""
+# Get proxy URL from environment variable
+PROXY_URL = os.environ.get('PROXY_URL')
+
+class DataFetchError(Exception):
+    """Raised when stock data cannot be fetched"""
+    pass
+
+
+def fetch_stock_data(ticker: str, max_retries: int = 3) -> Tuple[yf.Ticker, Dict, float]:
+    """
+    Fetch stock data using yfinance with proxy support.
+    Returns (stock, info_dict, current_price).
+    Raises DataFetchError if data cannot be retrieved.
+    """
+    last_error = None
+
+    # Configure proxy if available
+    proxies = None
+    if PROXY_URL:
+        proxies = {
+            'http': PROXY_URL,
+            'https': PROXY_URL
+        }
+        logger.info(f"Using proxy: {PROXY_URL[:30]}...")
+
     for attempt in range(max_retries):
         try:
-            stock = yf.Ticker(ticker)
-            # Test if we can get info
-            info = stock.info
-            if info and (info.get('currentPrice') or info.get('regularMarketPrice') or info.get('previousClose')):
-                logger.info(f"Successfully fetched data for {ticker} on attempt {attempt + 1}")
-                return stock
-            # If no price, wait and retry
+            logger.info(f"Fetching data for {ticker}, attempt {attempt + 1}/{max_retries}")
+
+            # Create a session with proxy
+            session = requests.Session()
+            if proxies:
+                session.proxies.update(proxies)
+
+            # Try yfinance download method first (more reliable with proxies)
+            try:
+                df = yf.download(ticker, period="5d", progress=False, session=session if proxies else None)
+                if not df.empty and 'Close' in df.columns:
+                    current_price = float(df['Close'].iloc[-1])
+                    if current_price and current_price > 0:
+                        logger.info(f"Successfully fetched {ticker} via download - Price: ${current_price}")
+
+                        # Now get additional info
+                        stock = yf.Ticker(ticker, session=session if proxies else None)
+                        info = {}
+                        try:
+                            info = stock.info or {}
+                        except:
+                            pass
+
+                        info['currentPrice'] = current_price
+                        return stock, info, current_price
+            except Exception as e:
+                logger.warning(f"yf.download failed: {e}")
+
+            # Try Ticker directly
+            stock = yf.Ticker(ticker, session=session if proxies else None)
+
+            # Method 1: Try standard info
+            try:
+                info = stock.info
+                if info:
+                    current_price = info.get('currentPrice') or info.get('regularMarketPrice') or info.get('previousClose')
+                    if current_price and current_price > 0:
+                        logger.info(f"Successfully fetched {ticker} via info - Price: ${current_price}")
+                        return stock, info, current_price
+            except Exception as e:
+                logger.warning(f"stock.info failed: {e}")
+                info = {}
+
+            # Method 2: Try fast_info
+            try:
+                fast_info = stock.fast_info
+                if hasattr(fast_info, 'last_price') and fast_info.last_price:
+                    current_price = fast_info.last_price
+                    logger.info(f"Successfully fetched {ticker} via fast_info - Price: ${current_price}")
+                    info = {
+                        'currentPrice': current_price,
+                        'marketCap': getattr(fast_info, 'market_cap', None),
+                        'sharesOutstanding': getattr(fast_info, 'shares', None),
+                    }
+                    return stock, info, current_price
+            except Exception as e:
+                logger.warning(f"fast_info failed: {e}")
+
+            # Method 3: Try historical data
+            try:
+                hist = stock.history(period="5d")
+                if not hist.empty and 'Close' in hist.columns:
+                    current_price = float(hist['Close'].iloc[-1])
+                    if current_price and current_price > 0:
+                        logger.info(f"Successfully fetched {ticker} via history - Price: ${current_price}")
+                        info['currentPrice'] = current_price
+                        return stock, info, current_price
+            except Exception as e:
+                logger.warning(f"history fetch failed: {e}")
+
+            # If we got here, no method worked - wait and retry
             if attempt < max_retries - 1:
-                logger.warning(f"No price data for {ticker} on attempt {attempt + 1}, retrying...")
+                logger.warning(f"No valid data for {ticker} on attempt {attempt + 1}, waiting before retry...")
                 time.sleep(2)
+
         except Exception as e:
-            logger.warning(f"Attempt {attempt + 1} failed for {ticker}: {e}")
+            last_error = e
+            logger.error(f"Error on attempt {attempt + 1} for {ticker}: {e}")
             if attempt < max_retries - 1:
                 time.sleep(2)
-    # Return stock anyway on final attempt
-    logger.warning(f"Returning stock for {ticker} after {max_retries} attempts (may have incomplete data)")
-    return yf.Ticker(ticker)
+
+    # All attempts failed
+    error_msg = f"Failed to fetch data for {ticker} after {max_retries} attempts"
+    if last_error:
+        error_msg += f": {last_error}"
+    logger.error(error_msg)
+    raise DataFetchError(error_msg)
 
 
 class DCFValuation:
@@ -55,50 +150,51 @@ class DCFValuation:
 
     def __init__(self, ticker: str):
         self.ticker = ticker
-        self.stock = get_stock_with_retry(ticker)
+        self.stock = None
         self.info = {}
+        self.current_price = None
         self.financials = pd.DataFrame()
         self.balance_sheet = pd.DataFrame()
         self.cash_flow = pd.DataFrame()
         self.analysis_results = {}
+        self.data_error = None
 
     def step1_understand_business(self) -> Dict:
         """Step 1: Gather company information and understand the business"""
         try:
             logger.info(f"DCF Step 1: Understanding {self.ticker} business...")
 
-            self.info = self.stock.info or {}
+            # Fetch stock data - will raise DataFetchError if it fails
+            self.stock, self.info, self.current_price = fetch_stock_data(self.ticker)
+
             self.financials = self.stock.financials
             self.balance_sheet = self.stock.balance_sheet
             self.cash_flow = self.stock.cashflow
 
-            # Get current price with fallbacks
-            current_price = (
-                self.info.get('currentPrice') or
-                self.info.get('regularMarketPrice') or
-                self.info.get('previousClose') or
-                0
-            )
-
+            # No fallbacks - use actual data or None
             business_info = {
                 'company_name': self.info.get('longName') or self.info.get('shortName') or self.ticker,
-                'sector': self.info.get('sector') or 'Unknown',
-                'industry': self.info.get('industry') or 'Unknown',
-                'market_cap': self.info.get('marketCap') or 0,
-                'current_price': current_price,
-                'shares_outstanding': self.info.get('sharesOutstanding') or 0,
-                'description': (self.info.get('longBusinessSummary') or '')[:200] + '...'
+                'sector': self.info.get('sector'),
+                'industry': self.info.get('industry'),
+                'market_cap': self.info.get('marketCap'),
+                'current_price': self.current_price,
+                'shares_outstanding': self.info.get('sharesOutstanding'),
+                'description': (self.info.get('longBusinessSummary') or '')[:200] if self.info.get('longBusinessSummary') else None
             }
 
             logger.info(f"  Company: {business_info['company_name']}")
             logger.info(f"  Sector: {business_info['sector']}")
-            logger.info(f"  Current Price: ${current_price}")
+            logger.info(f"  Current Price: ${self.current_price}")
 
             return business_info
 
+        except DataFetchError as e:
+            self.data_error = str(e)
+            logger.error(f"Data fetch error in DCF Step 1: {e}")
+            raise
         except Exception as e:
             logger.error(f"Error in DCF Step 1: {e}")
-            return {}
+            raise DataFetchError(f"Failed to analyze {self.ticker}: {e}")
 
     def step2_forecast_cash_flows(self, forecast_years: int = 5) -> Dict:
         """Step 2: Forecast future cash flows using multiple methods"""
@@ -467,13 +563,8 @@ class DCFValuation:
             shares_outstanding = self.info.get('sharesOutstanding', 1)
             intrinsic_value_per_share = equity_value / shares_outstanding if shares_outstanding > 0 else 0
 
-            # Current market price (with fallbacks)
-            current_price = (
-                self.info.get('currentPrice') or
-                self.info.get('regularMarketPrice') or
-                self.info.get('previousClose') or
-                0
-            )
+            # Current market price (stored from step1)
+            current_price = self.current_price
 
             # Valuation metrics
             if current_price > 0:
@@ -645,9 +736,14 @@ class RevenueForecaster:
     Advanced revenue forecasting using multiple methodologies
     """
 
-    def __init__(self, ticker: str):
+    def __init__(self, ticker: str, stock: yf.Ticker = None, info: Dict = None):
         self.ticker = ticker
-        self.stock = get_stock_with_retry(ticker)
+        # Reuse stock object if provided, otherwise fetch new
+        if stock is not None:
+            self.stock = stock
+            self.info = info or {}
+        else:
+            self.stock, self.info, _ = fetch_stock_data(ticker)
         self.historical_data = pd.DataFrame()
 
     def gather_revenue_data(self) -> pd.DataFrame:
@@ -942,9 +1038,15 @@ class ComparableCompanyAnalysis:
     Comparable Company Analysis (Trading Comps) following 5-step methodology
     """
 
-    def __init__(self, ticker: str):
+    def __init__(self, ticker: str, stock: yf.Ticker = None, info: Dict = None, current_price: float = None):
         self.ticker = ticker
-        self.stock = get_stock_with_retry(ticker)
+        # Reuse stock object if provided, otherwise fetch new
+        if stock is not None:
+            self.stock = stock
+            self.info = info or {}
+            self.current_price = current_price
+        else:
+            self.stock, self.info, self.current_price = fetch_stock_data(ticker)
         self.peer_group = []
         self.peer_data = {}
 
@@ -1660,9 +1762,11 @@ class StockAnalyzer:
 
     def __init__(self, ticker: str):
         self.ticker = ticker.upper()
+        # Initialize DCF first to fetch data
         self.dcf_analyzer = DCFValuation(self.ticker)
-        self.revenue_forecaster = RevenueForecaster(self.ticker)
-        self.comps_analyzer = ComparableCompanyAnalysis(self.ticker)
+        # Will share stock object after DCF fetches it
+        self.revenue_forecaster = None
+        self.comps_analyzer = None
         self.ml_synthesizer = MLSynthesisModel()
 
     def analyze(self) -> Dict:
@@ -1678,8 +1782,23 @@ class StockAnalyzer:
 
             start_time = datetime.now()
 
-            # Perform all three analyses
+            # Perform DCF analysis first (this fetches the stock data)
             dcf_results = self.dcf_analyzer.perform_full_dcf_analysis()
+
+            # Now initialize other analyzers with the shared stock object
+            self.revenue_forecaster = RevenueForecaster(
+                self.ticker,
+                stock=self.dcf_analyzer.stock,
+                info=self.dcf_analyzer.info
+            )
+            self.comps_analyzer = ComparableCompanyAnalysis(
+                self.ticker,
+                stock=self.dcf_analyzer.stock,
+                info=self.dcf_analyzer.info,
+                current_price=self.dcf_analyzer.current_price
+            )
+
+            # Perform remaining analyses
             revenue_results = self.revenue_forecaster.perform_full_revenue_analysis()
             comps_results = self.comps_analyzer.perform_full_comps_analysis()
 
