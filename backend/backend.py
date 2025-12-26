@@ -38,7 +38,12 @@ class YahooFinanceScraper:
     """Direct scraper for Yahoo Finance using their JSON API endpoints"""
 
     HEADERS = {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
     }
 
     def __init__(self, ticker: str):
@@ -55,46 +60,112 @@ class YahooFinanceScraper:
         """Fetch JSON from Yahoo Finance API"""
         for attempt in range(max_retries):
             try:
-                response = self.session.get(url, timeout=15)
+                logger.info(f"Fetching JSON (attempt {attempt + 1}): {url}")
+                response = self.session.get(url, timeout=20)
+                logger.info(f"Response status: {response.status_code}, length: {len(response.text)}")
+
                 if response.status_code == 200:
-                    return response.json()
-                logger.warning(f"Got status {response.status_code} for {url}")
+                    try:
+                        return response.json()
+                    except json.JSONDecodeError as je:
+                        logger.error(f"JSON decode error: {je}. Response text: {response.text[:500]}")
+                elif response.status_code == 429:
+                    logger.warning(f"Rate limited (429). Waiting before retry...")
+                    time.sleep(5)
+                else:
+                    logger.warning(f"Got status {response.status_code}. Response: {response.text[:300]}")
+            except requests.exceptions.Timeout:
+                logger.warning(f"Timeout on attempt {attempt + 1} for {url}")
+            except requests.exceptions.ConnectionError as ce:
+                logger.error(f"Connection error on attempt {attempt + 1}: {ce}")
             except Exception as e:
-                logger.warning(f"Attempt {attempt + 1} failed for {url}: {e}")
+                logger.error(f"Unexpected error on attempt {attempt + 1} for {url}: {type(e).__name__}: {e}")
             if attempt < max_retries - 1:
-                time.sleep(1)
+                time.sleep(2)
         return None
 
     def _fetch_page(self, url: str, max_retries: int = 3) -> Optional[str]:
         """Fetch HTML page"""
         for attempt in range(max_retries):
             try:
-                response = self.session.get(url, timeout=15)
+                logger.info(f"Fetching page (attempt {attempt + 1}): {url}")
+                response = self.session.get(url, timeout=20)
+                logger.info(f"Response status: {response.status_code}, length: {len(response.text)}")
+
                 if response.status_code == 200:
                     return response.text
-                logger.warning(f"Got status {response.status_code} for {url}")
+                elif response.status_code == 429:
+                    logger.warning(f"Rate limited (429). Waiting before retry...")
+                    time.sleep(5)
+                else:
+                    logger.warning(f"Got status {response.status_code}. Response preview: {response.text[:200]}")
+            except requests.exceptions.Timeout:
+                logger.warning(f"Timeout on attempt {attempt + 1} for {url}")
+            except requests.exceptions.ConnectionError as ce:
+                logger.error(f"Connection error on attempt {attempt + 1}: {ce}")
             except Exception as e:
-                logger.warning(f"Attempt {attempt + 1} failed for {url}: {e}")
+                logger.error(f"Unexpected error on attempt {attempt + 1} for {url}: {type(e).__name__}: {e}")
             if attempt < max_retries - 1:
-                time.sleep(1)
+                time.sleep(2)
         return None
 
     def _get_crumb(self) -> Optional[str]:
         """Get Yahoo Finance crumb for API authentication"""
         try:
+            logger.info("Fetching Yahoo Finance crumb...")
             # First visit the main page to get cookies
-            self.session.get("https://finance.yahoo.com", timeout=10)
+            main_resp = self.session.get("https://finance.yahoo.com", timeout=15)
+            logger.info(f"Main page status: {main_resp.status_code}, cookies: {len(self.session.cookies)}")
+
             # Get crumb
             crumb_url = "https://query1.finance.yahoo.com/v1/test/getcrumb"
-            response = self.session.get(crumb_url, timeout=10)
+            response = self.session.get(crumb_url, timeout=15)
+            logger.info(f"Crumb response status: {response.status_code}")
+
             if response.status_code == 200:
-                return response.text
-        except:
-            pass
+                crumb = response.text
+                logger.info(f"Got crumb: {crumb[:10]}..." if len(crumb) > 10 else f"Got crumb: {crumb}")
+                return crumb
+            else:
+                logger.warning(f"Failed to get crumb. Status: {response.status_code}")
+        except Exception as e:
+            logger.error(f"Error getting crumb: {type(e).__name__}: {e}")
         return None
 
     def fetch_quote_data(self) -> Dict:
         """Fetch current price and basic info using Yahoo Finance chart API"""
+        logger.info(f"=== Starting fetch_quote_data for {self.ticker} ===")
+
+        # Try Method 1: Chart API (primary)
+        try:
+            data = self._try_chart_api()
+            if data:
+                return data
+        except Exception as e:
+            logger.warning(f"Chart API failed: {e}")
+
+        # Try Method 2: Quote page scraping (fallback)
+        try:
+            data = self._try_quote_page_scraping()
+            if data:
+                return data
+        except Exception as e:
+            logger.warning(f"Quote page scraping failed: {e}")
+
+        # Try Method 3: quoteSummary API (second fallback)
+        try:
+            data = self._try_quote_summary_api()
+            if data:
+                return data
+        except Exception as e:
+            logger.warning(f"Quote summary API failed: {e}")
+
+        raise DataFetchError(f"All methods failed to fetch data for {self.ticker}. Yahoo Finance may be blocking this server's IP.")
+
+    def _try_chart_api(self) -> Optional[Dict]:
+        """Try Yahoo Finance chart API"""
+        logger.info(f"Trying chart API for {self.ticker}...")
+
         # Get crumb for authentication
         crumb = self._get_crumb()
 
@@ -102,25 +173,26 @@ class YahooFinanceScraper:
         url = f"https://query1.finance.yahoo.com/v8/finance/chart/{self.ticker}?interval=1d&range=5d"
         if crumb:
             url += f"&crumb={crumb}"
-        logger.info(f"Fetching quote data from Yahoo Finance API for {self.ticker}")
 
         data = self._fetch_json(url)
         if not data:
-            raise DataFetchError(f"Failed to fetch data for {self.ticker}")
+            return None
 
         result = data.get('chart', {}).get('result')
         if not result:
             error = data.get('chart', {}).get('error', {})
-            raise DataFetchError(f"No data for {self.ticker}: {error.get('description', 'Unknown error')}")
+            logger.warning(f"Chart API error: {error}")
+            return None
 
         meta = result[0].get('meta', {})
         price = meta.get('regularMarketPrice')
 
         if not price:
-            raise DataFetchError(f"Could not find price for {self.ticker}")
+            logger.warning(f"No price in chart API response")
+            return None
 
         self.current_price = price
-        logger.info(f"Found price for {self.ticker}: ${price}")
+        logger.info(f"Chart API: Found price for {self.ticker}: ${price}")
 
         # Build info dict from meta
         self.info = {
@@ -138,6 +210,107 @@ class YahooFinanceScraper:
         # Try to get additional info from the quote page
         self._enrich_from_page()
 
+        return self.info
+
+    def _try_quote_page_scraping(self) -> Optional[Dict]:
+        """Try scraping price directly from Yahoo Finance quote page"""
+        logger.info(f"Trying quote page scraping for {self.ticker}...")
+
+        url = f"https://finance.yahoo.com/quote/{self.ticker}"
+        html = self._fetch_page(url)
+        if not html:
+            return None
+
+        try:
+            # Look for price in the page JSON data
+            import re
+
+            # Try multiple patterns to find the price
+            patterns = [
+                r'"regularMarketPrice":\s*\{\s*"raw":\s*([\d.]+)',
+                r'data-value="([\d.]+)"[^>]*data-field="regularMarketPrice"',
+                r'"regularMarketPrice":\s*([\d.]+)',
+                r'class="Fw\(b\)[^"]*"[^>]*>([\d,.]+)</fin-streamer>',
+            ]
+
+            price = None
+            for pattern in patterns:
+                match = re.search(pattern, html)
+                if match:
+                    price_str = match.group(1).replace(',', '')
+                    price = float(price_str)
+                    logger.info(f"Quote page scraping: Found price {price} with pattern")
+                    break
+
+            if not price:
+                logger.warning("Could not extract price from quote page")
+                return None
+
+            self.current_price = price
+
+            # Extract other info
+            name_match = re.search(r'"longName":\s*"([^"]+)"', html)
+            sector_match = re.search(r'"sector":\s*"([^"]+)"', html)
+            industry_match = re.search(r'"industry":\s*"([^"]+)"', html)
+            market_cap_match = re.search(r'"marketCap":\s*\{\s*"raw":\s*([\d.]+)', html)
+
+            self.info = {
+                'currentPrice': price,
+                'regularMarketPrice': price,
+                'longName': name_match.group(1) if name_match else self.ticker,
+                'sector': sector_match.group(1) if sector_match else None,
+                'industry': industry_match.group(1) if industry_match else None,
+                'marketCap': float(market_cap_match.group(1)) if market_cap_match else None,
+            }
+
+            logger.info(f"Quote page scraping: Successfully extracted data for {self.ticker}")
+            return self.info
+
+        except Exception as e:
+            logger.error(f"Error parsing quote page: {e}")
+            return None
+
+    def _try_quote_summary_api(self) -> Optional[Dict]:
+        """Try Yahoo Finance quoteSummary API"""
+        logger.info(f"Trying quoteSummary API for {self.ticker}...")
+
+        crumb = self._get_crumb()
+        modules = "price,summaryDetail,defaultKeyStatistics"
+        url = f"https://query1.finance.yahoo.com/v10/finance/quoteSummary/{self.ticker}?modules={modules}"
+        if crumb:
+            url += f"&crumb={crumb}"
+
+        data = self._fetch_json(url)
+        if not data:
+            return None
+
+        result = data.get('quoteSummary', {}).get('result')
+        if not result or len(result) == 0:
+            logger.warning("No data in quoteSummary response")
+            return None
+
+        quote_data = result[0]
+        price_info = quote_data.get('price', {})
+        summary_detail = quote_data.get('summaryDetail', {})
+
+        price = price_info.get('regularMarketPrice', {}).get('raw')
+        if not price:
+            logger.warning("No price in quoteSummary response")
+            return None
+
+        self.current_price = price
+        logger.info(f"quoteSummary API: Found price for {self.ticker}: ${price}")
+
+        self.info = {
+            'currentPrice': price,
+            'regularMarketPrice': price,
+            'longName': price_info.get('longName') or price_info.get('shortName') or self.ticker,
+            'shortName': price_info.get('shortName'),
+            'marketCap': price_info.get('marketCap', {}).get('raw'),
+            'trailingPE': summary_detail.get('trailingPE', {}).get('raw'),
+        }
+
+        self._enrich_from_page()
         return self.info
 
     def _enrich_from_page(self):
