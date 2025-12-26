@@ -6,6 +6,7 @@ With ML-powered synthesis for hedge fund-style insights
 
 import sys
 import warnings
+import os
 import pandas as pd
 import numpy as np
 import requests
@@ -22,6 +23,9 @@ import logging
 import time
 
 warnings.filterwarnings('ignore')
+
+# API Keys from environment variables
+FMP_API_KEY = os.environ.get('FMP_API_KEY', 'demo')
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -424,21 +428,194 @@ class YahooFinanceScraper:
         return self, self.info, self.current_price
 
 
+# ============ FINANCIAL MODELING PREP API ============
+
+class FMPDataFetcher:
+    """Fetch stock data from Financial Modeling Prep API - cloud-friendly alternative"""
+
+    BASE_URL = "https://financialmodelingprep.com/api/v3"
+
+    def __init__(self, ticker: str):
+        self.ticker = ticker.upper()
+        self.api_key = FMP_API_KEY
+        self.info = {}
+        self.financials = pd.DataFrame()
+        self.balance_sheet = pd.DataFrame()
+        self.cash_flow = pd.DataFrame()
+        self.current_price = None
+
+    def _fetch_json(self, endpoint: str) -> Optional[Dict]:
+        """Fetch JSON from FMP API"""
+        url = f"{self.BASE_URL}/{endpoint}?apikey={self.api_key}"
+        try:
+            logger.info(f"FMP API: Fetching {endpoint}")
+            response = requests.get(url, timeout=15)
+            logger.info(f"FMP API: Response status {response.status_code}")
+
+            if response.status_code == 200:
+                data = response.json()
+                if isinstance(data, list) and len(data) > 0:
+                    return data
+                elif isinstance(data, dict):
+                    return data
+                else:
+                    logger.warning(f"FMP API: Empty response for {endpoint}")
+            else:
+                logger.warning(f"FMP API: Got status {response.status_code}")
+        except Exception as e:
+            logger.error(f"FMP API error: {e}")
+        return None
+
+    def fetch_quote_data(self) -> Dict:
+        """Fetch current price and company info"""
+        logger.info(f"=== FMP API: Fetching quote data for {self.ticker} ===")
+
+        # Get real-time quote
+        quote_data = self._fetch_json(f"quote/{self.ticker}")
+        if not quote_data or len(quote_data) == 0:
+            raise DataFetchError(f"FMP API: No quote data for {self.ticker}")
+
+        quote = quote_data[0]
+        price = quote.get('price')
+
+        if not price:
+            raise DataFetchError(f"FMP API: No price for {self.ticker}")
+
+        self.current_price = price
+        logger.info(f"FMP API: Found price for {self.ticker}: ${price}")
+
+        # Get company profile for additional info
+        profile_data = self._fetch_json(f"profile/{self.ticker}")
+        profile = profile_data[0] if profile_data and len(profile_data) > 0 else {}
+
+        self.info = {
+            'currentPrice': price,
+            'regularMarketPrice': price,
+            'longName': profile.get('companyName') or quote.get('name') or self.ticker,
+            'shortName': quote.get('name'),
+            'sector': profile.get('sector'),
+            'industry': profile.get('industry'),
+            'marketCap': quote.get('marketCap'),
+            'sharesOutstanding': quote.get('sharesOutstanding'),
+            'trailingPE': quote.get('pe'),
+            'priceToSalesTrailing12Months': profile.get('priceToSalesRatio'),
+            'priceToBook': profile.get('priceToBook'),
+            'enterpriseValue': profile.get('enterpriseValue'),
+            'beta': profile.get('beta'),
+            'previousClose': quote.get('previousClose'),
+            'longBusinessSummary': profile.get('description', '')[:500] if profile.get('description') else None,
+        }
+
+        return self.info
+
+    def fetch_financials(self) -> pd.DataFrame:
+        """Fetch income statement data"""
+        data = self._fetch_json(f"income-statement/{self.ticker}?limit=5")
+        if not data:
+            return pd.DataFrame()
+
+        return self._to_dataframe(data, {
+            'Total Revenue': 'revenue',
+            'Net Income': 'netIncome',
+            'Operating Income': 'operatingIncome',
+            'EBIT': 'operatingIncome',
+            'EBITDA': 'ebitda',
+            'Interest Expense': 'interestExpense',
+        })
+
+    def fetch_balance_sheet(self) -> pd.DataFrame:
+        """Fetch balance sheet data"""
+        data = self._fetch_json(f"balance-sheet-statement/{self.ticker}?limit=5")
+        if not data:
+            return pd.DataFrame()
+
+        return self._to_dataframe(data, {
+            'Total Assets': 'totalAssets',
+            'Total Liabilities': 'totalLiabilities',
+            'Total Equity': 'totalStockholdersEquity',
+            'Total Debt': 'totalDebt',
+            'Cash And Cash Equivalents': 'cashAndCashEquivalents',
+        })
+
+    def fetch_cash_flow(self) -> pd.DataFrame:
+        """Fetch cash flow data"""
+        data = self._fetch_json(f"cash-flow-statement/{self.ticker}?limit=5")
+        if not data:
+            return pd.DataFrame()
+
+        return self._to_dataframe(data, {
+            'Operating Cash Flow': 'operatingCashFlow',
+            'Capital Expenditure': 'capitalExpenditure',
+            'Free Cash Flow': 'freeCashFlow',
+            'Depreciation And Amortization': 'depreciationAndAmortization',
+        })
+
+    def _to_dataframe(self, data: List[Dict], field_mapping: Dict[str, str]) -> pd.DataFrame:
+        """Convert FMP API data to DataFrame format compatible with existing code"""
+        result = {}
+        for row_name, api_field in field_mapping.items():
+            row_data = {}
+            for item in data:
+                date = item.get('date', 'Unknown')
+                value = item.get(api_field)
+                if value is not None:
+                    row_data[date] = value
+            if row_data:
+                result[row_name] = row_data
+
+        if result:
+            return pd.DataFrame(result).T
+        return pd.DataFrame()
+
+    def fetch_all_data(self) -> Tuple['FMPDataFetcher', Dict, float]:
+        """Fetch all data and return in format compatible with existing code"""
+        self.fetch_quote_data()
+        self.financials = self.fetch_financials()
+        self.balance_sheet = self.fetch_balance_sheet()
+        self.cash_flow = self.fetch_cash_flow()
+
+        return self, self.info, self.current_price
+
+
 def fetch_stock_data(ticker: str, max_retries: int = 3) -> Tuple[Any, Dict, float]:
     """
-    Fetch stock data using Yahoo Finance API and web scraping.
-    Returns (scraper_object, info_dict, current_price).
+    Fetch stock data using multiple sources with fallback.
+    Tries FMP API first (cloud-friendly), then Yahoo Finance.
+    Returns (data_object, info_dict, current_price).
     Raises DataFetchError if data cannot be retrieved.
     """
-    logger.info(f"Fetching data for {ticker}")
+    logger.info(f"=== Fetching data for {ticker} ===")
+    errors = []
 
+    # Try Financial Modeling Prep API first (works on cloud servers)
+    if FMP_API_KEY and FMP_API_KEY != 'demo':
+        try:
+            logger.info(f"Trying FMP API for {ticker}...")
+            fetcher = FMPDataFetcher(ticker)
+            return fetcher.fetch_all_data()
+        except DataFetchError as e:
+            logger.warning(f"FMP API failed: {e}")
+            errors.append(f"FMP: {e}")
+        except Exception as e:
+            logger.warning(f"FMP API error: {e}")
+            errors.append(f"FMP: {e}")
+    else:
+        logger.info("No FMP API key configured, skipping FMP")
+
+    # Fallback to Yahoo Finance scraping
     try:
+        logger.info(f"Trying Yahoo Finance for {ticker}...")
         scraper = YahooFinanceScraper(ticker)
         return scraper.fetch_all_data()
-    except DataFetchError:
-        raise
+    except DataFetchError as e:
+        errors.append(f"Yahoo: {e}")
     except Exception as e:
-        raise DataFetchError(f"Failed to fetch data for {ticker}: {e}")
+        errors.append(f"Yahoo: {e}")
+
+    # All methods failed
+    error_msg = f"All data sources failed for {ticker}. Errors: {'; '.join(errors)}"
+    logger.error(error_msg)
+    raise DataFetchError(error_msg)
 
 
 class DCFValuation:
