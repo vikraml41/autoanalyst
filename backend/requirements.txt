@@ -9,8 +9,6 @@ numpy==1.26.2
 # Machine Learning (minimal for stock analyzer)
 scikit-learn==1.3.2
 
-# Financial Data
-yfinance==0.2.32
-
-# Basic utilities
+# Web Scraping
+beautifulsoup4==4.12.2
 requests==2.31.0

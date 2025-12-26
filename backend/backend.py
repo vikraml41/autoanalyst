@@ -5,14 +5,16 @@ With ML-powered synthesis for hedge fund-style insights
 """
 
 import sys
-import os
 import warnings
 import pandas as pd
 import numpy as np
-import yfinance as yf
 import requests
+import re
+import json
+from bs4 import BeautifulSoup
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
+
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.linear_model import LinearRegression
@@ -25,122 +27,245 @@ warnings.filterwarnings('ignore')
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# ============ DATA FETCHING MODULE ============
-
-# Get proxy URL from environment variable
-PROXY_URL = os.environ.get('PROXY_URL')
+# ============ YAHOO FINANCE SCRAPER ============
 
 class DataFetchError(Exception):
     """Raised when stock data cannot be fetched"""
     pass
 
 
-def fetch_stock_data(ticker: str, max_retries: int = 3) -> Tuple[yf.Ticker, Dict, float]:
-    """
-    Fetch stock data using yfinance with proxy support.
-    Returns (stock, info_dict, current_price).
-    Raises DataFetchError if data cannot be retrieved.
-    """
-    last_error = None
+class YahooFinanceScraper:
+    """Direct scraper for Yahoo Finance using their JSON API endpoints"""
 
-    # Configure proxy if available
-    proxies = None
-    if PROXY_URL:
-        proxies = {
-            'http': PROXY_URL,
-            'https': PROXY_URL
-        }
-        logger.info(f"Using proxy: {PROXY_URL[:30]}...")
+    HEADERS = {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    }
 
-    for attempt in range(max_retries):
-        try:
-            logger.info(f"Fetching data for {ticker}, attempt {attempt + 1}/{max_retries}")
+    def __init__(self, ticker: str):
+        self.ticker = ticker.upper()
+        self.session = requests.Session()
+        self.session.headers.update(self.HEADERS)
+        self.info = {}
+        self.financials = pd.DataFrame()
+        self.balance_sheet = pd.DataFrame()
+        self.cash_flow = pd.DataFrame()
+        self.current_price = None
 
-            # Create a session with proxy
-            session = requests.Session()
-            if proxies:
-                session.proxies.update(proxies)
-
-            # Try yfinance download method first (more reliable with proxies)
+    def _fetch_json(self, url: str, max_retries: int = 3) -> Optional[Dict]:
+        """Fetch JSON from Yahoo Finance API"""
+        for attempt in range(max_retries):
             try:
-                df = yf.download(ticker, period="5d", progress=False, session=session if proxies else None)
-                if not df.empty and 'Close' in df.columns:
-                    current_price = float(df['Close'].iloc[-1])
-                    if current_price and current_price > 0:
-                        logger.info(f"Successfully fetched {ticker} via download - Price: ${current_price}")
-
-                        # Now get additional info
-                        stock = yf.Ticker(ticker, session=session if proxies else None)
-                        info = {}
-                        try:
-                            info = stock.info or {}
-                        except:
-                            pass
-
-                        info['currentPrice'] = current_price
-                        return stock, info, current_price
+                response = self.session.get(url, timeout=15)
+                if response.status_code == 200:
+                    return response.json()
+                logger.warning(f"Got status {response.status_code} for {url}")
             except Exception as e:
-                logger.warning(f"yf.download failed: {e}")
-
-            # Try Ticker directly
-            stock = yf.Ticker(ticker, session=session if proxies else None)
-
-            # Method 1: Try standard info
-            try:
-                info = stock.info
-                if info:
-                    current_price = info.get('currentPrice') or info.get('regularMarketPrice') or info.get('previousClose')
-                    if current_price and current_price > 0:
-                        logger.info(f"Successfully fetched {ticker} via info - Price: ${current_price}")
-                        return stock, info, current_price
-            except Exception as e:
-                logger.warning(f"stock.info failed: {e}")
-                info = {}
-
-            # Method 2: Try fast_info
-            try:
-                fast_info = stock.fast_info
-                if hasattr(fast_info, 'last_price') and fast_info.last_price:
-                    current_price = fast_info.last_price
-                    logger.info(f"Successfully fetched {ticker} via fast_info - Price: ${current_price}")
-                    info = {
-                        'currentPrice': current_price,
-                        'marketCap': getattr(fast_info, 'market_cap', None),
-                        'sharesOutstanding': getattr(fast_info, 'shares', None),
-                    }
-                    return stock, info, current_price
-            except Exception as e:
-                logger.warning(f"fast_info failed: {e}")
-
-            # Method 3: Try historical data
-            try:
-                hist = stock.history(period="5d")
-                if not hist.empty and 'Close' in hist.columns:
-                    current_price = float(hist['Close'].iloc[-1])
-                    if current_price and current_price > 0:
-                        logger.info(f"Successfully fetched {ticker} via history - Price: ${current_price}")
-                        info['currentPrice'] = current_price
-                        return stock, info, current_price
-            except Exception as e:
-                logger.warning(f"history fetch failed: {e}")
-
-            # If we got here, no method worked - wait and retry
+                logger.warning(f"Attempt {attempt + 1} failed for {url}: {e}")
             if attempt < max_retries - 1:
-                logger.warning(f"No valid data for {ticker} on attempt {attempt + 1}, waiting before retry...")
-                time.sleep(2)
+                time.sleep(1)
+        return None
+
+    def _fetch_page(self, url: str, max_retries: int = 3) -> Optional[str]:
+        """Fetch HTML page"""
+        for attempt in range(max_retries):
+            try:
+                response = self.session.get(url, timeout=15)
+                if response.status_code == 200:
+                    return response.text
+                logger.warning(f"Got status {response.status_code} for {url}")
+            except Exception as e:
+                logger.warning(f"Attempt {attempt + 1} failed for {url}: {e}")
+            if attempt < max_retries - 1:
+                time.sleep(1)
+        return None
+
+    def _get_crumb(self) -> Optional[str]:
+        """Get Yahoo Finance crumb for API authentication"""
+        try:
+            # First visit the main page to get cookies
+            self.session.get("https://finance.yahoo.com", timeout=10)
+            # Get crumb
+            crumb_url = "https://query1.finance.yahoo.com/v1/test/getcrumb"
+            response = self.session.get(crumb_url, timeout=10)
+            if response.status_code == 200:
+                return response.text
+        except:
+            pass
+        return None
+
+    def fetch_quote_data(self) -> Dict:
+        """Fetch current price and basic info using Yahoo Finance chart API"""
+        # Get crumb for authentication
+        crumb = self._get_crumb()
+
+        # Use the chart API
+        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{self.ticker}?interval=1d&range=5d"
+        if crumb:
+            url += f"&crumb={crumb}"
+        logger.info(f"Fetching quote data from Yahoo Finance API for {self.ticker}")
+
+        data = self._fetch_json(url)
+        if not data:
+            raise DataFetchError(f"Failed to fetch data for {self.ticker}")
+
+        result = data.get('chart', {}).get('result')
+        if not result:
+            error = data.get('chart', {}).get('error', {})
+            raise DataFetchError(f"No data for {self.ticker}: {error.get('description', 'Unknown error')}")
+
+        meta = result[0].get('meta', {})
+        price = meta.get('regularMarketPrice')
+
+        if not price:
+            raise DataFetchError(f"Could not find price for {self.ticker}")
+
+        self.current_price = price
+        logger.info(f"Found price for {self.ticker}: ${price}")
+
+        # Build info dict from meta
+        self.info = {
+            'currentPrice': price,
+            'longName': meta.get('longName') or meta.get('shortName') or self.ticker,
+            'shortName': meta.get('shortName'),
+            'symbol': meta.get('symbol'),
+            'exchangeName': meta.get('exchangeName'),
+            'currency': meta.get('currency'),
+            'regularMarketPrice': price,
+            'previousClose': meta.get('previousClose'),
+            'chartPreviousClose': meta.get('chartPreviousClose'),
+        }
+
+        # Try to get additional info from the quote page
+        self._enrich_from_page()
+
+        return self.info
+
+    def _enrich_from_page(self):
+        """Try to get sector, industry, market cap from the quote page"""
+        try:
+            url = f"https://finance.yahoo.com/quote/{self.ticker}"
+            html = self._fetch_page(url)
+            if not html:
+                return
+
+            # Extract data from embedded JSON in the page
+            # Look for sector/industry in the page content
+            sector_match = re.search(r'"sector":\s*"([^"]+)"', html)
+            if sector_match:
+                self.info['sector'] = sector_match.group(1)
+
+            industry_match = re.search(r'"industry":\s*"([^"]+)"', html)
+            if industry_match:
+                self.info['industry'] = industry_match.group(1)
+
+            market_cap_match = re.search(r'"marketCap":\s*\{\s*"raw":\s*([\d.]+)', html)
+            if market_cap_match:
+                self.info['marketCap'] = float(market_cap_match.group(1))
+
+            shares_match = re.search(r'"sharesOutstanding":\s*\{\s*"raw":\s*([\d.]+)', html)
+            if shares_match:
+                self.info['sharesOutstanding'] = float(shares_match.group(1))
+
+            pe_match = re.search(r'"trailingPE":\s*\{\s*"raw":\s*([\d.]+)', html)
+            if pe_match:
+                self.info['trailingPE'] = float(pe_match.group(1))
+
+            ev_match = re.search(r'"enterpriseValue":\s*\{\s*"raw":\s*([\d.]+)', html)
+            if ev_match:
+                self.info['enterpriseValue'] = float(ev_match.group(1))
+
+            summary_match = re.search(r'"longBusinessSummary":\s*"([^"]{100,500})', html)
+            if summary_match:
+                self.info['longBusinessSummary'] = summary_match.group(1).replace('\\n', ' ')
 
         except Exception as e:
-            last_error = e
-            logger.error(f"Error on attempt {attempt + 1} for {ticker}: {e}")
-            if attempt < max_retries - 1:
-                time.sleep(2)
+            logger.warning(f"Could not enrich data from page: {e}")
 
-    # All attempts failed
-    error_msg = f"Failed to fetch data for {ticker} after {max_retries} attempts"
-    if last_error:
-        error_msg += f": {last_error}"
-    logger.error(error_msg)
-    raise DataFetchError(error_msg)
+    def fetch_financials(self) -> pd.DataFrame:
+        """Fetch income statement data from the page"""
+        return self._fetch_financial_data('financials', 'incomeStatementHistory')
+
+    def fetch_balance_sheet(self) -> pd.DataFrame:
+        """Fetch balance sheet data"""
+        return self._fetch_financial_data('balance-sheet', 'balanceSheetHistory')
+
+    def fetch_cash_flow(self) -> pd.DataFrame:
+        """Fetch cash flow data"""
+        return self._fetch_financial_data('cash-flow', 'cashflowStatementHistory')
+
+    def _fetch_financial_data(self, page_type: str, json_key: str) -> pd.DataFrame:
+        """Fetch financial data from Yahoo Finance page"""
+        url = f"https://finance.yahoo.com/quote/{self.ticker}/{page_type}"
+        logger.info(f"Scraping {page_type} from {url}")
+
+        html = self._fetch_page(url)
+        if not html:
+            return pd.DataFrame()
+
+        try:
+            # Look for the financial data in the page's JSON
+            pattern = rf'"{json_key}":\s*\{{\s*"{json_key}":\s*(\[.*?\])\s*\}}'
+            match = re.search(pattern, html, re.DOTALL)
+            if match:
+                statements = json.loads(match.group(1))
+                return self._json_to_dataframe(statements)
+
+            # Alternative pattern
+            pattern2 = rf'"{json_key}":\s*(\[.*?\])\s*[,\}}]'
+            match2 = re.search(pattern2, html, re.DOTALL)
+            if match2:
+                statements = json.loads(match2.group(1))
+                return self._json_to_dataframe(statements)
+
+        except Exception as e:
+            logger.warning(f"Error parsing {page_type}: {e}")
+
+        return pd.DataFrame()
+
+    def _json_to_dataframe(self, statements: List[Dict]) -> pd.DataFrame:
+        """Convert Yahoo Finance JSON statements to DataFrame"""
+        if not statements:
+            return pd.DataFrame()
+
+        data = {}
+        for stmt in statements:
+            date = stmt.get('endDate', {}).get('fmt', 'Unknown')
+            for key, value in stmt.items():
+                if isinstance(value, dict) and 'raw' in value:
+                    if key not in data:
+                        data[key] = {}
+                    data[key][date] = value['raw']
+
+        if data:
+            df = pd.DataFrame(data).T
+            return df
+        return pd.DataFrame()
+
+    def fetch_all_data(self) -> Tuple['YahooFinanceScraper', Dict, float]:
+        """Fetch all data and return in format compatible with existing code"""
+        self.fetch_quote_data()
+        self.financials = self.fetch_financials()
+        self.balance_sheet = self.fetch_balance_sheet()
+        self.cash_flow = self.fetch_cash_flow()
+
+        return self, self.info, self.current_price
+
+
+def fetch_stock_data(ticker: str, max_retries: int = 3) -> Tuple[Any, Dict, float]:
+    """
+    Fetch stock data using Yahoo Finance API and web scraping.
+    Returns (scraper_object, info_dict, current_price).
+    Raises DataFetchError if data cannot be retrieved.
+    """
+    logger.info(f"Fetching data for {ticker}")
+
+    try:
+        scraper = YahooFinanceScraper(ticker)
+        return scraper.fetch_all_data()
+    except DataFetchError:
+        raise
+    except Exception as e:
+        raise DataFetchError(f"Failed to fetch data for {ticker}: {e}")
 
 
 class DCFValuation:
@@ -167,9 +292,10 @@ class DCFValuation:
             # Fetch stock data - will raise DataFetchError if it fails
             self.stock, self.info, self.current_price = fetch_stock_data(self.ticker)
 
+            # Get financial data from scraper
             self.financials = self.stock.financials
             self.balance_sheet = self.stock.balance_sheet
-            self.cash_flow = self.stock.cashflow
+            self.cash_flow = self.stock.cash_flow
 
             # No fallbacks - use actual data or None
             business_info = {
@@ -431,14 +557,20 @@ class DCFValuation:
     def _get_risk_free_rate(self) -> float:
         """Get current 10-year Treasury rate"""
         try:
-            tnx = yf.Ticker("^TNX")
-            tnx_data = tnx.history(period="5d")
-            if not tnx_data.empty:
-                rate = tnx_data['Close'].iloc[-1] / 100  # Convert to decimal
-                return rate
-            return 0.04  # Default 4%
-        except:
-            return 0.04
+            # Scrape treasury rate from Yahoo Finance
+            scraper = YahooFinanceScraper("^TNX")
+            html = scraper._fetch_page("https://finance.yahoo.com/quote/%5ETNX")
+            if html:
+                import re
+                match = re.search(r'data-value="([\d.]+)"[^>]*data-field="regularMarketPrice"', html)
+                if match:
+                    rate = float(match.group(1)) / 100  # Convert to decimal
+                    logger.info(f"Risk-free rate: {rate:.4f}")
+                    return rate
+            return 0.045  # Default 4.5%
+        except Exception as e:
+            logger.warning(f"Could not fetch risk-free rate: {e}")
+            return 0.045
 
     def _calculate_cost_of_debt(self) -> float:
         """Calculate cost of debt using synthetic rating method"""
@@ -736,7 +868,7 @@ class RevenueForecaster:
     Advanced revenue forecasting using multiple methodologies
     """
 
-    def __init__(self, ticker: str, stock: yf.Ticker = None, info: Dict = None):
+    def __init__(self, ticker: str, stock: Any = None, info: Dict = None):
         self.ticker = ticker
         # Reuse stock object if provided, otherwise fetch new
         if stock is not None:
@@ -1038,7 +1170,7 @@ class ComparableCompanyAnalysis:
     Comparable Company Analysis (Trading Comps) following 5-step methodology
     """
 
-    def __init__(self, ticker: str, stock: yf.Ticker = None, info: Dict = None, current_price: float = None):
+    def __init__(self, ticker: str, stock: Any = None, info: Dict = None, current_price: float = None):
         self.ticker = ticker
         # Reuse stock object if provided, otherwise fetch new
         if stock is not None:
@@ -1175,8 +1307,8 @@ class ComparableCompanyAnalysis:
 
             for symbol in self.peer_group:
                 try:
-                    peer_stock = yf.Ticker(symbol)
-                    peer_info = peer_stock.info
+                    # Use our scraper for peer data
+                    peer_scraper, peer_info, peer_price = fetch_stock_data(symbol)
 
                     self.peer_data[symbol] = {
                         'market_cap': peer_info.get('marketCap', 0),
@@ -1193,7 +1325,7 @@ class ComparableCompanyAnalysis:
                         'net_income': peer_info.get('netIncomeToCommon', 0),
                         'revenue_growth': peer_info.get('revenueGrowth', None),
                         'earnings_growth': peer_info.get('earningsGrowth', None),
-                        'current_price': peer_info.get('currentPrice', 0)
+                        'current_price': peer_price
                     }
 
                 except Exception as e:
