@@ -603,43 +603,22 @@ class FMPDataFetcher:
 
 def fetch_stock_data(ticker: str, max_retries: int = 3) -> Tuple[Any, Dict, float]:
     """
-    Fetch stock data using multiple sources with fallback.
-    Tries FMP API first (cloud-friendly), then Yahoo Finance.
+    Fetch stock data using Financial Modeling Prep API.
     Returns (data_object, info_dict, current_price).
     Raises DataFetchError if data cannot be retrieved.
     """
-    logger.info(f"=== Fetching data for {ticker} ===")
-    errors = []
+    logger.info(f"=== Fetching data for {ticker} using FMP API ===")
 
-    # Try Financial Modeling Prep API first (works on cloud servers)
-    if FMP_API_KEY and FMP_API_KEY != 'demo':
-        try:
-            logger.info(f"Trying FMP API for {ticker}...")
-            fetcher = FMPDataFetcher(ticker)
-            return fetcher.fetch_all_data()
-        except DataFetchError as e:
-            logger.warning(f"FMP API failed: {e}")
-            errors.append(f"FMP: {e}")
-        except Exception as e:
-            logger.warning(f"FMP API error: {e}")
-            errors.append(f"FMP: {e}")
-    else:
-        logger.info("No FMP API key configured, skipping FMP")
+    if not FMP_API_KEY or FMP_API_KEY == 'demo':
+        raise DataFetchError("FMP_API_KEY environment variable not set. Please add your Financial Modeling Prep API key.")
 
-    # Fallback to Yahoo Finance scraping
     try:
-        logger.info(f"Trying Yahoo Finance for {ticker}...")
-        scraper = YahooFinanceScraper(ticker)
-        return scraper.fetch_all_data()
-    except DataFetchError as e:
-        errors.append(f"Yahoo: {e}")
+        fetcher = FMPDataFetcher(ticker)
+        return fetcher.fetch_all_data()
+    except DataFetchError:
+        raise
     except Exception as e:
-        errors.append(f"Yahoo: {e}")
-
-    # All methods failed
-    error_msg = f"All data sources failed for {ticker}. Errors: {'; '.join(errors)}"
-    logger.error(error_msg)
-    raise DataFetchError(error_msg)
+        raise DataFetchError(f"Failed to fetch data for {ticker}: {e}")
 
 
 class DCFValuation:
