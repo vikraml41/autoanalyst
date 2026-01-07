@@ -42,14 +42,7 @@ async def analyze_stock(request: StockAnalysisRequest):
         if not ticker:
             raise HTTPException(status_code=400, detail='Ticker symbol is required')
 
-        # Check if Alpha Vantage API key is configured
-        if not ALPHA_VANTAGE_KEY:
-            raise HTTPException(
-                status_code=500,
-                detail='ALPHA_VANTAGE_KEY not configured. Get a free key at https://www.alphavantage.co/support/#api-key'
-            )
-
-        logger.info(f"Starting analysis for {ticker} (Alpha Vantage key configured: {len(ALPHA_VANTAGE_KEY)} chars)")
+        logger.info(f"Starting analysis for {ticker}")
 
         # Create analyzer and run complete analysis
         analyzer = StockAnalyzer(ticker)

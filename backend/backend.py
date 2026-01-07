@@ -618,22 +618,44 @@ class AlphaVantageDataFetcher:
 
 def fetch_stock_data(ticker: str, max_retries: int = 3) -> Tuple[Any, Dict, float]:
     """
-    Fetch stock data using Alpha Vantage API.
+    Fetch stock data using Alpha Vantage API with Yahoo Finance fallback.
     Returns (data_object, info_dict, current_price).
     Raises DataFetchError if data cannot be retrieved.
     """
-    logger.info(f"=== Fetching data for {ticker} using Alpha Vantage API ===")
+    logger.info(f"=== Fetching data for {ticker} ===")
+    errors = []
 
-    if not ALPHA_VANTAGE_KEY:
-        raise DataFetchError("ALPHA_VANTAGE_KEY environment variable not set. Get a free key at https://www.alphavantage.co/support/#api-key")
+    # Try Alpha Vantage first if configured
+    if ALPHA_VANTAGE_KEY:
+        try:
+            logger.info(f"Trying Alpha Vantage API for {ticker}...")
+            fetcher = AlphaVantageDataFetcher(ticker)
+            result = fetcher.fetch_all_data()
+            # Check if we got meaningful data (not just price)
+            if fetcher.info.get('sector') or not fetcher.financials.empty:
+                return result
+            logger.warning("Alpha Vantage returned limited data, trying Yahoo Finance...")
+        except DataFetchError as e:
+            if "rate limit" in str(e).lower():
+                logger.warning(f"Alpha Vantage rate limited, trying Yahoo Finance...")
+            else:
+                errors.append(f"Alpha Vantage: {e}")
+        except Exception as e:
+            errors.append(f"Alpha Vantage: {e}")
 
+    # Fallback to Yahoo Finance scraper
     try:
-        fetcher = AlphaVantageDataFetcher(ticker)
-        return fetcher.fetch_all_data()
-    except DataFetchError:
-        raise
+        logger.info(f"Trying Yahoo Finance scraper for {ticker}...")
+        scraper = YahooFinanceScraper(ticker)
+        return scraper.fetch_all_data()
+    except DataFetchError as e:
+        errors.append(f"Yahoo Finance: {e}")
     except Exception as e:
-        raise DataFetchError(f"Failed to fetch data for {ticker}: {e}")
+        errors.append(f"Yahoo Finance: {e}")
+
+    # All methods failed
+    error_msg = f"All data sources failed for {ticker}. Errors: {'; '.join(errors)}"
+    raise DataFetchError(error_msg)
 
 
 class DCFValuation:
