@@ -361,43 +361,46 @@ class YahooFinanceScraper:
             logger.warning(f"Could not enrich data from page: {e}")
 
     def fetch_financials(self) -> pd.DataFrame:
-        """Fetch income statement data from the page"""
-        return self._fetch_financial_data('financials', 'incomeStatementHistory')
+        """Fetch income statement data using Yahoo Finance API"""
+        return self._fetch_financial_api('incomeStatementHistory', 'incomeStatementHistory')
 
     def fetch_balance_sheet(self) -> pd.DataFrame:
-        """Fetch balance sheet data"""
-        return self._fetch_financial_data('balance-sheet', 'balanceSheetHistory')
+        """Fetch balance sheet data using Yahoo Finance API"""
+        return self._fetch_financial_api('balanceSheetHistory', 'balanceSheetStatements')
 
     def fetch_cash_flow(self) -> pd.DataFrame:
-        """Fetch cash flow data"""
-        return self._fetch_financial_data('cash-flow', 'cashflowStatementHistory')
+        """Fetch cash flow data using Yahoo Finance API"""
+        return self._fetch_financial_api('cashflowStatementHistory', 'cashflowStatements')
 
-    def _fetch_financial_data(self, page_type: str, json_key: str) -> pd.DataFrame:
-        """Fetch financial data from Yahoo Finance page"""
-        url = f"https://finance.yahoo.com/quote/{self.ticker}/{page_type}"
-        logger.info(f"Scraping {page_type} from {url}")
+    def _fetch_financial_api(self, module: str, statements_key: str) -> pd.DataFrame:
+        """Fetch financial data from Yahoo Finance quoteSummary API"""
+        crumb = self._get_crumb()
+        url = f"https://query2.finance.yahoo.com/v10/finance/quoteSummary/{self.ticker}?modules={module}"
+        if crumb:
+            url += f"&crumb={crumb}"
 
-        html = self._fetch_page(url)
-        if not html:
+        logger.info(f"Fetching {module} from Yahoo Finance API")
+        data = self._fetch_json(url)
+
+        if not data:
             return pd.DataFrame()
 
         try:
-            # Look for the financial data in the page's JSON
-            pattern = rf'"{json_key}":\s*\{{\s*"{json_key}":\s*(\[.*?\])\s*\}}'
-            match = re.search(pattern, html, re.DOTALL)
-            if match:
-                statements = json.loads(match.group(1))
-                return self._json_to_dataframe(statements)
+            result = data.get('quoteSummary', {}).get('result', [])
+            if not result:
+                return pd.DataFrame()
 
-            # Alternative pattern
-            pattern2 = rf'"{json_key}":\s*(\[.*?\])\s*[,\}}]'
-            match2 = re.search(pattern2, html, re.DOTALL)
-            if match2:
-                statements = json.loads(match2.group(1))
-                return self._json_to_dataframe(statements)
+            module_data = result[0].get(module, {})
+            statements = module_data.get(statements_key, [])
+
+            if not statements:
+                # Try alternative key format
+                statements = module_data.get(module, [])
+
+            return self._json_to_dataframe(statements)
 
         except Exception as e:
-            logger.warning(f"Error parsing {page_type}: {e}")
+            logger.warning(f"Error parsing {module}: {e}")
 
         return pd.DataFrame()
 
