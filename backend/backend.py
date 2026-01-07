@@ -458,20 +458,29 @@ class FMPDataFetcher:
 
             if response.status_code == 200:
                 data = response.json()
+                # Check for FMP error messages in the response
+                if isinstance(data, dict) and 'Error Message' in data:
+                    error_msg = data.get('Error Message', 'Unknown error')
+                    logger.error(f"FMP API error: {error_msg}")
+                    raise DataFetchError(f"FMP API error: {error_msg}")
                 if isinstance(data, list) and len(data) > 0:
                     return data
-                elif isinstance(data, dict):
+                elif isinstance(data, dict) and 'Error Message' not in data:
                     return data
                 else:
                     logger.warning(f"FMP API: Empty response for endpoint")
             elif response.status_code == 401:
                 logger.error(f"FMP API: Invalid API key (401)")
+                raise DataFetchError("FMP API: Invalid API key")
             elif response.status_code == 403:
                 logger.error(f"FMP API: Access forbidden (403) - check API key permissions")
+                raise DataFetchError("FMP API: Access forbidden - check API key permissions")
             elif response.status_code == 404:
                 logger.warning(f"FMP API: Endpoint not found (404)")
             else:
                 logger.warning(f"FMP API: Got status {response.status_code}. Response: {response.text[:200]}")
+        except DataFetchError:
+            raise
         except Exception as e:
             logger.error(f"FMP API error: {e}")
         return None
