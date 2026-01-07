@@ -487,12 +487,14 @@ class FMPDataFetcher:
 
     def fetch_quote_data(self) -> Dict:
         """Fetch current price and company info"""
-        logger.info(f"=== FMP API: Fetching quote data for {self.ticker} ===")
+        key_preview = self.api_key[:8] if self.api_key else 'None'
+        logger.info(f"=== FMP API: Fetching quote data for {self.ticker} (key: {key_preview}...) ===")
 
         # Get real-time quote
         quote_data = self._fetch_json(f"quote/{self.ticker}")
-        if not quote_data or len(quote_data) == 0:
-            raise DataFetchError(f"FMP API: No quote data for {self.ticker}")
+        logger.info(f"FMP API quote response: {quote_data}")
+        if not quote_data or (isinstance(quote_data, list) and len(quote_data) == 0):
+            raise DataFetchError(f"FMP API: No quote data for {self.ticker}. Check if API key is valid and has quote access.")
 
         quote = quote_data[0]
         price = quote.get('price')

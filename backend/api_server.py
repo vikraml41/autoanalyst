@@ -105,6 +105,26 @@ async def market_conditions():
     }
 
 
+@app.get('/api/test-fmp/{ticker}')
+async def test_fmp(ticker: str):
+    """Debug endpoint to test FMP API directly"""
+    import requests
+
+    ticker = ticker.upper()
+    url = f"https://financialmodelingprep.com/api/v3/quote/{ticker}?apikey={FMP_API_KEY}"
+
+    try:
+        response = requests.get(url, timeout=15)
+        return {
+            'status_code': response.status_code,
+            'url': url.replace(FMP_API_KEY, FMP_API_KEY[:8] + '...'),
+            'response': response.json(),
+            'api_key_length': len(FMP_API_KEY) if FMP_API_KEY else 0
+        }
+    except Exception as e:
+        return {'error': str(e)}
+
+
 if __name__ == '__main__':
     import uvicorn
     import os
