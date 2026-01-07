@@ -1041,6 +1041,10 @@ class DCFValuation:
         try:
             logger.info("DCF Step 5: Calculating present value...")
 
+            # Ensure discount_rate is valid
+            if discount_rate is None or discount_rate <= -1:
+                discount_rate = 0.10  # Default 10%
+
             # Discount cash flows using mid-year convention
             pv_cash_flows = []
             for year, cf in enumerate(cash_flows, start=1):
@@ -1049,7 +1053,7 @@ class DCFValuation:
                 pv_cash_flows.append(pv_cf)
 
             # Discount terminal value
-            terminal_year = len(cash_flows)
+            terminal_year = len(cash_flows) if cash_flows else 5
             terminal_discount_factor = 1 / ((1 + discount_rate) ** terminal_year)
             pv_terminal_value = terminal_value * terminal_discount_factor
 
@@ -1063,11 +1067,13 @@ class DCFValuation:
             equity_value = enterprise_value + cash - debt
 
             # Per-share value
-            shares_outstanding = self.info.get('sharesOutstanding', 1)
-            intrinsic_value_per_share = equity_value / shares_outstanding if shares_outstanding > 0 else 0
+            shares_outstanding = self.info.get('sharesOutstanding') or 1
+            if shares_outstanding <= 0:
+                shares_outstanding = 1
+            intrinsic_value_per_share = equity_value / shares_outstanding
 
             # Current market price (stored from step1)
-            current_price = self.current_price
+            current_price = self.current_price or 0
 
             # Valuation metrics
             if current_price > 0:
