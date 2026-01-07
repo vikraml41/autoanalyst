@@ -1189,9 +1189,11 @@ class DCFValuation:
 
             return complete_results
 
+        except DataFetchError:
+            raise
         except Exception as e:
             logger.error(f"Error in full DCF analysis: {e}")
-            return {}
+            raise DataFetchError(f"DCF analysis failed: {e}")
 
     def _generate_dcf_recommendation(self, valuation: Dict) -> str:
         """Generate DCF-based recommendation"""
@@ -2315,11 +2317,14 @@ class StockAnalyzer:
 
             return final_output
 
+        except DataFetchError:
+            # Re-raise data fetch errors so they can be handled properly
+            raise
         except Exception as e:
             logger.error(f"Error in stock analysis: {e}")
             import traceback
             logger.error(traceback.format_exc())
-            return {}
+            raise DataFetchError(f"Analysis failed: {e}")
 
     def _create_executive_summary(self, dcf: Dict, revenue: Dict, comps: Dict, synthesis: Dict) -> Dict:
         """Create executive summary of all analyses"""
