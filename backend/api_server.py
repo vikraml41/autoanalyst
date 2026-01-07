@@ -7,7 +7,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import logging
-from backend import StockAnalyzer
+import os
+from backend import StockAnalyzer, DataFetchError, FMP_API_KEY
 import traceback
 
 # Configure logging
@@ -49,7 +50,14 @@ async def analyze_stock(request: StockAnalysisRequest):
         if not ticker:
             raise HTTPException(status_code=400, detail='Ticker symbol is required')
 
-        logger.info(f"Starting analysis for {ticker}")
+        # Check if FMP API key is configured
+        if not FMP_API_KEY or FMP_API_KEY == 'demo':
+            raise HTTPException(
+                status_code=500,
+                detail='FMP_API_KEY not configured. Please set the FMP_API_KEY environment variable on Render.'
+            )
+
+        logger.info(f"Starting analysis for {ticker} (FMP API key configured: {len(FMP_API_KEY)} chars)")
 
         # Create analyzer and run complete analysis
         analyzer = StockAnalyzer(ticker)
@@ -64,16 +72,24 @@ async def analyze_stock(request: StockAnalysisRequest):
 
     except HTTPException:
         raise
+    except DataFetchError as e:
+        logger.error(f"Data fetch error: {e}")
+        raise HTTPException(status_code=500, detail=f"Data fetch error: {str(e)}")
     except Exception as e:
         logger.error(f"Error analyzing stock: {e}")
         logger.error(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Analysis error: {str(e)}")
 
 
 @app.get('/api/health')
 async def health_check():
     """Health check endpoint"""
-    return {'status': 'healthy', 'service': 'stock-analyzer'}
+    return {
+        'status': 'healthy',
+        'service': 'stock-analyzer',
+        'fmp_api_configured': bool(FMP_API_KEY and FMP_API_KEY != 'demo'),
+        'fmp_api_key_length': len(FMP_API_KEY) if FMP_API_KEY else 0
+    }
 
 
 @app.get('/api/market-conditions')
