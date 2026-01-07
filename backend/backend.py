@@ -972,7 +972,10 @@ class DCFValuation:
 
             # Method 1: Perpetual Growth Method (Gordon Growth Model)
             perpetual_growth_rate = 0.025  # Conservative 2.5% long-term growth
-            terminal_value_pgm = (final_year_cf * (1 + perpetual_growth_rate)) / (discount_rate - perpetual_growth_rate)
+            denominator = discount_rate - perpetual_growth_rate
+            if denominator <= 0.001:  # Avoid division by zero or very small numbers
+                denominator = 0.05  # Default to 5%
+            terminal_value_pgm = (final_year_cf * (1 + perpetual_growth_rate)) / denominator
 
             # Method 2: Exit Multiple Method
             # Use EV/EBITDA multiple
@@ -1216,8 +1219,8 @@ class DCFValuation:
         current = valuation.get('current_price', 0)
         buy_price = valuation.get('buy_price', 0)
 
-        if current == 0:
-            return "Unable to determine - no price data"
+        if current == 0 or intrinsic == 0:
+            return "Unable to determine - insufficient data"
 
         if buy_price > current:
             upside = ((intrinsic / current) - 1) * 100
@@ -1227,7 +1230,7 @@ class DCFValuation:
         elif intrinsic > current * 0.9:
             return f"HOLD - Trading near fair value. Fair value: ${intrinsic:.2f}"
         else:
-            overvalued = ((current / intrinsic) - 1) * 100
+            overvalued = ((current / intrinsic) - 1) * 100 if intrinsic > 0 else 0
             return f"SELL - Overvalued by {overvalued:.1f}%. Fair value: ${intrinsic:.2f}"
 
 
