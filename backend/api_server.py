@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import logging
 import os
-from backend import StockAnalyzer, DataFetchError, FMP_API_KEY
+from backend import StockAnalyzer, DataFetchError, ALPHA_VANTAGE_KEY
 import traceback
 
 # Configure logging
@@ -35,14 +35,6 @@ class StockAnalysisRequest(BaseModel):
 async def analyze_stock(request: StockAnalysisRequest):
     """
     Analyze a stock using DCF, Revenue Forecasting, and Comparable Companies
-
-    Request JSON:
-    {
-        "ticker": "AAPL"
-    }
-
-    Response JSON:
-    Complete analysis results including DCF, Revenue Forecast, Comps, and ML Synthesis
     """
     try:
         ticker = request.ticker.strip().upper()
@@ -50,14 +42,14 @@ async def analyze_stock(request: StockAnalysisRequest):
         if not ticker:
             raise HTTPException(status_code=400, detail='Ticker symbol is required')
 
-        # Check if FMP API key is configured
-        if not FMP_API_KEY or FMP_API_KEY == 'demo':
+        # Check if Alpha Vantage API key is configured
+        if not ALPHA_VANTAGE_KEY:
             raise HTTPException(
                 status_code=500,
-                detail='FMP_API_KEY not configured. Please set the FMP_API_KEY environment variable on Render.'
+                detail='ALPHA_VANTAGE_KEY not configured. Get a free key at https://www.alphavantage.co/support/#api-key'
             )
 
-        logger.info(f"Starting analysis for {ticker} (FMP API key configured: {len(FMP_API_KEY)} chars)")
+        logger.info(f"Starting analysis for {ticker} (Alpha Vantage key configured: {len(ALPHA_VANTAGE_KEY)} chars)")
 
         # Create analyzer and run complete analysis
         analyzer = StockAnalyzer(ticker)
@@ -87,16 +79,14 @@ async def health_check():
     return {
         'status': 'healthy',
         'service': 'stock-analyzer',
-        'fmp_api_configured': bool(FMP_API_KEY and FMP_API_KEY != 'demo'),
-        'fmp_api_key_length': len(FMP_API_KEY) if FMP_API_KEY else 0
+        'alpha_vantage_configured': bool(ALPHA_VANTAGE_KEY),
+        'api_key_length': len(ALPHA_VANTAGE_KEY) if ALPHA_VANTAGE_KEY else 0
     }
 
 
 @app.get('/api/market-conditions')
 async def market_conditions():
-    """
-    Get current market conditions (placeholder for compatibility)
-    """
+    """Get current market conditions (placeholder for compatibility)"""
     return {
         'regime': 'Growth',
         'fed_stance': 'Neutral',
@@ -105,50 +95,29 @@ async def market_conditions():
     }
 
 
-@app.get('/api/test-fmp/{ticker}')
-async def test_fmp(ticker: str):
-    """Debug endpoint to test FMP API - tries multiple endpoints"""
+@app.get('/api/test-alpha-vantage/{ticker}')
+async def test_alpha_vantage(ticker: str):
+    """Debug endpoint to test Alpha Vantage API"""
     import requests
 
     ticker = ticker.upper()
-    base = "https://financialmodelingprep.com/api/v3"
-    results = {}
+    base = "https://www.alphavantage.co/query"
 
-    # Test multiple endpoints to see what works
-    endpoints = [
-        f"quote/{ticker}",
-        f"quote-short/{ticker}",
-        f"profile/{ticker}",
-        f"stock-price-change/{ticker}",
-        f"historical-price-full/{ticker}?serietype=line",
-    ]
+    url = f"{base}?function=GLOBAL_QUOTE&symbol={ticker}&apikey={ALPHA_VANTAGE_KEY}"
 
-    for endpoint in endpoints:
-        url = f"{base}/{endpoint}"
-        if "?" in endpoint:
-            url += f"&apikey={FMP_API_KEY}"
-        else:
-            url += f"?apikey={FMP_API_KEY}"
-
-        try:
-            response = requests.get(url, timeout=10)
-            results[endpoint.split('/')[0]] = {
-                'status': response.status_code,
-                'response_preview': str(response.json())[:200]
-            }
-        except Exception as e:
-            results[endpoint.split('/')[0]] = {'error': str(e)}
-
-    return {
-        'api_key_length': len(FMP_API_KEY) if FMP_API_KEY else 0,
-        'api_key_preview': FMP_API_KEY[:8] + '...' if FMP_API_KEY else None,
-        'endpoints_tested': results
-    }
+    try:
+        response = requests.get(url, timeout=15)
+        return {
+            'status_code': response.status_code,
+            'api_key_length': len(ALPHA_VANTAGE_KEY) if ALPHA_VANTAGE_KEY else 0,
+            'response': response.json()
+        }
+    except Exception as e:
+        return {'error': str(e)}
 
 
 if __name__ == '__main__':
     import uvicorn
-    import os
 
     # Get port from environment variable (for Render.com) or default to 8000
     port = int(os.environ.get('PORT', 8000))

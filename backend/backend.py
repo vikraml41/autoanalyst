@@ -25,7 +25,8 @@ import time
 warnings.filterwarnings('ignore')
 
 # API Keys from environment variables
-FMP_API_KEY = os.environ.get('FMP_API_KEY', 'demo')
+FMP_API_KEY = os.environ.get('FMP_API_KEY', '')
+ALPHA_VANTAGE_KEY = os.environ.get('ALPHA_VANTAGE_KEY', '')
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -429,158 +430,173 @@ class YahooFinanceScraper:
         return self, self.info, self.current_price
 
 
-# ============ FINANCIAL MODELING PREP API ============
+# ============ ALPHA VANTAGE API ============
 
-class FMPDataFetcher:
-    """Fetch stock data from Financial Modeling Prep API - cloud-friendly alternative"""
+class AlphaVantageDataFetcher:
+    """Fetch stock data from Alpha Vantage API - cloud-friendly alternative"""
 
-    BASE_URL = "https://financialmodelingprep.com/api/v3"
+    BASE_URL = "https://www.alphavantage.co/query"
 
     def __init__(self, ticker: str):
         self.ticker = ticker.upper()
-        self.api_key = FMP_API_KEY
+        self.api_key = ALPHA_VANTAGE_KEY
         self.info = {}
         self.financials = pd.DataFrame()
-        self.quarterly_financials = pd.DataFrame()  # For compatibility with RevenueForecaster
+        self.quarterly_financials = pd.DataFrame()
         self.balance_sheet = pd.DataFrame()
         self.cash_flow = pd.DataFrame()
         self.current_price = None
 
-    def _fetch_json(self, endpoint: str) -> Optional[Dict]:
-        """Fetch JSON from FMP API"""
-        # Handle endpoints that already have query params
-        separator = "&" if "?" in endpoint else "?"
-        url = f"{self.BASE_URL}/{endpoint}{separator}apikey={self.api_key}"
+    def _fetch_json(self, function: str, extra_params: str = "") -> Optional[Dict]:
+        """Fetch JSON from Alpha Vantage API"""
+        url = f"{self.BASE_URL}?function={function}&symbol={self.ticker}&apikey={self.api_key}{extra_params}"
         try:
-            logger.info(f"FMP API: Fetching {url}")
-            response = requests.get(url, timeout=15)
-            logger.info(f"FMP API: Response status {response.status_code}, length: {len(response.text)}")
+            logger.info(f"Alpha Vantage: Fetching {function} for {self.ticker}")
+            response = requests.get(url, timeout=30)
+            logger.info(f"Alpha Vantage: Response status {response.status_code}")
 
             if response.status_code == 200:
                 data = response.json()
-                # Check for FMP error messages in the response
-                if isinstance(data, dict) and 'Error Message' in data:
+                # Check for Alpha Vantage error messages
+                if 'Error Message' in data:
                     error_msg = data.get('Error Message', 'Unknown error')
-                    logger.error(f"FMP API error: {error_msg}")
-                    raise DataFetchError(f"FMP API error: {error_msg}")
-                if isinstance(data, list) and len(data) > 0:
-                    return data
-                elif isinstance(data, dict) and 'Error Message' not in data:
-                    return data
-                else:
-                    logger.warning(f"FMP API: Empty response for endpoint")
-            elif response.status_code == 401:
-                logger.error(f"FMP API: Invalid API key (401)")
-                raise DataFetchError("FMP API: Invalid API key")
-            elif response.status_code == 403:
-                logger.error(f"FMP API: Access forbidden (403) - check API key permissions")
-                raise DataFetchError("FMP API: Access forbidden - check API key permissions")
-            elif response.status_code == 404:
-                logger.warning(f"FMP API: Endpoint not found (404)")
+                    logger.error(f"Alpha Vantage error: {error_msg}")
+                    raise DataFetchError(f"Alpha Vantage error: {error_msg}")
+                if 'Note' in data:
+                    # Rate limit message
+                    logger.warning(f"Alpha Vantage rate limit: {data['Note']}")
+                    raise DataFetchError("Alpha Vantage: API rate limit reached. Free tier allows 25 requests/day.")
+                if 'Information' in data:
+                    logger.warning(f"Alpha Vantage info: {data['Information']}")
+                return data
             else:
-                logger.warning(f"FMP API: Got status {response.status_code}. Response: {response.text[:200]}")
+                logger.warning(f"Alpha Vantage: Got status {response.status_code}")
         except DataFetchError:
             raise
         except Exception as e:
-            logger.error(f"FMP API error: {e}")
+            logger.error(f"Alpha Vantage error: {e}")
         return None
 
     def fetch_quote_data(self) -> Dict:
-        """Fetch current price and company info"""
+        """Fetch current price using GLOBAL_QUOTE"""
         key_preview = self.api_key[:8] if self.api_key else 'None'
-        logger.info(f"=== FMP API: Fetching quote data for {self.ticker} (key: {key_preview}...) ===")
+        logger.info(f"=== Alpha Vantage: Fetching quote for {self.ticker} (key: {key_preview}...) ===")
 
-        # Get real-time quote
-        quote_data = self._fetch_json(f"quote/{self.ticker}")
-        logger.info(f"FMP API quote response: {quote_data}")
-        if not quote_data or (isinstance(quote_data, list) and len(quote_data) == 0):
-            raise DataFetchError(f"FMP API: No quote data for {self.ticker}. Check if API key is valid and has quote access.")
+        data = self._fetch_json("GLOBAL_QUOTE")
+        if not data or 'Global Quote' not in data:
+            raise DataFetchError(f"Alpha Vantage: No quote data for {self.ticker}")
 
-        quote = quote_data[0]
-        price = quote.get('price')
+        quote = data['Global Quote']
+        if not quote:
+            raise DataFetchError(f"Alpha Vantage: Empty quote data for {self.ticker}")
+
+        price_str = quote.get('05. price', '0')
+        price = float(price_str) if price_str else 0
 
         if not price:
-            raise DataFetchError(f"FMP API: No price for {self.ticker}")
+            raise DataFetchError(f"Alpha Vantage: No price for {self.ticker}")
 
         self.current_price = price
-        logger.info(f"FMP API: Found price for {self.ticker}: ${price}")
+        logger.info(f"Alpha Vantage: Found price for {self.ticker}: ${price}")
 
-        # Get company profile for additional info
-        profile_data = self._fetch_json(f"profile/{self.ticker}")
-        profile = profile_data[0] if profile_data and len(profile_data) > 0 else {}
-
-        self.info = {
-            'currentPrice': price,
-            'regularMarketPrice': price,
-            'longName': profile.get('companyName') or quote.get('name') or self.ticker,
-            'shortName': quote.get('name'),
-            'sector': profile.get('sector'),
-            'industry': profile.get('industry'),
-            'marketCap': quote.get('marketCap'),
-            'sharesOutstanding': quote.get('sharesOutstanding'),
-            'trailingPE': quote.get('pe'),
-            'priceToSalesTrailing12Months': profile.get('priceToSalesRatio'),
-            'priceToBook': profile.get('priceToBook'),
-            'enterpriseValue': profile.get('enterpriseValue'),
-            'beta': profile.get('beta'),
-            'previousClose': quote.get('previousClose'),
-            'longBusinessSummary': profile.get('description', '')[:500] if profile.get('description') else None,
-        }
+        # Get company overview for additional info
+        overview = self._fetch_json("OVERVIEW")
+        if overview and 'Symbol' in overview:
+            self.info = {
+                'currentPrice': price,
+                'regularMarketPrice': price,
+                'longName': overview.get('Name', self.ticker),
+                'shortName': overview.get('Name', self.ticker),
+                'sector': overview.get('Sector'),
+                'industry': overview.get('Industry'),
+                'marketCap': float(overview.get('MarketCapitalization', 0)) if overview.get('MarketCapitalization') else None,
+                'sharesOutstanding': float(overview.get('SharesOutstanding', 0)) if overview.get('SharesOutstanding') else None,
+                'trailingPE': float(overview.get('TrailingPE', 0)) if overview.get('TrailingPE') and overview.get('TrailingPE') != 'None' else None,
+                'priceToBook': float(overview.get('PriceToBookRatio', 0)) if overview.get('PriceToBookRatio') and overview.get('PriceToBookRatio') != 'None' else None,
+                'beta': float(overview.get('Beta', 1)) if overview.get('Beta') and overview.get('Beta') != 'None' else 1.0,
+                'previousClose': float(quote.get('08. previous close', 0)) if quote.get('08. previous close') else None,
+                'longBusinessSummary': overview.get('Description', '')[:500] if overview.get('Description') else None,
+                'revenueGrowth': float(overview.get('QuarterlyRevenueGrowthYOY', 0)) if overview.get('QuarterlyRevenueGrowthYOY') and overview.get('QuarterlyRevenueGrowthYOY') != 'None' else None,
+                'earningsGrowth': float(overview.get('QuarterlyEarningsGrowthYOY', 0)) if overview.get('QuarterlyEarningsGrowthYOY') and overview.get('QuarterlyEarningsGrowthYOY') != 'None' else None,
+            }
+        else:
+            # Minimal info if overview fails
+            self.info = {
+                'currentPrice': price,
+                'regularMarketPrice': price,
+                'longName': self.ticker,
+                'previousClose': float(quote.get('08. previous close', 0)) if quote.get('08. previous close') else None,
+            }
 
         return self.info
 
     def fetch_financials(self) -> pd.DataFrame:
         """Fetch income statement data"""
-        data = self._fetch_json(f"income-statement/{self.ticker}?limit=5")
-        if not data:
+        data = self._fetch_json("INCOME_STATEMENT")
+        if not data or 'annualReports' not in data:
             return pd.DataFrame()
 
-        return self._to_dataframe(data, {
-            'Total Revenue': 'revenue',
+        return self._to_dataframe(data.get('annualReports', []), {
+            'Total Revenue': 'totalRevenue',
             'Net Income': 'netIncome',
             'Operating Income': 'operatingIncome',
-            'EBIT': 'operatingIncome',
+            'EBIT': 'ebit',
             'EBITDA': 'ebitda',
             'Interest Expense': 'interestExpense',
+            'Gross Profit': 'grossProfit',
+        })
+
+    def fetch_quarterly_financials(self) -> pd.DataFrame:
+        """Fetch quarterly income statement data"""
+        data = self._fetch_json("INCOME_STATEMENT")
+        if not data or 'quarterlyReports' not in data:
+            return pd.DataFrame()
+
+        return self._to_dataframe(data.get('quarterlyReports', [])[:8], {
+            'Total Revenue': 'totalRevenue',
+            'Net Income': 'netIncome',
+            'Operating Income': 'operatingIncome',
         })
 
     def fetch_balance_sheet(self) -> pd.DataFrame:
         """Fetch balance sheet data"""
-        data = self._fetch_json(f"balance-sheet-statement/{self.ticker}?limit=5")
-        if not data:
+        data = self._fetch_json("BALANCE_SHEET")
+        if not data or 'annualReports' not in data:
             return pd.DataFrame()
 
-        return self._to_dataframe(data, {
+        return self._to_dataframe(data.get('annualReports', []), {
             'Total Assets': 'totalAssets',
             'Total Liabilities': 'totalLiabilities',
-            'Total Equity': 'totalStockholdersEquity',
-            'Total Debt': 'totalDebt',
-            'Cash And Cash Equivalents': 'cashAndCashEquivalents',
+            'Total Equity': 'totalShareholderEquity',
+            'Total Debt': 'shortLongTermDebtTotal',
+            'Cash And Cash Equivalents': 'cashAndCashEquivalentsAtCarryingValue',
         })
 
     def fetch_cash_flow(self) -> pd.DataFrame:
         """Fetch cash flow data"""
-        data = self._fetch_json(f"cash-flow-statement/{self.ticker}?limit=5")
-        if not data:
+        data = self._fetch_json("CASH_FLOW")
+        if not data or 'annualReports' not in data:
             return pd.DataFrame()
 
-        return self._to_dataframe(data, {
-            'Operating Cash Flow': 'operatingCashFlow',
-            'Capital Expenditure': 'capitalExpenditure',
-            'Free Cash Flow': 'freeCashFlow',
-            'Depreciation And Amortization': 'depreciationAndAmortization',
+        return self._to_dataframe(data.get('annualReports', []), {
+            'Operating Cash Flow': 'operatingCashflow',
+            'Capital Expenditure': 'capitalExpenditures',
+            'Depreciation And Amortization': 'depreciationDepletionAndAmortization',
         })
 
-    def _to_dataframe(self, data: List[Dict], field_mapping: Dict[str, str]) -> pd.DataFrame:
-        """Convert FMP API data to DataFrame format compatible with existing code"""
+    def _to_dataframe(self, reports: List[Dict], field_mapping: Dict[str, str]) -> pd.DataFrame:
+        """Convert Alpha Vantage API data to DataFrame format"""
         result = {}
         for row_name, api_field in field_mapping.items():
             row_data = {}
-            for item in data:
-                date = item.get('date', 'Unknown')
+            for item in reports:
+                date = item.get('fiscalDateEnding', 'Unknown')
                 value = item.get(api_field)
-                if value is not None:
-                    row_data[date] = value
+                if value is not None and value != 'None':
+                    try:
+                        row_data[date] = float(value)
+                    except (ValueError, TypeError):
+                        pass
             if row_data:
                 result[row_name] = row_data
 
@@ -588,19 +604,7 @@ class FMPDataFetcher:
             return pd.DataFrame(result).T
         return pd.DataFrame()
 
-    def fetch_quarterly_financials(self) -> pd.DataFrame:
-        """Fetch quarterly income statement data"""
-        data = self._fetch_json(f"income-statement/{self.ticker}?period=quarter&limit=8")
-        if not data:
-            return pd.DataFrame()
-
-        return self._to_dataframe(data, {
-            'Total Revenue': 'revenue',
-            'Net Income': 'netIncome',
-            'Operating Income': 'operatingIncome',
-        })
-
-    def fetch_all_data(self) -> Tuple['FMPDataFetcher', Dict, float]:
+    def fetch_all_data(self) -> Tuple['AlphaVantageDataFetcher', Dict, float]:
         """Fetch all data and return in format compatible with existing code"""
         self.fetch_quote_data()
         self.financials = self.fetch_financials()
@@ -608,23 +612,23 @@ class FMPDataFetcher:
         self.balance_sheet = self.fetch_balance_sheet()
         self.cash_flow = self.fetch_cash_flow()
 
-        logger.info(f"FMP API: Fetched all data - financials rows: {len(self.financials)}, cash_flow rows: {len(self.cash_flow)}")
+        logger.info(f"Alpha Vantage: Fetched all data - financials rows: {len(self.financials)}, cash_flow rows: {len(self.cash_flow)}")
         return self, self.info, self.current_price
 
 
 def fetch_stock_data(ticker: str, max_retries: int = 3) -> Tuple[Any, Dict, float]:
     """
-    Fetch stock data using Financial Modeling Prep API.
+    Fetch stock data using Alpha Vantage API.
     Returns (data_object, info_dict, current_price).
     Raises DataFetchError if data cannot be retrieved.
     """
-    logger.info(f"=== Fetching data for {ticker} using FMP API ===")
+    logger.info(f"=== Fetching data for {ticker} using Alpha Vantage API ===")
 
-    if not FMP_API_KEY or FMP_API_KEY == 'demo':
-        raise DataFetchError("FMP_API_KEY environment variable not set. Please add your Financial Modeling Prep API key.")
+    if not ALPHA_VANTAGE_KEY:
+        raise DataFetchError("ALPHA_VANTAGE_KEY environment variable not set. Get a free key at https://www.alphavantage.co/support/#api-key")
 
     try:
-        fetcher = FMPDataFetcher(ticker)
+        fetcher = AlphaVantageDataFetcher(ticker)
         return fetcher.fetch_all_data()
     except DataFetchError:
         raise
