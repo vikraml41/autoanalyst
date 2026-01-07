@@ -56,6 +56,7 @@ class YahooFinanceScraper:
         self.session.headers.update(self.HEADERS)
         self.info = {}
         self.financials = pd.DataFrame()
+        self.quarterly_financials = pd.DataFrame()  # For compatibility with RevenueForecaster
         self.balance_sheet = pd.DataFrame()
         self.cash_flow = pd.DataFrame()
         self.current_price = None
@@ -440,17 +441,20 @@ class FMPDataFetcher:
         self.api_key = FMP_API_KEY
         self.info = {}
         self.financials = pd.DataFrame()
+        self.quarterly_financials = pd.DataFrame()  # For compatibility with RevenueForecaster
         self.balance_sheet = pd.DataFrame()
         self.cash_flow = pd.DataFrame()
         self.current_price = None
 
     def _fetch_json(self, endpoint: str) -> Optional[Dict]:
         """Fetch JSON from FMP API"""
-        url = f"{self.BASE_URL}/{endpoint}?apikey={self.api_key}"
+        # Handle endpoints that already have query params
+        separator = "&" if "?" in endpoint else "?"
+        url = f"{self.BASE_URL}/{endpoint}{separator}apikey={self.api_key}"
         try:
-            logger.info(f"FMP API: Fetching {endpoint}")
+            logger.info(f"FMP API: Fetching {url}")
             response = requests.get(url, timeout=15)
-            logger.info(f"FMP API: Response status {response.status_code}")
+            logger.info(f"FMP API: Response status {response.status_code}, length: {len(response.text)}")
 
             if response.status_code == 200:
                 data = response.json()
@@ -459,9 +463,15 @@ class FMPDataFetcher:
                 elif isinstance(data, dict):
                     return data
                 else:
-                    logger.warning(f"FMP API: Empty response for {endpoint}")
+                    logger.warning(f"FMP API: Empty response for endpoint")
+            elif response.status_code == 401:
+                logger.error(f"FMP API: Invalid API key (401)")
+            elif response.status_code == 403:
+                logger.error(f"FMP API: Access forbidden (403) - check API key permissions")
+            elif response.status_code == 404:
+                logger.warning(f"FMP API: Endpoint not found (404)")
             else:
-                logger.warning(f"FMP API: Got status {response.status_code}")
+                logger.warning(f"FMP API: Got status {response.status_code}. Response: {response.text[:200]}")
         except Exception as e:
             logger.error(f"FMP API error: {e}")
         return None
@@ -567,13 +577,27 @@ class FMPDataFetcher:
             return pd.DataFrame(result).T
         return pd.DataFrame()
 
+    def fetch_quarterly_financials(self) -> pd.DataFrame:
+        """Fetch quarterly income statement data"""
+        data = self._fetch_json(f"income-statement/{self.ticker}?period=quarter&limit=8")
+        if not data:
+            return pd.DataFrame()
+
+        return self._to_dataframe(data, {
+            'Total Revenue': 'revenue',
+            'Net Income': 'netIncome',
+            'Operating Income': 'operatingIncome',
+        })
+
     def fetch_all_data(self) -> Tuple['FMPDataFetcher', Dict, float]:
         """Fetch all data and return in format compatible with existing code"""
         self.fetch_quote_data()
         self.financials = self.fetch_financials()
+        self.quarterly_financials = self.fetch_quarterly_financials()
         self.balance_sheet = self.fetch_balance_sheet()
         self.cash_flow = self.fetch_cash_flow()
 
+        logger.info(f"FMP API: Fetched all data - financials rows: {len(self.financials)}, cash_flow rows: {len(self.cash_flow)}")
         return self, self.info, self.current_price
 
 
