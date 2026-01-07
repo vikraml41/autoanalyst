@@ -107,22 +107,43 @@ async def market_conditions():
 
 @app.get('/api/test-fmp/{ticker}')
 async def test_fmp(ticker: str):
-    """Debug endpoint to test FMP API directly"""
+    """Debug endpoint to test FMP API - tries multiple endpoints"""
     import requests
 
     ticker = ticker.upper()
-    url = f"https://financialmodelingprep.com/api/v3/quote/{ticker}?apikey={FMP_API_KEY}"
+    base = "https://financialmodelingprep.com/api/v3"
+    results = {}
 
-    try:
-        response = requests.get(url, timeout=15)
-        return {
-            'status_code': response.status_code,
-            'url': url.replace(FMP_API_KEY, FMP_API_KEY[:8] + '...'),
-            'response': response.json(),
-            'api_key_length': len(FMP_API_KEY) if FMP_API_KEY else 0
-        }
-    except Exception as e:
-        return {'error': str(e)}
+    # Test multiple endpoints to see what works
+    endpoints = [
+        f"quote/{ticker}",
+        f"quote-short/{ticker}",
+        f"profile/{ticker}",
+        f"stock-price-change/{ticker}",
+        f"historical-price-full/{ticker}?serietype=line",
+    ]
+
+    for endpoint in endpoints:
+        url = f"{base}/{endpoint}"
+        if "?" in endpoint:
+            url += f"&apikey={FMP_API_KEY}"
+        else:
+            url += f"?apikey={FMP_API_KEY}"
+
+        try:
+            response = requests.get(url, timeout=10)
+            results[endpoint.split('/')[0]] = {
+                'status': response.status_code,
+                'response_preview': str(response.json())[:200]
+            }
+        except Exception as e:
+            results[endpoint.split('/')[0]] = {'error': str(e)}
+
+    return {
+        'api_key_length': len(FMP_API_KEY) if FMP_API_KEY else 0,
+        'api_key_preview': FMP_API_KEY[:8] + '...' if FMP_API_KEY else None,
+        'endpoints_tested': results
+    }
 
 
 if __name__ == '__main__':
