@@ -635,13 +635,13 @@ def fetch_stock_data(ticker: str, max_retries: int = 3) -> Tuple[Any, Dict, floa
             if fetcher.info.get('sector') or not fetcher.financials.empty:
                 return result
             logger.warning("Alpha Vantage returned limited data, trying Yahoo Finance...")
+            errors.append("Alpha Vantage: Limited data returned")
         except DataFetchError as e:
-            if "rate limit" in str(e).lower():
-                logger.warning(f"Alpha Vantage rate limited, trying Yahoo Finance...")
-            else:
-                errors.append(f"Alpha Vantage: {e}")
+            errors.append(f"Alpha Vantage: {e}")
+            logger.warning(f"Alpha Vantage failed: {e}, trying Yahoo Finance...")
         except Exception as e:
             errors.append(f"Alpha Vantage: {e}")
+            logger.warning(f"Alpha Vantage error: {e}, trying Yahoo Finance...")
 
     # Fallback to Yahoo Finance scraper
     try:
