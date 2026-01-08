@@ -1025,9 +1025,9 @@ class EdgarDataFetcher:
     FACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
     SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik}.json"
 
-    # SEC requires a User-Agent header with contact info
+    # SEC requires User-Agent with company name and email address
     HEADERS = {
-        'User-Agent': 'AutoAnalyst/1.0 (Stock Analysis Tool)',
+        'User-Agent': 'AutoAnalyst contact@autoanalyst.app',
         'Accept': 'application/json',
     }
 
