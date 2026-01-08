@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import logging
 import os
-from backend import StockAnalyzer, DataFetchError, ALPHA_VANTAGE_KEY, MASSIVE_API_KEY, EdgarDataFetcher
+from backend import StockAnalyzer, DataFetchError, ALPHA_VANTAGE_KEY, MASSIVE_API_KEY, EdgarDataFetcher, fetch_stock_data
 import traceback
 
 # Configure logging
@@ -163,6 +163,47 @@ async def test_edgar(ticker: str):
     except Exception as e:
         results['error'] = str(e)
         results['success'] = False
+
+    return results
+
+
+@app.get('/api/test-fetch/{ticker}')
+async def test_fetch(ticker: str):
+    """Debug endpoint to test fetch_stock_data function"""
+    ticker = ticker.upper()
+    results = {'ticker': ticker}
+
+    try:
+        stock, info, price = fetch_stock_data(ticker)
+
+        results['success'] = True
+        results['price'] = price
+        results['data_source'] = type(stock).__name__
+        results['info_keys'] = list(info.keys())
+        results['company_name'] = info.get('longName')
+        results['sector'] = info.get('sector')
+
+        # Check financials
+        results['financials_empty'] = stock.financials.empty
+        results['financials_rows'] = list(stock.financials.index) if not stock.financials.empty else []
+        results['financials_cols'] = len(stock.financials.columns) if not stock.financials.empty else 0
+
+        # Check balance sheet
+        results['balance_sheet_empty'] = stock.balance_sheet.empty
+        results['balance_sheet_rows'] = list(stock.balance_sheet.index) if not stock.balance_sheet.empty else []
+
+        # Check cash flow
+        results['cash_flow_empty'] = stock.cash_flow.empty
+        results['cash_flow_rows'] = list(stock.cash_flow.index) if not stock.cash_flow.empty else []
+
+        # Sample data if available
+        if not stock.financials.empty and 'Total Revenue' in stock.financials.index:
+            results['sample_revenue'] = stock.financials.loc['Total Revenue'].iloc[0]
+
+    except Exception as e:
+        results['success'] = False
+        results['error'] = str(e)
+        results['error_type'] = type(e).__name__
 
     return results
 
