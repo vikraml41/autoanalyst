@@ -1402,7 +1402,8 @@ class EdgarDataFetcher:
         return pd.DataFrame()
 
     def fetch_current_price(self) -> Optional[float]:
-        """Fetch current price from a free source (Yahoo Finance chart API)"""
+        """Fetch current price from multiple sources (Yahoo Finance, then MASSIVE)"""
+        # Try Yahoo Finance first
         try:
             url = f"https://query1.finance.yahoo.com/v8/finance/chart/{self.ticker}?interval=1d&range=1d"
             response = requests.get(url, timeout=10)
@@ -1418,8 +1419,51 @@ class EdgarDataFetcher:
                         logger.info(f"EDGAR: Got price from Yahoo: ${price}")
                         return price
         except Exception as e:
-            logger.warning(f"EDGAR: Could not fetch price: {e}")
+            logger.warning(f"EDGAR: Yahoo price fetch failed: {e}")
 
+        # Try MASSIVE API if configured (works on cloud servers)
+        if MASSIVE_API_KEY:
+            try:
+                logger.info(f"EDGAR: Trying MASSIVE for price...")
+                url = f"https://api.massive.com/v2/snapshot/locale/us/markets/stocks/tickers/{self.ticker}?apiKey={MASSIVE_API_KEY}"
+                response = requests.get(url, timeout=15)
+                if response.status_code == 200:
+                    data = response.json()
+                    ticker_data = data.get('ticker', {})
+                    day_data = ticker_data.get('day', {})
+                    prev_day = ticker_data.get('prevDay', {})
+                    price = day_data.get('c') or prev_day.get('c')
+                    if price:
+                        self.current_price = price
+                        self.info['currentPrice'] = price
+                        self.info['regularMarketPrice'] = price
+                        self.info['previousClose'] = prev_day.get('c')
+                        logger.info(f"EDGAR: Got price from MASSIVE: ${price}")
+                        return price
+            except Exception as e:
+                logger.warning(f"EDGAR: MASSIVE price fetch failed: {e}")
+
+        # Try Alpha Vantage if configured
+        if ALPHA_VANTAGE_KEY:
+            try:
+                logger.info(f"EDGAR: Trying Alpha Vantage for price...")
+                url = f"https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={self.ticker}&apikey={ALPHA_VANTAGE_KEY}"
+                response = requests.get(url, timeout=15)
+                if response.status_code == 200:
+                    data = response.json()
+                    quote = data.get('Global Quote', {})
+                    price_str = quote.get('05. price')
+                    if price_str:
+                        price = float(price_str)
+                        self.current_price = price
+                        self.info['currentPrice'] = price
+                        self.info['regularMarketPrice'] = price
+                        logger.info(f"EDGAR: Got price from Alpha Vantage: ${price}")
+                        return price
+            except Exception as e:
+                logger.warning(f"EDGAR: Alpha Vantage price fetch failed: {e}")
+
+        logger.error(f"EDGAR: All price sources failed for {self.ticker}")
         return None
 
     def fetch_all_data(self) -> Tuple['EdgarDataFetcher', Dict, float]:
