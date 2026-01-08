@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import logging
 import os
-from backend import StockAnalyzer, DataFetchError, ALPHA_VANTAGE_KEY
+from backend import StockAnalyzer, DataFetchError, ALPHA_VANTAGE_KEY, MASSIVE_API_KEY, EdgarDataFetcher
 import traceback
 
 # Configure logging
@@ -107,6 +107,64 @@ async def test_alpha_vantage(ticker: str):
         }
     except Exception as e:
         return {'error': str(e)}
+
+
+@app.get('/api/test-edgar/{ticker}')
+async def test_edgar(ticker: str):
+    """Debug endpoint to test SEC EDGAR API"""
+    import requests
+
+    ticker = ticker.upper()
+    results = {
+        'ticker': ticker,
+        'massive_key_configured': bool(MASSIVE_API_KEY),
+    }
+
+    try:
+        # Test ticker mapping
+        fetcher = EdgarDataFetcher(ticker)
+        cik = fetcher._get_cik()
+        results['cik'] = cik
+        results['ticker_mapping_loaded'] = bool(EdgarDataFetcher._ticker_to_cik_cache)
+        results['mapping_count'] = len(EdgarDataFetcher._ticker_to_cik_cache) if EdgarDataFetcher._ticker_to_cik_cache else 0
+
+        if not cik:
+            results['error'] = 'Could not find CIK for ticker'
+            return results
+
+        # Test company facts endpoint
+        facts_url = f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
+        headers = {'User-Agent': 'AutoAnalyst contact@autoanalyst.app'}
+        facts_response = requests.get(facts_url, headers=headers, timeout=30)
+        results['facts_status'] = facts_response.status_code
+        results['facts_size'] = len(facts_response.text) if facts_response.status_code == 200 else 0
+
+        # Test fetching financials
+        fetcher.fetch_quote_data()
+        results['company_name'] = fetcher.info.get('longName')
+
+        financials = fetcher.fetch_financials()
+        results['financials_rows'] = list(financials.index) if not financials.empty else []
+        results['financials_cols'] = len(financials.columns) if not financials.empty else 0
+
+        balance_sheet = fetcher.fetch_balance_sheet()
+        results['balance_sheet_rows'] = list(balance_sheet.index) if not balance_sheet.empty else []
+
+        cash_flow = fetcher.fetch_cash_flow()
+        results['cash_flow_rows'] = list(cash_flow.index) if not cash_flow.empty else []
+
+        # Test price fetching
+        price = fetcher.fetch_current_price()
+        results['price'] = price
+        results['price_source'] = 'yahoo' if price and not MASSIVE_API_KEY else ('massive' if price else 'none')
+
+        results['success'] = True
+
+    except Exception as e:
+        results['error'] = str(e)
+        results['success'] = False
+
+    return results
 
 
 if __name__ == '__main__':
