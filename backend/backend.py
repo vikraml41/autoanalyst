@@ -1015,17 +1015,460 @@ class MassiveDataFetcher:
         return self, self.info, self.current_price
 
 
+# ============ SEC EDGAR API (Free, Unlimited) ============
+
+class EdgarDataFetcher:
+    """Fetch stock data from SEC EDGAR API - completely free with unlimited requests.
+    Uses official SEC XBRL data for financial statements."""
+
+    TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
+    FACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
+    SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik}.json"
+
+    # SEC requires a User-Agent header with contact info
+    HEADERS = {
+        'User-Agent': 'AutoAnalyst/1.0 (Stock Analysis Tool)',
+        'Accept': 'application/json',
+    }
+
+    # Cache for ticker to CIK mapping (loaded once)
+    _ticker_to_cik_cache = None
+
+    def __init__(self, ticker: str):
+        self.ticker = ticker.upper()
+        self.cik = None
+        self.info = {}
+        self.financials = pd.DataFrame()
+        self.quarterly_financials = pd.DataFrame()
+        self.balance_sheet = pd.DataFrame()
+        self.cash_flow = pd.DataFrame()
+        self.current_price = None
+        self._company_facts = None
+
+    @classmethod
+    def _load_ticker_mapping(cls) -> Dict[str, str]:
+        """Load ticker to CIK mapping from SEC (cached)"""
+        if cls._ticker_to_cik_cache is not None:
+            return cls._ticker_to_cik_cache
+
+        try:
+            logger.info("EDGAR: Loading ticker to CIK mapping from SEC...")
+            response = requests.get(cls.TICKERS_URL, headers=cls.HEADERS, timeout=30)
+            if response.status_code == 200:
+                data = response.json()
+                # Format: {"0": {"cik_str": "320193", "ticker": "AAPL", "title": "Apple Inc."}, ...}
+                cls._ticker_to_cik_cache = {}
+                for entry in data.values():
+                    ticker = entry.get('ticker', '').upper()
+                    cik = str(entry.get('cik_str', ''))
+                    if ticker and cik:
+                        cls._ticker_to_cik_cache[ticker] = cik
+                logger.info(f"EDGAR: Loaded {len(cls._ticker_to_cik_cache)} ticker mappings")
+                return cls._ticker_to_cik_cache
+        except Exception as e:
+            logger.error(f"EDGAR: Failed to load ticker mapping: {e}")
+
+        return {}
+
+    def _get_cik(self) -> Optional[str]:
+        """Get CIK for ticker, zero-padded to 10 digits"""
+        mapping = self._load_ticker_mapping()
+        cik = mapping.get(self.ticker)
+        if cik:
+            return cik.zfill(10)  # Zero-pad to 10 digits
+        return None
+
+    def _fetch_json(self, url: str) -> Optional[Dict]:
+        """Fetch JSON from SEC EDGAR API"""
+        try:
+            logger.info(f"EDGAR: Fetching {url[:80]}...")
+            response = requests.get(url, headers=self.HEADERS, timeout=30)
+            logger.info(f"EDGAR: Response status {response.status_code}")
+
+            if response.status_code == 200:
+                return response.json()
+            elif response.status_code == 404:
+                logger.warning(f"EDGAR: Resource not found (404)")
+                return None
+            else:
+                logger.warning(f"EDGAR: Got status {response.status_code}")
+        except Exception as e:
+            logger.error(f"EDGAR error: {e}")
+        return None
+
+    def _get_company_facts(self) -> Optional[Dict]:
+        """Get all company facts from EDGAR (cached per instance)"""
+        if self._company_facts is not None:
+            return self._company_facts
+
+        self.cik = self._get_cik()
+        if not self.cik:
+            raise DataFetchError(f"EDGAR: Could not find CIK for ticker {self.ticker}")
+
+        url = self.FACTS_URL.format(cik=self.cik)
+        self._company_facts = self._fetch_json(url)
+        return self._company_facts
+
+    def _extract_facts(self, concept: str, taxonomy: str = 'us-gaap', unit: str = 'USD') -> List[Dict]:
+        """Extract fact values for a specific concept from company facts"""
+        facts = self._get_company_facts()
+        if not facts:
+            return []
+
+        try:
+            concept_data = facts.get('facts', {}).get(taxonomy, {}).get(concept, {})
+            units_data = concept_data.get('units', {}).get(unit, [])
+            return units_data
+        except Exception as e:
+            logger.debug(f"EDGAR: Could not extract {concept}: {e}")
+            return []
+
+    def _get_annual_values(self, concept: str, taxonomy: str = 'us-gaap', years: int = 5) -> Dict[str, float]:
+        """Get annual values for a concept, filtered to 10-K filings"""
+        facts = self._extract_facts(concept, taxonomy)
+        if not facts:
+            return {}
+
+        # Filter to annual reports (10-K) and get most recent values
+        annual_values = {}
+        for fact in facts:
+            form = fact.get('form', '')
+            # Only include 10-K (annual) filings
+            if form in ['10-K', '10-K/A']:
+                end_date = fact.get('end', '')
+                value = fact.get('val')
+                frame = fact.get('frame', '')  # e.g., "CY2023"
+
+                if end_date and value is not None:
+                    # Use fiscal year end date as key
+                    year = end_date[:4]
+                    # Prefer values with frame (deduplicated by SEC)
+                    if frame and frame.startswith('CY') and 'Q' not in frame:
+                        annual_values[end_date] = float(value)
+                    elif end_date not in annual_values:
+                        annual_values[end_date] = float(value)
+
+        # Sort by date and return most recent N years
+        sorted_dates = sorted(annual_values.keys(), reverse=True)[:years]
+        return {date: annual_values[date] for date in sorted_dates}
+
+    def _get_quarterly_values(self, concept: str, taxonomy: str = 'us-gaap', quarters: int = 8) -> Dict[str, float]:
+        """Get quarterly values for a concept, filtered to 10-Q filings"""
+        facts = self._extract_facts(concept, taxonomy)
+        if not facts:
+            return {}
+
+        quarterly_values = {}
+        for fact in facts:
+            form = fact.get('form', '')
+            if form in ['10-Q', '10-Q/A']:
+                end_date = fact.get('end', '')
+                value = fact.get('val')
+                frame = fact.get('frame', '')
+
+                if end_date and value is not None:
+                    # Prefer values with quarterly frame
+                    if frame and 'Q' in frame:
+                        quarterly_values[end_date] = float(value)
+                    elif end_date not in quarterly_values:
+                        quarterly_values[end_date] = float(value)
+
+        sorted_dates = sorted(quarterly_values.keys(), reverse=True)[:quarters]
+        return {date: quarterly_values[date] for date in sorted_dates}
+
+    def fetch_quote_data(self) -> Dict:
+        """Fetch company info from EDGAR submissions endpoint.
+        Note: EDGAR doesn't provide real-time prices - we'll get that from another source."""
+        logger.info(f"=== EDGAR: Fetching data for {self.ticker} ===")
+
+        self.cik = self._get_cik()
+        if not self.cik:
+            raise DataFetchError(f"EDGAR: Could not find CIK for ticker {self.ticker}")
+
+        # Get company info from submissions endpoint
+        url = self.SUBMISSIONS_URL.format(cik=self.cik)
+        submissions = self._fetch_json(url)
+
+        if not submissions:
+            raise DataFetchError(f"EDGAR: Could not fetch company info for {self.ticker}")
+
+        # Extract company info
+        sic_description = submissions.get('sicDescription', '')
+        self.info = {
+            'longName': submissions.get('name', self.ticker),
+            'shortName': self.ticker,
+            'sector': sic_description,
+            'industry': sic_description,
+            'sicCode': submissions.get('sic', ''),
+            'fiscalYearEnd': submissions.get('fiscalYearEnd', ''),
+            'stateOfIncorporation': submissions.get('stateOfIncorporation', ''),
+            'cik': self.cik,
+        }
+
+        logger.info(f"EDGAR: Found company info for {self.ticker}: {self.info.get('longName')}")
+
+        # Try to get shares outstanding from company facts
+        shares_facts = self._extract_facts('CommonStockSharesOutstanding', 'dei')
+        if shares_facts:
+            # Get most recent value
+            latest = max(shares_facts, key=lambda x: x.get('end', ''))
+            self.info['sharesOutstanding'] = latest.get('val')
+
+        return self.info
+
+    def fetch_financials(self) -> pd.DataFrame:
+        """Fetch income statement data from EDGAR XBRL"""
+        logger.info(f"EDGAR: Fetching income statement for {self.ticker}")
+
+        # Try multiple revenue concepts (companies use different ones)
+        revenue_concepts = [
+            'Revenues',
+            'RevenueFromContractWithCustomerExcludingAssessedTax',
+            'SalesRevenueNet',
+            'TotalRevenuesAndOtherIncome',
+        ]
+
+        data = {}
+
+        # Revenue
+        for concept in revenue_concepts:
+            values = self._get_annual_values(concept)
+            if values:
+                data['Total Revenue'] = values
+                break
+
+        # Net Income
+        for concept in ['NetIncomeLoss', 'ProfitLoss', 'NetIncomeLossAvailableToCommonStockholdersBasic']:
+            values = self._get_annual_values(concept)
+            if values:
+                data['Net Income'] = values
+                break
+
+        # Operating Income
+        for concept in ['OperatingIncomeLoss', 'IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest']:
+            values = self._get_annual_values(concept)
+            if values:
+                data['Operating Income'] = values
+                break
+
+        # Gross Profit
+        values = self._get_annual_values('GrossProfit')
+        if values:
+            data['Gross Profit'] = values
+
+        # EBITDA (may need to calculate)
+        values = self._get_annual_values('EarningsBeforeInterestTaxesDepreciationAndAmortization')
+        if values:
+            data['EBITDA'] = values
+
+        # Interest Expense
+        values = self._get_annual_values('InterestExpense')
+        if values:
+            data['Interest Expense'] = values
+
+        if data:
+            df = pd.DataFrame(data).T
+            logger.info(f"EDGAR: Income statement has {len(df)} rows, {len(df.columns)} periods")
+            return df
+
+        logger.warning(f"EDGAR: No income statement data found for {self.ticker}")
+        return pd.DataFrame()
+
+    def fetch_quarterly_financials(self) -> pd.DataFrame:
+        """Fetch quarterly income statement data"""
+        data = {}
+
+        # Revenue
+        for concept in ['Revenues', 'RevenueFromContractWithCustomerExcludingAssessedTax', 'SalesRevenueNet']:
+            values = self._get_quarterly_values(concept)
+            if values:
+                data['Total Revenue'] = values
+                break
+
+        # Net Income
+        for concept in ['NetIncomeLoss', 'ProfitLoss']:
+            values = self._get_quarterly_values(concept)
+            if values:
+                data['Net Income'] = values
+                break
+
+        # Operating Income
+        values = self._get_quarterly_values('OperatingIncomeLoss')
+        if values:
+            data['Operating Income'] = values
+
+        if data:
+            return pd.DataFrame(data).T
+        return pd.DataFrame()
+
+    def fetch_balance_sheet(self) -> pd.DataFrame:
+        """Fetch balance sheet data from EDGAR XBRL"""
+        logger.info(f"EDGAR: Fetching balance sheet for {self.ticker}")
+
+        data = {}
+
+        # Total Assets
+        values = self._get_annual_values('Assets')
+        if values:
+            data['Total Assets'] = values
+
+        # Total Liabilities
+        values = self._get_annual_values('Liabilities')
+        if values:
+            data['Total Liabilities'] = values
+
+        # Stockholders Equity
+        for concept in ['StockholdersEquity', 'StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest']:
+            values = self._get_annual_values(concept)
+            if values:
+                data['Total Equity'] = values
+                break
+
+        # Cash
+        for concept in ['CashAndCashEquivalentsAtCarryingValue', 'Cash', 'CashCashEquivalentsAndShortTermInvestments']:
+            values = self._get_annual_values(concept)
+            if values:
+                data['Cash And Cash Equivalents'] = values
+                break
+
+        # Long-term Debt
+        for concept in ['LongTermDebt', 'LongTermDebtNoncurrent', 'LongTermDebtAndCapitalLeaseObligations']:
+            values = self._get_annual_values(concept)
+            if values:
+                data['Total Debt'] = values
+                break
+
+        # Current Assets
+        values = self._get_annual_values('AssetsCurrent')
+        if values:
+            data['Total Current Assets'] = values
+
+        # Current Liabilities
+        values = self._get_annual_values('LiabilitiesCurrent')
+        if values:
+            data['Total Current Liabilities'] = values
+
+        if data:
+            df = pd.DataFrame(data).T
+            logger.info(f"EDGAR: Balance sheet has {len(df)} rows, {len(df.columns)} periods")
+            return df
+
+        logger.warning(f"EDGAR: No balance sheet data found for {self.ticker}")
+        return pd.DataFrame()
+
+    def fetch_cash_flow(self) -> pd.DataFrame:
+        """Fetch cash flow data from EDGAR XBRL"""
+        logger.info(f"EDGAR: Fetching cash flow for {self.ticker}")
+
+        data = {}
+
+        # Operating Cash Flow
+        for concept in ['NetCashProvidedByUsedInOperatingActivities', 'NetCashProvidedByUsedInOperatingActivitiesContinuingOperations']:
+            values = self._get_annual_values(concept)
+            if values:
+                data['Operating Cash Flow'] = values
+                break
+
+        # Capital Expenditures
+        for concept in ['PaymentsToAcquirePropertyPlantAndEquipment', 'PaymentsToAcquireProductiveAssets']:
+            values = self._get_annual_values(concept)
+            if values:
+                data['Capital Expenditure'] = values
+                break
+
+        # Depreciation
+        for concept in ['DepreciationDepletionAndAmortization', 'Depreciation', 'DepreciationAndAmortization']:
+            values = self._get_annual_values(concept)
+            if values:
+                data['Depreciation And Amortization'] = values
+                break
+
+        # Investing Cash Flow
+        values = self._get_annual_values('NetCashProvidedByUsedInInvestingActivities')
+        if values:
+            data['Net Cash From Investing'] = values
+
+        # Financing Cash Flow
+        values = self._get_annual_values('NetCashProvidedByUsedInFinancingActivities')
+        if values:
+            data['Net Cash From Financing'] = values
+
+        if data:
+            df = pd.DataFrame(data).T
+            logger.info(f"EDGAR: Cash flow has {len(df)} rows, {len(df.columns)} periods")
+            return df
+
+        logger.warning(f"EDGAR: No cash flow data found for {self.ticker}")
+        return pd.DataFrame()
+
+    def fetch_current_price(self) -> Optional[float]:
+        """Fetch current price from a free source (Yahoo Finance chart API)"""
+        try:
+            url = f"https://query1.finance.yahoo.com/v8/finance/chart/{self.ticker}?interval=1d&range=1d"
+            response = requests.get(url, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                result = data.get('chart', {}).get('result', [])
+                if result:
+                    price = result[0].get('meta', {}).get('regularMarketPrice')
+                    if price:
+                        self.current_price = price
+                        self.info['currentPrice'] = price
+                        self.info['regularMarketPrice'] = price
+                        logger.info(f"EDGAR: Got price from Yahoo: ${price}")
+                        return price
+        except Exception as e:
+            logger.warning(f"EDGAR: Could not fetch price: {e}")
+
+        return None
+
+    def fetch_all_data(self) -> Tuple['EdgarDataFetcher', Dict, float]:
+        """Fetch all data and return in format compatible with existing code"""
+        self.fetch_quote_data()
+        self.financials = self.fetch_financials()
+        self.quarterly_financials = self.fetch_quarterly_financials()
+        self.balance_sheet = self.fetch_balance_sheet()
+        self.cash_flow = self.fetch_cash_flow()
+
+        # Get current price (EDGAR doesn't have real-time prices)
+        self.fetch_current_price()
+
+        if not self.current_price:
+            raise DataFetchError(f"EDGAR: Could not fetch current price for {self.ticker}")
+
+        logger.info(f"EDGAR: Fetched all data - financials: {len(self.financials)} rows, balance_sheet: {len(self.balance_sheet)} rows, cash_flow: {len(self.cash_flow)} rows")
+        return self, self.info, self.current_price
+
+
 def fetch_stock_data(ticker: str, max_retries: int = 3) -> Tuple[Any, Dict, float]:
     """
-    Fetch stock data using MASSIVE API (formerly Polygon) as primary source,
-    with Alpha Vantage and Yahoo Finance as fallbacks.
+    Fetch stock data using SEC EDGAR as primary source (free, unlimited),
+    with MASSIVE, Alpha Vantage and Yahoo Finance as fallbacks.
     Returns (data_object, info_dict, current_price).
     Raises DataFetchError if data cannot be retrieved.
     """
     logger.info(f"=== Fetching data for {ticker} ===")
     errors = []
 
-    # Try MASSIVE first if configured (primary data source)
+    # Try SEC EDGAR first (free, unlimited, has all financial statements)
+    try:
+        logger.info(f"Trying SEC EDGAR API for {ticker}...")
+        fetcher = EdgarDataFetcher(ticker)
+        result = fetcher.fetch_all_data()
+        # Check if we got meaningful data
+        if fetcher.current_price and (not fetcher.financials.empty or not fetcher.balance_sheet.empty):
+            logger.info(f"EDGAR: Successfully fetched data for {ticker}")
+            return result
+        logger.warning("EDGAR: Returned limited data, trying fallbacks...")
+        errors.append("EDGAR: Limited data returned")
+    except DataFetchError as e:
+        errors.append(f"EDGAR: {e}")
+        logger.warning(f"EDGAR failed: {e}, trying MASSIVE...")
+    except Exception as e:
+        errors.append(f"EDGAR: {e}")
+        logger.warning(f"EDGAR error: {e}, trying MASSIVE...")
+
+    # Fallback to MASSIVE if configured
     if MASSIVE_API_KEY:
         try:
             logger.info(f"Trying MASSIVE API for {ticker}...")
