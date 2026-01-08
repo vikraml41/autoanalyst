@@ -27,6 +27,8 @@ warnings.filterwarnings('ignore')
 # API Keys from environment variables
 FMP_API_KEY = os.environ.get('FMP_API_KEY', '')
 ALPHA_VANTAGE_KEY = os.environ.get('ALPHA_VANTAGE_KEY', '')
+FINNHUB_API_KEY = os.environ.get('FINNHUB_API_KEY', '')
+MASSIVE_API_KEY = os.environ.get('MASSIVE_API_KEY', '')
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -619,16 +621,434 @@ class AlphaVantageDataFetcher:
         return self, self.info, self.current_price
 
 
+# ============ FINNHUB API ============
+
+class FinnhubDataFetcher:
+    """Fetch stock data from Finnhub API - generous free tier (60 calls/min)"""
+
+    BASE_URL = "https://finnhub.io/api/v1"
+
+    def __init__(self, ticker: str):
+        self.ticker = ticker.upper()
+        self.api_key = FINNHUB_API_KEY
+        self.info = {}
+        self.financials = pd.DataFrame()
+        self.quarterly_financials = pd.DataFrame()
+        self.balance_sheet = pd.DataFrame()
+        self.cash_flow = pd.DataFrame()
+        self.current_price = None
+
+    def _fetch_json(self, endpoint: str) -> Optional[Dict]:
+        """Fetch JSON from Finnhub API"""
+        url = f"{self.BASE_URL}/{endpoint}&token={self.api_key}" if "?" in endpoint else f"{self.BASE_URL}/{endpoint}?token={self.api_key}"
+        try:
+            logger.info(f"Finnhub: Fetching {endpoint}")
+            response = requests.get(url, timeout=15)
+            logger.info(f"Finnhub: Response status {response.status_code}")
+
+            if response.status_code == 200:
+                data = response.json()
+                if isinstance(data, dict) and data.get('error'):
+                    logger.error(f"Finnhub error: {data.get('error')}")
+                    return None
+                return data
+            elif response.status_code == 401:
+                raise DataFetchError("Finnhub: Invalid API key")
+            elif response.status_code == 429:
+                raise DataFetchError("Finnhub: Rate limit exceeded")
+        except DataFetchError:
+            raise
+        except Exception as e:
+            logger.error(f"Finnhub error: {e}")
+        return None
+
+    def fetch_quote_data(self) -> Dict:
+        """Fetch current price and company info"""
+        logger.info(f"=== Finnhub: Fetching data for {self.ticker} ===")
+
+        # Get quote
+        quote = self._fetch_json(f"quote?symbol={self.ticker}")
+        if not quote or quote.get('c', 0) == 0:
+            raise DataFetchError(f"Finnhub: No quote data for {self.ticker}")
+
+        price = quote.get('c', 0)  # Current price
+        self.current_price = price
+        logger.info(f"Finnhub: Found price for {self.ticker}: ${price}")
+
+        # Get company profile
+        profile = self._fetch_json(f"stock/profile2?symbol={self.ticker}") or {}
+
+        # Get basic financials (metrics)
+        metrics = self._fetch_json(f"stock/metric?symbol={self.ticker}&metric=all") or {}
+        metric_data = metrics.get('metric', {})
+
+        self.info = {
+            'currentPrice': price,
+            'regularMarketPrice': price,
+            'longName': profile.get('name', self.ticker),
+            'shortName': profile.get('ticker', self.ticker),
+            'sector': profile.get('finnhubIndustry'),
+            'industry': profile.get('finnhubIndustry'),
+            'marketCap': profile.get('marketCapitalization', 0) * 1_000_000 if profile.get('marketCapitalization') else None,
+            'sharesOutstanding': profile.get('shareOutstanding', 0) * 1_000_000 if profile.get('shareOutstanding') else None,
+            'trailingPE': metric_data.get('peBasicExclExtraTTM'),
+            'priceToBook': metric_data.get('pbQuarterly'),
+            'beta': metric_data.get('beta'),
+            'previousClose': quote.get('pc'),
+            'longBusinessSummary': None,  # Not available in free tier
+            'revenueGrowth': metric_data.get('revenueGrowthQuarterlyYoy'),
+            'earningsGrowth': metric_data.get('epsGrowthQuarterlyYoy'),
+            # Additional metrics for calculations
+            'totalDebt': metric_data.get('totalDebt'),
+            'totalCash': metric_data.get('cashPerShareQuarterly', 0) * (profile.get('shareOutstanding', 0) * 1_000_000) if metric_data.get('cashPerShareQuarterly') else None,
+            'operatingCashFlow': metric_data.get('freeCashFlowTTM'),
+            'netIncome': metric_data.get('netIncomeEmployeeTTM'),
+            'ebitda': metric_data.get('ebitdaPerShareTTM', 0) * (profile.get('shareOutstanding', 0) * 1_000_000) if metric_data.get('ebitdaPerShareTTM') else None,
+        }
+
+        return self.info
+
+    def fetch_financials(self) -> pd.DataFrame:
+        """Build financials from Finnhub metrics"""
+        metrics = self._fetch_json(f"stock/metric?symbol={self.ticker}&metric=all") or {}
+        metric_data = metrics.get('metric', {})
+
+        if not metric_data:
+            return pd.DataFrame()
+
+        # Build DataFrame from available metrics
+        data = {}
+        current_date = datetime.now().strftime('%Y-%m-%d')
+
+        if metric_data.get('revenueTTM'):
+            data['Total Revenue'] = {current_date: metric_data.get('revenueTTM')}
+        if metric_data.get('netIncomeEmployeeTTM'):
+            data['Net Income'] = {current_date: metric_data.get('netIncomeEmployeeTTM')}
+        if metric_data.get('ebitdaPerShareTTM') and self.info.get('sharesOutstanding'):
+            data['EBITDA'] = {current_date: metric_data.get('ebitdaPerShareTTM') * self.info.get('sharesOutstanding', 1)}
+
+        if data:
+            return pd.DataFrame(data).T
+        return pd.DataFrame()
+
+    def fetch_quarterly_financials(self) -> pd.DataFrame:
+        """Return empty - Finnhub free tier doesn't have quarterly statements"""
+        return pd.DataFrame()
+
+    def fetch_balance_sheet(self) -> pd.DataFrame:
+        """Build balance sheet from Finnhub metrics"""
+        metrics = self._fetch_json(f"stock/metric?symbol={self.ticker}&metric=all") or {}
+        metric_data = metrics.get('metric', {})
+
+        if not metric_data:
+            return pd.DataFrame()
+
+        data = {}
+        current_date = datetime.now().strftime('%Y-%m-%d')
+
+        if metric_data.get('totalDebt'):
+            data['Total Debt'] = {current_date: metric_data.get('totalDebt')}
+        if metric_data.get('currentRatioQuarterly'):
+            data['Current Ratio'] = {current_date: metric_data.get('currentRatioQuarterly')}
+
+        if data:
+            return pd.DataFrame(data).T
+        return pd.DataFrame()
+
+    def fetch_cash_flow(self) -> pd.DataFrame:
+        """Build cash flow from Finnhub metrics"""
+        metrics = self._fetch_json(f"stock/metric?symbol={self.ticker}&metric=all") or {}
+        metric_data = metrics.get('metric', {})
+
+        if not metric_data:
+            return pd.DataFrame()
+
+        data = {}
+        current_date = datetime.now().strftime('%Y-%m-%d')
+
+        if metric_data.get('freeCashFlowTTM'):
+            data['Free Cash Flow'] = {current_date: metric_data.get('freeCashFlowTTM')}
+            data['Operating Cash Flow'] = {current_date: metric_data.get('freeCashFlowTTM') * 1.2}  # Estimate
+
+        if data:
+            return pd.DataFrame(data).T
+        return pd.DataFrame()
+
+    def fetch_all_data(self) -> Tuple['FinnhubDataFetcher', Dict, float]:
+        """Fetch all data"""
+        self.fetch_quote_data()
+        self.financials = self.fetch_financials()
+        self.quarterly_financials = self.fetch_quarterly_financials()
+        self.balance_sheet = self.fetch_balance_sheet()
+        self.cash_flow = self.fetch_cash_flow()
+
+        logger.info(f"Finnhub: Fetched all data - price: ${self.current_price}")
+        return self, self.info, self.current_price
+
+
+# ============ MASSIVE API (formerly Polygon) ============
+
+class MassiveDataFetcher:
+    """Fetch stock data from MASSIVE API (formerly Polygon) - cloud-friendly with generous free tier"""
+
+    BASE_URL = "https://api.massive.com"
+
+    def __init__(self, ticker: str):
+        self.ticker = ticker.upper()
+        self.api_key = MASSIVE_API_KEY
+        self.info = {}
+        self.financials = pd.DataFrame()
+        self.quarterly_financials = pd.DataFrame()
+        self.balance_sheet = pd.DataFrame()
+        self.cash_flow = pd.DataFrame()
+        self.current_price = None
+
+    def _fetch_json(self, endpoint: str) -> Optional[Dict]:
+        """Fetch JSON from MASSIVE API"""
+        # Add API key to endpoint
+        separator = '&' if '?' in endpoint else '?'
+        url = f"{self.BASE_URL}{endpoint}{separator}apiKey={self.api_key}"
+        try:
+            logger.info(f"MASSIVE: Fetching {endpoint}")
+            response = requests.get(url, timeout=30)
+            logger.info(f"MASSIVE: Response status {response.status_code}")
+
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('status') == 'ERROR':
+                    error_msg = data.get('error', 'Unknown error')
+                    logger.error(f"MASSIVE API error: {error_msg}")
+                    return None
+                return data
+            elif response.status_code == 401:
+                raise DataFetchError("MASSIVE: Invalid API key")
+            elif response.status_code == 403:
+                error_detail = response.json().get('error', 'Access denied')
+                raise DataFetchError(f"MASSIVE: {error_detail}")
+            elif response.status_code == 429:
+                raise DataFetchError("MASSIVE: Rate limit exceeded")
+            else:
+                logger.warning(f"MASSIVE: Got status {response.status_code}: {response.text[:200]}")
+        except DataFetchError:
+            raise
+        except Exception as e:
+            logger.error(f"MASSIVE error: {e}")
+        return None
+
+    def fetch_quote_data(self) -> Dict:
+        """Fetch current price using ticker snapshot and company overview"""
+        key_preview = self.api_key[:8] if self.api_key else 'None'
+        logger.info(f"=== MASSIVE: Fetching data for {self.ticker} (key: {key_preview}...) ===")
+
+        # Get snapshot for current price
+        snapshot = self._fetch_json(f"/v2/snapshot/locale/us/markets/stocks/tickers/{self.ticker}")
+        if not snapshot or 'ticker' not in snapshot:
+            raise DataFetchError(f"MASSIVE: No snapshot data for {self.ticker}")
+
+        ticker_data = snapshot.get('ticker', {})
+        day_data = ticker_data.get('day', {})
+        prev_day = ticker_data.get('prevDay', {})
+
+        # Get current price from day close or previous close
+        price = day_data.get('c') or prev_day.get('c')
+        if not price:
+            raise DataFetchError(f"MASSIVE: No price data for {self.ticker}")
+
+        self.current_price = price
+        logger.info(f"MASSIVE: Found price for {self.ticker}: ${price}")
+
+        # Get company overview for additional info
+        overview = self._fetch_json(f"/v3/reference/tickers/{self.ticker}")
+        if overview and 'results' in overview:
+            result = overview['results']
+            self.info = {
+                'currentPrice': price,
+                'regularMarketPrice': price,
+                'longName': result.get('name', self.ticker),
+                'shortName': self.ticker,
+                'sector': result.get('sic_description'),  # Industry classification
+                'industry': result.get('sic_description'),
+                'marketCap': result.get('market_cap'),
+                'sharesOutstanding': result.get('weighted_shares_outstanding') or result.get('share_class_shares_outstanding'),
+                'previousClose': prev_day.get('c'),
+                'longBusinessSummary': result.get('description', '')[:500] if result.get('description') else None,
+                'todaysChange': ticker_data.get('todaysChange'),
+                'todaysChangePerc': ticker_data.get('todaysChangePerc'),
+            }
+        else:
+            # Minimal info if overview fails
+            self.info = {
+                'currentPrice': price,
+                'regularMarketPrice': price,
+                'longName': self.ticker,
+                'shortName': self.ticker,
+                'previousClose': prev_day.get('c'),
+                'todaysChange': ticker_data.get('todaysChange'),
+            }
+
+        return self.info
+
+    def fetch_financials(self) -> pd.DataFrame:
+        """Fetch income statement data"""
+        data = self._fetch_json(f"/stocks/financials/v1/income-statements?tickers={self.ticker}&timeframe=annual&limit=5")
+        if not data or 'results' not in data or not data['results']:
+            logger.warning(f"MASSIVE: No income statement data for {self.ticker}")
+            return pd.DataFrame()
+
+        return self._income_to_dataframe(data['results'])
+
+    def fetch_quarterly_financials(self) -> pd.DataFrame:
+        """Fetch quarterly income statement data"""
+        data = self._fetch_json(f"/stocks/financials/v1/income-statements?tickers={self.ticker}&timeframe=quarterly&limit=8")
+        if not data or 'results' not in data or not data['results']:
+            return pd.DataFrame()
+
+        return self._income_to_dataframe(data['results'])
+
+    def _income_to_dataframe(self, results: List[Dict]) -> pd.DataFrame:
+        """Convert MASSIVE income statement results to DataFrame"""
+        field_mapping = {
+            'Total Revenue': 'revenue',
+            'Net Income': 'net_income_loss_attributable_common_shareholders',
+            'Operating Income': 'operating_income',
+            'EBITDA': 'ebitda',
+            'Gross Profit': 'gross_profit',
+            'Interest Expense': 'interest_expense',
+            'Cost Of Revenue': 'cost_of_revenue',
+        }
+
+        data = {}
+        for row_name, api_field in field_mapping.items():
+            row_data = {}
+            for item in results:
+                date = item.get('period_end', 'Unknown')
+                value = item.get(api_field)
+                if value is not None:
+                    try:
+                        row_data[date] = float(value)
+                    except (ValueError, TypeError):
+                        pass
+            if row_data:
+                data[row_name] = row_data
+
+        if data:
+            return pd.DataFrame(data).T
+        return pd.DataFrame()
+
+    def fetch_balance_sheet(self) -> pd.DataFrame:
+        """Fetch balance sheet data"""
+        data = self._fetch_json(f"/stocks/financials/v1/balance-sheets?tickers={self.ticker}&timeframe=annual&limit=5")
+        if not data or 'results' not in data or not data['results']:
+            logger.warning(f"MASSIVE: No balance sheet data for {self.ticker}")
+            return pd.DataFrame()
+
+        field_mapping = {
+            'Total Assets': 'total_assets',
+            'Total Liabilities': 'total_liabilities',
+            'Total Equity': 'total_equity',
+            'Total Debt': 'long_term_debt_and_capital_lease_obligations',
+            'Cash And Cash Equivalents': 'cash_and_equivalents',
+            'Total Current Assets': 'total_current_assets',
+            'Total Current Liabilities': 'total_current_liabilities',
+        }
+
+        result = {}
+        for row_name, api_field in field_mapping.items():
+            row_data = {}
+            for item in data['results']:
+                date = item.get('period_end', 'Unknown')
+                value = item.get(api_field)
+                if value is not None:
+                    try:
+                        row_data[date] = float(value)
+                    except (ValueError, TypeError):
+                        pass
+            if row_data:
+                result[row_name] = row_data
+
+        if result:
+            return pd.DataFrame(result).T
+        return pd.DataFrame()
+
+    def fetch_cash_flow(self) -> pd.DataFrame:
+        """Fetch cash flow data"""
+        data = self._fetch_json(f"/stocks/financials/v1/cash-flow-statements?tickers={self.ticker}&timeframe=annual&limit=5")
+        if not data or 'results' not in data or not data['results']:
+            logger.warning(f"MASSIVE: No cash flow data for {self.ticker}")
+            return pd.DataFrame()
+
+        field_mapping = {
+            'Operating Cash Flow': 'net_cash_from_operating_activities',
+            'Capital Expenditure': 'purchase_of_property_plant_and_equipment',
+            'Depreciation And Amortization': 'depreciation_depletion_and_amortization',
+            'Net Cash From Investing': 'net_cash_from_investing_activities',
+            'Net Cash From Financing': 'net_cash_from_financing_activities',
+        }
+
+        result = {}
+        for row_name, api_field in field_mapping.items():
+            row_data = {}
+            for item in data['results']:
+                date = item.get('period_end', 'Unknown')
+                value = item.get(api_field)
+                if value is not None:
+                    try:
+                        row_data[date] = float(value)
+                    except (ValueError, TypeError):
+                        pass
+            if row_data:
+                result[row_name] = row_data
+
+        if result:
+            return pd.DataFrame(result).T
+        return pd.DataFrame()
+
+    def fetch_all_data(self) -> Tuple['MassiveDataFetcher', Dict, float]:
+        """Fetch all data and return in format compatible with existing code"""
+        self.fetch_quote_data()
+        self.financials = self.fetch_financials()
+        self.quarterly_financials = self.fetch_quarterly_financials()
+        self.balance_sheet = self.fetch_balance_sheet()
+        self.cash_flow = self.fetch_cash_flow()
+
+        logger.info(f"MASSIVE: Fetched all data - financials rows: {len(self.financials)}, balance_sheet rows: {len(self.balance_sheet)}, cash_flow rows: {len(self.cash_flow)}")
+        return self, self.info, self.current_price
+
+
 def fetch_stock_data(ticker: str, max_retries: int = 3) -> Tuple[Any, Dict, float]:
     """
-    Fetch stock data using Alpha Vantage API with Yahoo Finance fallback.
+    Fetch stock data using MASSIVE API (formerly Polygon) as primary source,
+    with Alpha Vantage and Yahoo Finance as fallbacks.
     Returns (data_object, info_dict, current_price).
     Raises DataFetchError if data cannot be retrieved.
     """
     logger.info(f"=== Fetching data for {ticker} ===")
     errors = []
 
-    # Try Alpha Vantage first if configured
+    # Try MASSIVE first if configured (primary data source)
+    if MASSIVE_API_KEY:
+        try:
+            logger.info(f"Trying MASSIVE API for {ticker}...")
+            fetcher = MassiveDataFetcher(ticker)
+            result = fetcher.fetch_all_data()
+            # Check if we got meaningful data (price + some financials)
+            if fetcher.current_price and (not fetcher.financials.empty or not fetcher.balance_sheet.empty):
+                logger.info(f"MASSIVE: Successfully fetched data for {ticker}")
+                return result
+            elif fetcher.current_price:
+                # Got price but no financials - still usable but log warning
+                logger.warning("MASSIVE: Got price but limited financial data, continuing with available data...")
+                return result
+            logger.warning("MASSIVE: Returned limited data, trying fallbacks...")
+            errors.append("MASSIVE: Limited data returned")
+        except DataFetchError as e:
+            errors.append(f"MASSIVE: {e}")
+            logger.warning(f"MASSIVE failed: {e}, trying Alpha Vantage...")
+        except Exception as e:
+            errors.append(f"MASSIVE: {e}")
+            logger.warning(f"MASSIVE error: {e}, trying Alpha Vantage...")
+
+    # Fallback to Alpha Vantage if configured
     if ALPHA_VANTAGE_KEY:
         try:
             logger.info(f"Trying Alpha Vantage API for {ticker}...")
@@ -646,7 +1066,7 @@ def fetch_stock_data(ticker: str, max_retries: int = 3) -> Tuple[Any, Dict, floa
             errors.append(f"Alpha Vantage: {e}")
             logger.warning(f"Alpha Vantage error: {e}, trying Yahoo Finance...")
 
-    # Fallback to Yahoo Finance scraper
+    # Last resort: Yahoo Finance scraper
     try:
         logger.info(f"Trying Yahoo Finance scraper for {ticker}...")
         scraper = YahooFinanceScraper(ticker)
