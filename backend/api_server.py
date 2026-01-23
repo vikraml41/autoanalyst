@@ -190,8 +190,9 @@ async def test_analysis(ticker: str):
         if 'dcf' in results['steps'] and results['steps']['dcf'] == 'success':
             try:
                 rev = RevenueForecaster(ticker, dcf.stock, dcf.info)
-                rev_result = rev.forecast()
+                rev_result = rev.perform_full_revenue_analysis()
                 results['steps']['revenue'] = 'success'
+                results['revenue_cagr'] = rev_result.get('historical_cagr')
             except Exception as e:
                 results['steps']['revenue'] = f'failed: {str(e)}'
 
@@ -199,8 +200,9 @@ async def test_analysis(ticker: str):
         if 'dcf' in results['steps'] and results['steps']['dcf'] == 'success':
             try:
                 comps = ComparableCompanyAnalysis(ticker, dcf.stock, dcf.info, dcf.current_price)
-                comps_result = comps.analyze()
+                comps_result = comps.perform_full_comps_analysis()
                 results['steps']['comps'] = 'success'
+                results['peers'] = [p.get('ticker') for p in comps_result.get('peers', [])]
             except Exception as e:
                 results['steps']['comps'] = f'failed: {str(e)}'
 
