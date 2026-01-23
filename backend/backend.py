@@ -1268,6 +1268,8 @@ class EdgarDataFetcher:
 
         if data:
             df = pd.DataFrame(data).T
+            # Sort columns by date descending (newest first) so iloc[0] gets most recent data
+            df = df.reindex(sorted(df.columns, reverse=True), axis=1)
             logger.info(f"EDGAR: Income statement has {len(df)} rows, {len(df.columns)} periods")
             return df
 
@@ -1298,7 +1300,10 @@ class EdgarDataFetcher:
             data['Operating Income'] = values
 
         if data:
-            return pd.DataFrame(data).T
+            df = pd.DataFrame(data).T
+            # Sort columns by date descending (newest first)
+            df = df.reindex(sorted(df.columns, reverse=True), axis=1)
+            return df
         return pd.DataFrame()
 
     def fetch_balance_sheet(self) -> pd.DataFrame:
@@ -1350,6 +1355,8 @@ class EdgarDataFetcher:
 
         if data:
             df = pd.DataFrame(data).T
+            # Sort columns by date descending (newest first) so iloc[0] gets most recent data
+            df = df.reindex(sorted(df.columns, reverse=True), axis=1)
             logger.info(f"EDGAR: Balance sheet has {len(df)} rows, {len(df.columns)} periods")
             return df
 
@@ -1395,6 +1402,8 @@ class EdgarDataFetcher:
 
         if data:
             df = pd.DataFrame(data).T
+            # Sort columns by date descending (newest first) so iloc[0] gets most recent data
+            df = df.reindex(sorted(df.columns, reverse=True), axis=1)
             logger.info(f"EDGAR: Cash flow has {len(df)} rows, {len(df.columns)} periods")
             return df
 
