@@ -1228,11 +1228,15 @@ class EdgarDataFetcher:
         logger.info(f"EDGAR: Found company info for {self.ticker}: {self.info.get('longName')}")
 
         # Try to get shares outstanding from company facts
-        shares_facts = self._extract_facts('CommonStockSharesOutstanding', 'dei')
-        if shares_facts:
-            # Get most recent value
-            latest = max(shares_facts, key=lambda x: x.get('end', ''))
-            self.info['sharesOutstanding'] = latest.get('val')
+        # Note: shares outstanding is in 'shares' unit, not 'USD'
+        for concept in ['EntityCommonStockSharesOutstanding', 'CommonStockSharesOutstanding']:
+            shares_facts = self._extract_facts(concept, 'dei', unit='shares')
+            if shares_facts:
+                # Get most recent value
+                latest = max(shares_facts, key=lambda x: x.get('end', ''))
+                self.info['sharesOutstanding'] = latest.get('val')
+                logger.info(f"EDGAR: Shares outstanding: {self.info['sharesOutstanding']:,}")
+                break
 
         return self.info
 
