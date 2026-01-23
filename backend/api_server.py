@@ -167,6 +167,46 @@ async def test_edgar(ticker: str):
     return results
 
 
+@app.get('/api/test-analysis/{ticker}')
+async def test_analysis(ticker: str):
+    """Debug endpoint to test analysis step by step"""
+    ticker = ticker.upper()
+    results = {'ticker': ticker, 'steps': {}}
+
+    try:
+        analyzer = StockAnalyzer(ticker)
+
+        # Step 1: DCF
+        try:
+            dcf_result = analyzer.dcf_valuation.run_full_analysis()
+            results['steps']['dcf'] = 'success'
+            results['dcf_value'] = dcf_result.get('valuation', {}).get('intrinsic_value_per_share')
+        except Exception as e:
+            results['steps']['dcf'] = f'failed: {str(e)}'
+
+        # Step 2: Revenue Forecast
+        try:
+            rev_result = analyzer.revenue_forecaster.forecast()
+            results['steps']['revenue'] = 'success'
+        except Exception as e:
+            results['steps']['revenue'] = f'failed: {str(e)}'
+
+        # Step 3: Comparable Companies
+        try:
+            comps_result = analyzer.comparable_analysis.analyze()
+            results['steps']['comps'] = 'success'
+        except Exception as e:
+            results['steps']['comps'] = f'failed: {str(e)}'
+
+        results['success'] = True
+
+    except Exception as e:
+        results['error'] = str(e)
+        results['success'] = False
+
+    return results
+
+
 @app.get('/api/test-fetch/{ticker}')
 async def test_fetch(ticker: str):
     """Debug endpoint to test fetch_stock_data function"""
