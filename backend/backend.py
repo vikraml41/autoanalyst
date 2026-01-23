@@ -1176,6 +1176,26 @@ class EdgarDataFetcher:
         sorted_dates = sorted(quarterly_values.keys(), reverse=True)[:quarters]
         return {date: quarterly_values[date] for date in sorted_dates}
 
+    def _get_best_concept_values(self, concepts: List[str], taxonomy: str = 'us-gaap', years: int = 5) -> Dict[str, float]:
+        """
+        Try multiple concepts and return values from the one with the most recent data.
+        Companies switch XBRL concepts over time (e.g., Revenues -> RevenueFromContractWithCustomerExcludingAssessedTax)
+        so we need to find which concept has current data, not just any data.
+        """
+        best_values = {}
+        best_latest_date = ''
+
+        for concept in concepts:
+            values = self._get_annual_values(concept, taxonomy, years)
+            if values:
+                latest_date = max(values.keys())
+                # Pick the concept with the most recent data
+                if latest_date > best_latest_date:
+                    best_latest_date = latest_date
+                    best_values = values
+
+        return best_values
+
     def fetch_quote_data(self) -> Dict:
         """Fetch company info from EDGAR submissions endpoint.
         Note: EDGAR doesn't provide real-time prices - we'll get that from another source."""
@@ -1220,36 +1240,31 @@ class EdgarDataFetcher:
         """Fetch income statement data from EDGAR XBRL"""
         logger.info(f"EDGAR: Fetching income statement for {self.ticker}")
 
-        # Try multiple revenue concepts (companies use different ones)
+        data = {}
+
+        # Revenue - use helper to find concept with most recent data
+        # Companies switched from Revenues to RevenueFromContractWithCustomerExcludingAssessedTax after ASC 606 (2018)
         revenue_concepts = [
-            'Revenues',
             'RevenueFromContractWithCustomerExcludingAssessedTax',
+            'Revenues',
             'SalesRevenueNet',
             'TotalRevenuesAndOtherIncome',
         ]
-
-        data = {}
-
-        # Revenue
-        for concept in revenue_concepts:
-            values = self._get_annual_values(concept)
-            if values:
-                data['Total Revenue'] = values
-                break
+        values = self._get_best_concept_values(revenue_concepts)
+        if values:
+            data['Total Revenue'] = values
 
         # Net Income
-        for concept in ['NetIncomeLoss', 'ProfitLoss', 'NetIncomeLossAvailableToCommonStockholdersBasic']:
-            values = self._get_annual_values(concept)
-            if values:
-                data['Net Income'] = values
-                break
+        net_income_concepts = ['NetIncomeLoss', 'ProfitLoss', 'NetIncomeLossAvailableToCommonStockholdersBasic']
+        values = self._get_best_concept_values(net_income_concepts)
+        if values:
+            data['Net Income'] = values
 
         # Operating Income
-        for concept in ['OperatingIncomeLoss', 'IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest']:
-            values = self._get_annual_values(concept)
-            if values:
-                data['Operating Income'] = values
-                break
+        operating_income_concepts = ['OperatingIncomeLoss', 'IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest']
+        values = self._get_best_concept_values(operating_income_concepts)
+        if values:
+            data['Operating Income'] = values
 
         # Gross Profit
         values = self._get_annual_values('GrossProfit')
