@@ -1517,6 +1517,7 @@ def fetch_stock_data(ticker: str, max_retries: int = 3) -> Tuple[Any, Dict, floa
     """
     logger.info(f"=== Fetching data for {ticker} ===")
     errors = []
+    edgar_fetcher = None  # Keep reference to EDGAR data even if price fails
 
     # Try SEC EDGAR first (free, unlimited, has all financial statements)
     try:
@@ -1531,7 +1532,12 @@ def fetch_stock_data(ticker: str, max_retries: int = 3) -> Tuple[Any, Dict, floa
         errors.append("EDGAR: Limited data returned")
     except DataFetchError as e:
         errors.append(f"EDGAR: {e}")
-        logger.warning(f"EDGAR failed: {e}, trying MASSIVE...")
+        # Check if EDGAR got financials but just failed on price
+        if 'price' in str(e).lower() and hasattr(fetcher, 'financials') and not fetcher.financials.empty:
+            logger.info("EDGAR: Got financials but price failed, will try to get price separately...")
+            edgar_fetcher = fetcher
+        else:
+            logger.warning(f"EDGAR failed: {e}, trying MASSIVE...")
     except Exception as e:
         errors.append(f"EDGAR: {e}")
         logger.warning(f"EDGAR error: {e}, trying MASSIVE...")
@@ -1581,11 +1587,42 @@ def fetch_stock_data(ticker: str, max_retries: int = 3) -> Tuple[Any, Dict, floa
     try:
         logger.info(f"Trying Yahoo Finance scraper for {ticker}...")
         scraper = YahooFinanceScraper(ticker)
-        return scraper.fetch_all_data()
+        yahoo_result = scraper.fetch_all_data()
+
+        # If we have EDGAR financials but needed Yahoo for price, combine them
+        if edgar_fetcher is not None and scraper.current_price:
+            logger.info("Combining EDGAR financials with Yahoo price...")
+            edgar_fetcher.current_price = scraper.current_price
+            edgar_fetcher.info['currentPrice'] = scraper.current_price
+            edgar_fetcher.info['regularMarketPrice'] = scraper.current_price
+            return edgar_fetcher, edgar_fetcher.info, scraper.current_price
+
+        return yahoo_result
     except DataFetchError as e:
         errors.append(f"Yahoo Finance: {e}")
     except Exception as e:
         errors.append(f"Yahoo Finance: {e}")
+
+    # If EDGAR got financials, try one more time to get just the price
+    if edgar_fetcher is not None:
+        logger.warning("All price sources failed, but EDGAR has financials - attempting price from chart API...")
+        try:
+            import requests
+            url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?interval=1d&range=1d"
+            response = requests.get(url, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                result = data.get('chart', {}).get('result', [])
+                if result:
+                    price = result[0].get('meta', {}).get('regularMarketPrice')
+                    if price:
+                        edgar_fetcher.current_price = price
+                        edgar_fetcher.info['currentPrice'] = price
+                        edgar_fetcher.info['regularMarketPrice'] = price
+                        logger.info(f"Got price from chart API: ${price}")
+                        return edgar_fetcher, edgar_fetcher.info, price
+        except Exception as e:
+            logger.warning(f"Chart API price fetch failed: {e}")
 
     # All methods failed
     error_msg = f"All data sources failed for {ticker}. Errors: {'; '.join(errors)}"
