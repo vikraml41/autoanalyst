@@ -206,6 +206,42 @@ async def debug_full_analysis(ticker: str):
         }
 
 
+@app.post('/api/debug-stock-analysis')
+async def debug_stock_analysis(request: StockAnalysisRequest):
+    """Debug POST endpoint for stock analysis"""
+    try:
+        ticker = request.ticker.strip().upper()
+        analyzer = StockAnalyzer(ticker)
+        results = analyzer.analyze()
+
+        # Sanitize
+        import numpy as np
+        def sanitize(obj):
+            if isinstance(obj, dict):
+                return {k: sanitize(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [sanitize(v) for v in obj]
+            elif isinstance(obj, (np.integer, np.int64)):
+                return int(obj)
+            elif isinstance(obj, (np.floating, np.float64)):
+                return None if np.isnan(obj) else float(obj)
+            elif isinstance(obj, np.ndarray):
+                return sanitize(obj.tolist())
+            elif isinstance(obj, float) and obj != obj:
+                return None
+            return obj
+
+        return sanitize(results)
+    except Exception as e:
+        import traceback
+        return {
+            'success': False,
+            'error': str(e),
+            'error_type': type(e).__name__,
+            'traceback': traceback.format_exc()[-1500:]
+        }
+
+
 @app.get('/api/test-analysis/{ticker}')
 async def test_analysis(ticker: str):
     """Debug endpoint to test analysis step by step"""
