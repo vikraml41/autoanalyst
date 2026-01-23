@@ -199,6 +199,7 @@ async def test_fetch(ticker: str):
         # Sample data if available
         if not stock.financials.empty and 'Total Revenue' in stock.financials.index:
             results['sample_revenue'] = stock.financials.loc['Total Revenue'].iloc[0]
+            results['financials_columns'] = list(stock.financials.columns)[:5]  # Show first 5 date columns
 
     except Exception as e:
         results['success'] = False
