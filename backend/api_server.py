@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import logging
 import os
-from backend import StockAnalyzer, DataFetchError, ALPHA_VANTAGE_KEY, MASSIVE_API_KEY, EdgarDataFetcher, fetch_stock_data
+from backend import StockAnalyzer, DataFetchError, ALPHA_VANTAGE_KEY, MASSIVE_API_KEY, EdgarDataFetcher, fetch_stock_data, DCFValuation, RevenueForecaster, ComparableCompanyAnalysis
 import traceback
 
 # Configure logging
@@ -174,29 +174,35 @@ async def test_analysis(ticker: str):
     results = {'ticker': ticker, 'steps': {}}
 
     try:
-        analyzer = StockAnalyzer(ticker)
-
-        # Step 1: DCF
+        # Step 1: DCF (this fetches stock data)
         try:
-            dcf_result = analyzer.dcf_valuation.run_full_analysis()
+            dcf = DCFValuation(ticker)
+            dcf_result = dcf.perform_full_dcf_analysis()
             results['steps']['dcf'] = 'success'
             results['dcf_value'] = dcf_result.get('valuation', {}).get('intrinsic_value_per_share')
+            results['shares_outstanding'] = dcf.info.get('sharesOutstanding')
         except Exception as e:
             results['steps']['dcf'] = f'failed: {str(e)}'
+            import traceback
+            results['dcf_traceback'] = traceback.format_exc()[-500:]
 
-        # Step 2: Revenue Forecast
-        try:
-            rev_result = analyzer.revenue_forecaster.forecast()
-            results['steps']['revenue'] = 'success'
-        except Exception as e:
-            results['steps']['revenue'] = f'failed: {str(e)}'
+        # Step 2: Revenue Forecast (only if DCF succeeded)
+        if 'dcf' in results['steps'] and results['steps']['dcf'] == 'success':
+            try:
+                rev = RevenueForecaster(ticker, dcf.stock, dcf.info)
+                rev_result = rev.forecast()
+                results['steps']['revenue'] = 'success'
+            except Exception as e:
+                results['steps']['revenue'] = f'failed: {str(e)}'
 
-        # Step 3: Comparable Companies
-        try:
-            comps_result = analyzer.comparable_analysis.analyze()
-            results['steps']['comps'] = 'success'
-        except Exception as e:
-            results['steps']['comps'] = f'failed: {str(e)}'
+        # Step 3: Comparable Companies (only if DCF succeeded)
+        if 'dcf' in results['steps'] and results['steps']['dcf'] == 'success':
+            try:
+                comps = ComparableCompanyAnalysis(ticker, dcf.stock, dcf.info, dcf.current_price)
+                comps_result = comps.analyze()
+                results['steps']['comps'] = 'success'
+            except Exception as e:
+                results['steps']['comps'] = f'failed: {str(e)}'
 
         results['success'] = True
 
