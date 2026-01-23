@@ -191,6 +191,24 @@ async def test_edgar(ticker: str):
     return results
 
 
+@app.get('/api/debug-full-analysis/{ticker}')
+async def debug_full_analysis(ticker: str):
+    """Debug endpoint that runs full StockAnalyzer.analyze()"""
+    ticker = ticker.upper()
+    try:
+        analyzer = StockAnalyzer(ticker)
+        results = analyzer.analyze()
+        return {'success': True, 'keys': list(results.keys()) if results else None}
+    except Exception as e:
+        import traceback
+        return {
+            'success': False,
+            'error': str(e),
+            'error_type': type(e).__name__,
+            'traceback': traceback.format_exc()[-1000:]
+        }
+
+
 @app.get('/api/test-analysis/{ticker}')
 async def test_analysis(ticker: str):
     """Debug endpoint to test analysis step by step"""
