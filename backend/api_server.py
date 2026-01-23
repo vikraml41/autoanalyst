@@ -53,30 +53,27 @@ async def analyze_stock(request: StockAnalysisRequest):
 
         logger.info(f"Analysis completed successfully for {ticker}")
 
-        # Ensure JSON serializable (convert numpy types)
-        import json
-        try:
-            json.dumps(results)
-        except TypeError as e:
-            logger.error(f"JSON serialization error: {e}")
-            # Try to sanitize the results
-            def sanitize(obj):
-                import numpy as np
-                if isinstance(obj, dict):
-                    return {k: sanitize(v) for k, v in obj.items()}
-                elif isinstance(obj, list):
-                    return [sanitize(v) for v in obj]
-                elif isinstance(obj, (np.integer, np.int64)):
-                    return int(obj)
-                elif isinstance(obj, (np.floating, np.float64)):
-                    return float(obj) if not np.isnan(obj) else None
-                elif isinstance(obj, np.ndarray):
-                    return obj.tolist()
-                elif isinstance(obj, float) and (obj != obj):  # NaN check
-                    return None
-                return obj
-            results = sanitize(results)
+        # Always sanitize to ensure JSON serializable (convert numpy types)
+        import numpy as np
 
+        def sanitize(obj):
+            if isinstance(obj, dict):
+                return {k: sanitize(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [sanitize(v) for v in obj]
+            elif isinstance(obj, (np.integer, np.int64)):
+                return int(obj)
+            elif isinstance(obj, (np.floating, np.float64)):
+                if np.isnan(obj):
+                    return None
+                return float(obj)
+            elif isinstance(obj, np.ndarray):
+                return sanitize(obj.tolist())
+            elif isinstance(obj, float) and obj != obj:  # NaN check for regular floats
+                return None
+            return obj
+
+        results = sanitize(results)
         return results
 
     except HTTPException:
