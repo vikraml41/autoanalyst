@@ -1494,6 +1494,100 @@ class EdgarDataFetcher:
         logger.error(f"EDGAR: All price sources failed for {self.ticker}")
         return None
 
+    def _calculate_derived_metrics(self):
+        """Calculate market cap, P/E, EV, and other metrics from raw financial data"""
+        try:
+            shares = self.info.get('sharesOutstanding', 0)
+            price = self.current_price or 0
+
+            # Market Cap
+            if shares and price:
+                market_cap = shares * price
+                self.info['marketCap'] = market_cap
+
+                # Get financial data for calculations
+                net_income = None
+                revenue = None
+                total_debt = None
+                cash = None
+                operating_income = None
+                depreciation = None
+
+                # Extract from financials
+                if not self.financials.empty:
+                    if 'Net Income' in self.financials.index:
+                        net_income = self.financials.loc['Net Income'].iloc[0]
+                        if pd.isna(net_income):
+                            net_income = None
+                    if 'Total Revenue' in self.financials.index:
+                        revenue = self.financials.loc['Total Revenue'].iloc[0]
+                        if pd.isna(revenue):
+                            revenue = None
+                    if 'Operating Income' in self.financials.index:
+                        operating_income = self.financials.loc['Operating Income'].iloc[0]
+                        if pd.isna(operating_income):
+                            operating_income = None
+
+                # Extract from balance sheet
+                if not self.balance_sheet.empty:
+                    if 'Total Debt' in self.balance_sheet.index:
+                        total_debt = self.balance_sheet.loc['Total Debt'].iloc[0]
+                        if pd.isna(total_debt):
+                            total_debt = 0
+                    if 'Cash And Cash Equivalents' in self.balance_sheet.index:
+                        cash = self.balance_sheet.loc['Cash And Cash Equivalents'].iloc[0]
+                        if pd.isna(cash):
+                            cash = 0
+
+                # Extract depreciation from cash flow
+                if not self.cash_flow.empty:
+                    if 'Depreciation And Amortization' in self.cash_flow.index:
+                        depreciation = self.cash_flow.loc['Depreciation And Amortization'].iloc[0]
+                        if pd.isna(depreciation):
+                            depreciation = 0
+
+                # P/E Ratio
+                if net_income and net_income > 0:
+                    eps = net_income / shares
+                    pe_ratio = price / eps
+                    self.info['trailingPE'] = pe_ratio
+                    self.info['netIncomeToCommon'] = net_income
+
+                # Revenue metrics
+                if revenue:
+                    self.info['totalRevenue'] = revenue
+                    self.info['priceToSalesTrailing12Months'] = market_cap / revenue
+
+                # Enterprise Value = Market Cap + Debt - Cash
+                total_debt = total_debt or 0
+                cash = cash or 0
+                enterprise_value = market_cap + total_debt - cash
+                self.info['enterpriseValue'] = enterprise_value
+
+                if revenue:
+                    self.info['enterpriseToRevenue'] = enterprise_value / revenue
+
+                # EBITDA = Operating Income + Depreciation & Amortization
+                if operating_income:
+                    depreciation = depreciation or 0
+                    ebitda = operating_income + abs(depreciation)
+                    self.info['ebitda'] = ebitda
+                    if ebitda > 0:
+                        self.info['enterpriseToEbitda'] = enterprise_value / ebitda
+
+                # Book Value / Price to Book
+                if not self.balance_sheet.empty and 'Total Equity' in self.balance_sheet.index:
+                    equity = self.balance_sheet.loc['Total Equity'].iloc[0]
+                    if equity and not pd.isna(equity) and equity > 0:
+                        book_value_per_share = equity / shares
+                        self.info['bookValue'] = book_value_per_share
+                        self.info['priceToBook'] = price / book_value_per_share
+
+                logger.info(f"EDGAR: Calculated metrics - Market Cap: ${market_cap/1e9:.1f}B, P/E: {self.info.get('trailingPE', 'N/A')}")
+
+        except Exception as e:
+            logger.warning(f"EDGAR: Error calculating derived metrics: {e}")
+
     def fetch_all_data(self) -> Tuple['EdgarDataFetcher', Dict, float]:
         """Fetch all data and return in format compatible with existing code"""
         self.fetch_quote_data()
@@ -1507,6 +1601,9 @@ class EdgarDataFetcher:
 
         if not self.current_price:
             raise DataFetchError(f"EDGAR: Could not fetch current price for {self.ticker}")
+
+        # Calculate derived metrics (market cap, P/E, EV, etc.)
+        self._calculate_derived_metrics()
 
         logger.info(f"EDGAR: Fetched all data - financials: {len(self.financials)} rows, balance_sheet: {len(self.balance_sheet)} rows, cash_flow: {len(self.cash_flow)} rows")
         return self, self.info, self.current_price
@@ -1599,6 +1696,8 @@ def fetch_stock_data(ticker: str, max_retries: int = 3) -> Tuple[Any, Dict, floa
             edgar_fetcher.current_price = scraper.current_price
             edgar_fetcher.info['currentPrice'] = scraper.current_price
             edgar_fetcher.info['regularMarketPrice'] = scraper.current_price
+            # Calculate derived metrics now that we have the price
+            edgar_fetcher._calculate_derived_metrics()
             return edgar_fetcher, edgar_fetcher.info, scraper.current_price
 
         return yahoo_result
@@ -1623,6 +1722,8 @@ def fetch_stock_data(ticker: str, max_retries: int = 3) -> Tuple[Any, Dict, floa
                         edgar_fetcher.current_price = price
                         edgar_fetcher.info['currentPrice'] = price
                         edgar_fetcher.info['regularMarketPrice'] = price
+                        # Calculate derived metrics now that we have the price
+                        edgar_fetcher._calculate_derived_metrics()
                         logger.info(f"Got price from chart API: ${price}")
                         return edgar_fetcher, edgar_fetcher.info, price
         except Exception as e:
