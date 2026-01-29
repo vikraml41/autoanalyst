@@ -2159,8 +2159,21 @@ class DCFValuation:
             enterprise_value = sum(pv_cash_flows) + pv_terminal_value
 
             # Bridge to Equity Value
+            # Try multiple sources for cash and debt
             cash = self.info.get('totalCash', 0) or 0
             debt = self.info.get('totalDebt', 0) or 0
+
+            # If not in info, try balance sheet
+            if cash == 0 and not self.balance_sheet.empty:
+                if 'Cash And Cash Equivalents' in self.balance_sheet.index:
+                    bs_cash = self.balance_sheet.loc['Cash And Cash Equivalents'].iloc[0]
+                    if bs_cash and not pd.isna(bs_cash):
+                        cash = bs_cash
+            if debt == 0 and not self.balance_sheet.empty:
+                if 'Total Debt' in self.balance_sheet.index:
+                    bs_debt = self.balance_sheet.loc['Total Debt'].iloc[0]
+                    if bs_debt and not pd.isna(bs_debt):
+                        debt = bs_debt
 
             equity_value = enterprise_value + cash - debt
 
@@ -2172,6 +2185,23 @@ class DCFValuation:
 
             # Current market price (stored from step1)
             current_price = self.current_price or 0
+
+            # SANITY CHECKS for intrinsic value
+            if intrinsic_value_per_share < 0:
+                # Negative intrinsic value usually means company is distressed
+                # Use a floor of $0.01 and flag it
+                logger.warning(f"Negative intrinsic value calculated (${intrinsic_value_per_share:.2f}), setting to $0.01")
+                intrinsic_value_per_share = 0.01
+
+            # Cap at 10x current price to avoid extreme outliers
+            if current_price > 0 and intrinsic_value_per_share > current_price * 10:
+                logger.warning(f"Intrinsic value (${intrinsic_value_per_share:.2f}) exceeds 10x current price, capping")
+                intrinsic_value_per_share = current_price * 10
+
+            # Floor at 10% of current price
+            if current_price > 0 and intrinsic_value_per_share < current_price * 0.1:
+                logger.warning(f"Intrinsic value (${intrinsic_value_per_share:.2f}) below 10% of current price, setting floor")
+                intrinsic_value_per_share = max(intrinsic_value_per_share, current_price * 0.1)
 
             # Valuation metrics
             if current_price > 0:
@@ -2328,14 +2358,14 @@ class DCFValuation:
 
         if buy_price > current:
             upside = ((intrinsic / current) - 1) * 100
-            return f"STRONG BUY - Undervalued by {upside:.1f}%. Buy below ${buy_price:.2f}"
+            return f"Positive - Undervalued by {upside:.1f}%. Fair value: ${intrinsic:.2f}"
         elif intrinsic > current:
-            return f"BUY - Fairly valued to slightly undervalued. Target: ${intrinsic:.2f}"
+            return f"Positive - Fairly valued to slightly undervalued. Fair value: ${intrinsic:.2f}"
         elif intrinsic > current * 0.9:
-            return f"HOLD - Trading near fair value. Fair value: ${intrinsic:.2f}"
+            return f"Neutral - Trading near fair value. Fair value: ${intrinsic:.2f}"
         else:
             overvalued = ((current / intrinsic) - 1) * 100 if intrinsic > 0 else 0
-            return f"SELL - Overvalued by {overvalued:.1f}%. Fair value: ${intrinsic:.2f}"
+            return f"Negative - Overvalued by {overvalued:.1f}%. Fair value: ${intrinsic:.2f}"
 
 
 # ============ REVENUE FORECASTING MODULE ============
@@ -2694,34 +2724,168 @@ class ComparableCompanyAnalysis:
 
     def _find_industry_peers(self, sector: str, industry: str) -> List[str]:
         """Find peer companies in same sector/industry"""
-        # Predefined peer groups for major companies (simplified)
+        # Extensive peer groups for major companies
         known_peers = {
-            'AAPL': ['MSFT', 'GOOGL', 'META', 'NVDA'],
-            'MSFT': ['AAPL', 'GOOGL', 'ORCL', 'ADBE'],
-            'GOOGL': ['META', 'AAPL', 'MSFT', 'AMZN'],
-            'TSLA': ['F', 'GM', 'RIVN', 'LCID'],
-            'AMZN': ['WMT', 'GOOGL', 'EBAY', 'SHOP'],
-            'NVDA': ['AMD', 'INTC', 'QCOM', 'AVGO'],
-            'JPM': ['BAC', 'WFC', 'C', 'GS'],
-            'JNJ': ['PFE', 'UNH', 'ABBV', 'MRK'],
-            'V': ['MA', 'AXP', 'PYPL', 'SQ'],
-            'WMT': ['TGT', 'COST', 'AMZN', 'HD']
+            # Technology - Hardware
+            'AAPL': ['MSFT', 'GOOGL', 'SAMSUNG', 'DELL', 'HPQ'],
+            'DELL': ['HPQ', 'AAPL', 'LNVGY', 'ACER'],
+            'HPQ': ['DELL', 'LNVGY', 'AAPL'],
+            # Technology - Software
+            'MSFT': ['GOOGL', 'ORCL', 'CRM', 'ADBE', 'SAP'],
+            'ORCL': ['MSFT', 'SAP', 'CRM', 'IBM'],
+            'CRM': ['MSFT', 'ORCL', 'WDAY', 'NOW', 'ADBE'],
+            'ADBE': ['CRM', 'MSFT', 'INTU', 'ANSS'],
+            # Technology - Internet/Social
+            'GOOGL': ['META', 'MSFT', 'AMZN', 'NFLX'],
+            'META': ['GOOGL', 'SNAP', 'PINS', 'TWTR'],
+            'NFLX': ['DIS', 'WBD', 'PARA', 'GOOGL'],
+            # Technology - Semiconductors
+            'NVDA': ['AMD', 'INTC', 'QCOM', 'AVGO', 'TXN'],
+            'AMD': ['NVDA', 'INTC', 'QCOM', 'MU'],
+            'INTC': ['AMD', 'NVDA', 'QCOM', 'TXN'],
+            'QCOM': ['NVDA', 'AMD', 'AVGO', 'MRVL'],
+            'AVGO': ['QCOM', 'TXN', 'ADI', 'MCHP'],
+            'MU': ['WDC', 'STX', 'INTC', 'AMD'],
+            # E-commerce/Retail
+            'AMZN': ['WMT', 'TGT', 'EBAY', 'SHOP', 'COST'],
+            'WMT': ['TGT', 'COST', 'KR', 'AMZN'],
+            'TGT': ['WMT', 'COST', 'KR', 'DG'],
+            'COST': ['WMT', 'TGT', 'BJ', 'KR'],
+            'SHOP': ['AMZN', 'EBAY', 'ETSY', 'WIX'],
+            'EBAY': ['AMZN', 'ETSY', 'SHOP', 'MELI'],
+            # Automotive
+            'TSLA': ['GM', 'F', 'RIVN', 'LCID', 'TM'],
+            'GM': ['F', 'TSLA', 'TM', 'HMC', 'STLA'],
+            'F': ['GM', 'TSLA', 'TM', 'HMC', 'STLA'],
+            'RIVN': ['TSLA', 'LCID', 'FSR', 'NIO'],
+            'TM': ['GM', 'F', 'HMC', 'STLA'],
+            # Financial - Banks
+            'JPM': ['BAC', 'WFC', 'C', 'GS', 'MS'],
+            'BAC': ['JPM', 'WFC', 'C', 'USB'],
+            'WFC': ['JPM', 'BAC', 'C', 'USB', 'PNC'],
+            'C': ['JPM', 'BAC', 'WFC', 'GS'],
+            'GS': ['MS', 'JPM', 'C', 'SCHW'],
+            'MS': ['GS', 'JPM', 'SCHW', 'BLK'],
+            # Financial - Payments
+            'V': ['MA', 'PYPL', 'SQ', 'AXP'],
+            'MA': ['V', 'PYPL', 'AXP', 'DFS'],
+            'PYPL': ['V', 'MA', 'SQ', 'AFRM'],
+            'SQ': ['PYPL', 'V', 'MA', 'AFRM'],
+            # Healthcare - Pharma
+            'JNJ': ['PFE', 'MRK', 'ABBV', 'LLY', 'BMY'],
+            'PFE': ['JNJ', 'MRK', 'ABBV', 'LLY'],
+            'MRK': ['PFE', 'JNJ', 'ABBV', 'LLY', 'BMY'],
+            'ABBV': ['JNJ', 'PFE', 'MRK', 'BMY', 'AMGN'],
+            'LLY': ['PFE', 'MRK', 'NVO', 'JNJ'],
+            # Healthcare - Insurance/Services
+            'UNH': ['CVS', 'CI', 'ELV', 'HUM', 'CNC'],
+            'CVS': ['WBA', 'UNH', 'CI', 'WMT'],
+            # Consumer Goods
+            'PG': ['KO', 'PEP', 'CL', 'KMB', 'UL'],
+            'KO': ['PEP', 'PG', 'KDP', 'MNST'],
+            'PEP': ['KO', 'PG', 'KDP', 'MNST'],
+            # Energy
+            'XOM': ['CVX', 'COP', 'SLB', 'EOG'],
+            'CVX': ['XOM', 'COP', 'SLB', 'OXY'],
+            'COP': ['XOM', 'CVX', 'EOG', 'PXD'],
+            # Entertainment/Media
+            'DIS': ['NFLX', 'WBD', 'PARA', 'CMCSA'],
+            'CMCSA': ['DIS', 'CHTR', 'T', 'VZ'],
+            # Telecom
+            'T': ['VZ', 'TMUS', 'CMCSA'],
+            'VZ': ['T', 'TMUS', 'CMCSA'],
+            # Industrial
+            'CAT': ['DE', 'CNH', 'PCAR', 'CMI'],
+            'BA': ['LMT', 'RTX', 'NOC', 'GD'],
+            'GE': ['HON', 'MMM', 'EMR', 'ITW'],
+            'HON': ['GE', 'MMM', 'EMR', 'ROK'],
+            # Airlines
+            'DAL': ['UAL', 'LUV', 'AAL', 'ALK'],
+            'UAL': ['DAL', 'AAL', 'LUV', 'JBLU'],
         }
 
         if self.ticker in known_peers:
             return known_peers[self.ticker]
 
-        # Default: return some similar market cap companies in sector
-        # In production, would query database or API for proper peer screening
-        sector_leaders = {
-            'Technology': ['AAPL', 'MSFT', 'GOOGL', 'META', 'NVDA'],
-            'Healthcare': ['JNJ', 'UNH', 'PFE', 'ABBV', 'TMO'],
-            'Financial Services': ['JPM', 'BAC', 'WFC', 'GS', 'MS'],
-            'Consumer Cyclical': ['AMZN', 'TSLA', 'HD', 'NKE', 'MCD'],
-            'Consumer Defensive': ['PG', 'KO', 'PEP', 'WMT', 'COST']
+        # Map SIC descriptions and codes to sector peers
+        # SIC codes: https://www.sec.gov/info/edgar/siccodes.htm
+        sic_to_peers = {
+            # Technology
+            'Electronic Computers': ['AAPL', 'DELL', 'HPQ', 'LNVGY'],
+            'Computer Programming': ['MSFT', 'ORCL', 'CRM', 'ADBE'],
+            'Prepackaged Software': ['MSFT', 'ORCL', 'CRM', 'ADBE'],
+            'Semiconductors': ['NVDA', 'AMD', 'INTC', 'QCOM'],
+            'Computer Communications Equipment': ['CSCO', 'JNPR', 'ANET'],
+            'Computer Peripheral Equipment': ['AAPL', 'LOGI', 'CRSR'],
+            # Retail
+            'Retail-Variety Stores': ['WMT', 'TGT', 'COST', 'DG'],
+            'Retail-Department Stores': ['M', 'JWN', 'KSS'],
+            'Retail-Catalog & Mail-Order': ['AMZN', 'SHOP', 'EBAY', 'ETSY'],
+            # Financial
+            'National Commercial Banks': ['JPM', 'BAC', 'WFC', 'C'],
+            'State Commercial Banks': ['JPM', 'BAC', 'WFC', 'USB'],
+            'Security Brokers': ['GS', 'MS', 'SCHW', 'IBKR'],
+            'Investment Advice': ['BLK', 'BX', 'KKR', 'APO'],
+            # Healthcare
+            'Pharmaceutical Preparations': ['JNJ', 'PFE', 'MRK', 'ABBV'],
+            'Biological Products': ['AMGN', 'GILD', 'BIIB', 'REGN'],
+            'Medical Instruments': ['MDT', 'ABT', 'SYK', 'BSX'],
+            'Hospital & Medical Service Plans': ['UNH', 'CI', 'ELV', 'HUM'],
+            # Energy
+            'Crude Petroleum & Natural Gas': ['XOM', 'CVX', 'COP', 'EOG'],
+            'Petroleum Refining': ['XOM', 'CVX', 'VLO', 'MPC'],
+            # Industrial
+            'Motor Vehicles': ['GM', 'F', 'TSLA', 'TM'],
+            'Aircraft': ['BA', 'LMT', 'RTX', 'NOC'],
+            'Construction Machinery': ['CAT', 'DE', 'CNH', 'PCAR'],
+            # Consumer
+            'Beverages': ['KO', 'PEP', 'KDP', 'MNST'],
+            'Food & Kindred Products': ['PG', 'UL', 'CL', 'KMB'],
+            'Household Audio & Video': ['SONY', 'LG', 'AAPL'],
+            # Telecom
+            'Telephone Communications': ['T', 'VZ', 'TMUS'],
+            'Cable & Other Pay TV': ['CMCSA', 'CHTR', 'DISH'],
+            # Entertainment
+            'Motion Pictures': ['DIS', 'NFLX', 'WBD', 'PARA'],
+            'Television Broadcasting': ['DIS', 'CMCSA', 'FOX'],
         }
 
-        return sector_leaders.get(sector, ['SPY'])[:4]  # Return up to 4 peers
+        # Check SIC-based mapping first (handles EDGAR data)
+        for sic_desc, peers in sic_to_peers.items():
+            if sic_desc.lower() in sector.lower() or sic_desc.lower() in industry.lower():
+                # Remove self from peers if present
+                filtered = [p for p in peers if p != self.ticker]
+                if filtered:
+                    return filtered[:4]
+
+        # Yahoo Finance style sector mapping as fallback
+        sector_peers = {
+            'Technology': ['AAPL', 'MSFT', 'GOOGL', 'META', 'NVDA'],
+            'Healthcare': ['JNJ', 'UNH', 'PFE', 'ABBV', 'LLY'],
+            'Financial Services': ['JPM', 'BAC', 'WFC', 'GS', 'V'],
+            'Financial': ['JPM', 'BAC', 'WFC', 'GS', 'V'],
+            'Consumer Cyclical': ['AMZN', 'TSLA', 'HD', 'NKE', 'MCD'],
+            'Consumer Discretionary': ['AMZN', 'TSLA', 'HD', 'NKE', 'MCD'],
+            'Consumer Defensive': ['PG', 'KO', 'PEP', 'WMT', 'COST'],
+            'Consumer Staples': ['PG', 'KO', 'PEP', 'WMT', 'COST'],
+            'Energy': ['XOM', 'CVX', 'COP', 'SLB', 'EOG'],
+            'Industrials': ['CAT', 'BA', 'HON', 'GE', 'UPS'],
+            'Communication Services': ['GOOGL', 'META', 'DIS', 'NFLX', 'T'],
+            'Materials': ['LIN', 'APD', 'SHW', 'DD', 'NEM'],
+            'Utilities': ['NEE', 'DUK', 'SO', 'D', 'AEP'],
+            'Real Estate': ['AMT', 'PLD', 'CCI', 'EQIX', 'PSA'],
+        }
+
+        # Check sector mapping
+        for sector_key, peers in sector_peers.items():
+            if sector_key.lower() in sector.lower():
+                filtered = [p for p in peers if p != self.ticker]
+                if filtered:
+                    return filtered[:4]
+
+        # Last resort: return broad market peers rather than just SPY
+        logger.warning(f"Could not find specific peers for {self.ticker} (sector: {sector})")
+        return ['AAPL', 'MSFT', 'GOOGL', 'AMZN'][:4]
 
     def step2_industry_research(self) -> Dict:
         """Step 2: Conduct industry research and understand market trends"""
@@ -3016,15 +3180,15 @@ class ComparableCompanyAnalysis:
             upside = overall.get('overall_upside_downside', 0)
 
             if upside > 0.20:
-                return f"STRONG BUY - Trading at {upside:.1%} discount to peer group median. Significant upside potential."
+                return f"Positive - Trading at {upside:.1%} discount to peer group median. Significant upside potential."
             elif upside > 0.10:
-                return f"BUY - Trading at {upside:.1%} discount to peers. Moderately undervalued."
+                return f"Positive - Trading at {upside:.1%} discount to peers. Moderately undervalued."
             elif upside > -0.05:
-                return f"HOLD - Trading in line with peer group. Fairly valued relative to comparables."
+                return f"Neutral - Trading in line with peer group. Fairly valued relative to comparables."
             elif upside > -0.15:
-                return f"UNDERPERFORM - Trading at {abs(upside):.1%} premium to peers. Moderately overvalued."
+                return f"Negative - Trading at {abs(upside):.1%} premium to peers. Moderately overvalued."
             else:
-                return f"SELL - Trading at {abs(upside):.1%} premium to peer group. Significantly overvalued."
+                return f"Negative - Trading at {abs(upside):.1%} premium to peer group. Significantly overvalued."
 
         except:
             return "Unable to generate recommendation"
@@ -3326,20 +3490,20 @@ KEY INVESTMENT CONSIDERATIONS:
 
             # Determine action based on ML score and upside
             if ml_score > 0.4 and upside > 0.20:
-                action = "STRONG BUY"
+                action = "Positive"
                 rationale = f"All three models indicate significant undervaluation. Target price of ${target_price:.2f} implies {upside:.1%} upside. High conviction opportunity."
             elif ml_score > 0.2 and upside > 0.10:
-                action = "BUY"
+                action = "Positive"
                 rationale = f"Models suggest stock is undervalued. Target price of ${target_price:.2f} implies {upside:.1%} upside. Favorable risk/reward."
             elif ml_score > -0.2 and abs(upside) < 0.10:
-                action = "HOLD"
-                rationale = f"Stock trading near fair value. Target price of ${target_price:.2f} implies limited upside/downside. Maintain position."
+                action = "Neutral"
+                rationale = f"Stock trading near fair value. Target price of ${target_price:.2f} implies limited upside/downside."
             elif ml_score > -0.4 and upside < -0.10:
-                action = "REDUCE"
-                rationale = f"Models suggest stock is overvalued. Current price exceeds target of ${target_price:.2f}. Consider reducing exposure."
+                action = "Negative"
+                rationale = f"Models suggest stock is overvalued. Current price exceeds target of ${target_price:.2f}."
             else:
-                action = "SELL"
-                rationale = f"All models indicate significant overvaluation. Current price substantially exceeds target of ${target_price:.2f}. High conviction sell."
+                action = "Negative"
+                rationale = f"All models indicate significant overvaluation. Current price substantially exceeds target of ${target_price:.2f}."
 
             recommendation = {
                 'action': action,
