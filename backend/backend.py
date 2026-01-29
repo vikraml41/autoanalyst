@@ -1388,26 +1388,34 @@ class EdgarDataFetcher:
 
         data = {}
 
-        # Operating Cash Flow
-        for concept in ['NetCashProvidedByUsedInOperatingActivities', 'NetCashProvidedByUsedInOperatingActivitiesContinuingOperations']:
-            values = self._get_annual_values(concept)
-            if values:
-                data['Operating Cash Flow'] = values
-                break
+        # Operating Cash Flow - use _get_best_concept_values to get concept with most recent data
+        ocf_concepts = [
+            'NetCashProvidedByUsedInOperatingActivities',
+            'NetCashProvidedByUsedInOperatingActivitiesContinuingOperations'
+        ]
+        values = self._get_best_concept_values(ocf_concepts)
+        if values:
+            data['Operating Cash Flow'] = values
 
-        # Capital Expenditures
-        for concept in ['PaymentsToAcquirePropertyPlantAndEquipment', 'PaymentsToAcquireProductiveAssets']:
-            values = self._get_annual_values(concept)
-            if values:
-                data['Capital Expenditure'] = values
-                break
+        # Capital Expenditures - companies change concepts over time
+        capex_concepts = [
+            'PaymentsToAcquireProductiveAssets',  # Modern concept (NVDA uses this)
+            'PaymentsToAcquirePropertyPlantAndEquipment',  # Traditional concept
+            'CapitalExpendituresIncurredButNotYetPaid',
+        ]
+        values = self._get_best_concept_values(capex_concepts)
+        if values:
+            data['Capital Expenditure'] = values
 
-        # Depreciation
-        for concept in ['DepreciationDepletionAndAmortization', 'Depreciation', 'DepreciationAndAmortization']:
-            values = self._get_annual_values(concept)
-            if values:
-                data['Depreciation And Amortization'] = values
-                break
+        # Depreciation - use best concept
+        da_concepts = [
+            'DepreciationDepletionAndAmortization',
+            'Depreciation',
+            'DepreciationAndAmortization'
+        ]
+        values = self._get_best_concept_values(da_concepts)
+        if values:
+            data['Depreciation And Amortization'] = values
 
         # Investing Cash Flow
         values = self._get_annual_values('NetCashProvidedByUsedInInvestingActivities')
@@ -1750,6 +1758,51 @@ class DCFValuation:
         self.analysis_results = {}
         self.data_error = None
 
+    def _get_first_valid_value(self, df: pd.DataFrame, row_name: str, default: float = 0) -> float:
+        """Get the first non-NaN value from a DataFrame row (columns sorted descending by date)"""
+        if df.empty or row_name not in df.index:
+            return default
+        row = df.loc[row_name]
+        for val in row:
+            if pd.notna(val):
+                return float(val)
+        return default
+
+    def _calculate_historical_growth(self, df: pd.DataFrame, row_name: str, years: int = 3) -> float:
+        """Calculate historical CAGR from DataFrame row values
+
+        Wall Street typically uses 3-5 year historical growth as a baseline.
+        Returns growth rate as decimal (e.g., 0.20 for 20% growth).
+        """
+        if df.empty or row_name not in df.index:
+            return 0.05  # Default 5% if no data
+
+        row = df.loc[row_name]
+        # Get non-NaN values (already sorted by date descending)
+        values = [float(v) for v in row if pd.notna(v)]
+
+        if len(values) < 2:
+            return 0.05  # Default if not enough data
+
+        # Use up to 'years' periods
+        values = values[:min(len(values), years + 1)]
+
+        # Calculate CAGR: (End/Start)^(1/n) - 1
+        # values[0] is most recent, values[-1] is oldest
+        end_val = values[0]
+        start_val = values[-1]
+        n_years = len(values) - 1
+
+        if start_val <= 0 or end_val <= 0:
+            return 0.05  # Default for negative or zero values
+
+        try:
+            cagr = (end_val / start_val) ** (1 / n_years) - 1
+            # Cap between -20% and 50% (reasonable bounds)
+            return max(min(cagr, 0.50), -0.20)
+        except Exception:
+            return 0.05
+
     def step1_understand_business(self) -> Dict:
         """Step 1: Gather company information and understand the business"""
         try:
@@ -1823,76 +1876,100 @@ class DCFValuation:
             return {}
 
     def _forecast_fcff(self, years: int) -> List[float]:
-        """Calculate FCFF: EBIT × (1 - Tax Rate) + D&A - CapEx - ΔNWC"""
+        """Calculate FCFF: EBIT × (1 - Tax Rate) + D&A - CapEx - ΔNWC
+
+        Wall Street DCF methodology:
+        - Uses Operating Income (EBIT) as base
+        - Applies tax shield
+        - Adds back non-cash D&A
+        - Subtracts maintenance/growth CapEx
+        - Adjusts for working capital needs
+        """
         try:
-            # Get historical data
-            if 'EBIT' in self.financials.index:
-                ebit = self.financials.loc['EBIT'].iloc[0]
-            elif 'Operating Income' in self.financials.index:
-                ebit = self.financials.loc['Operating Income'].iloc[0]
-            else:
-                # Approximate EBIT
-                revenue = self.financials.loc['Total Revenue'].iloc[0] if 'Total Revenue' in self.financials.index else 0
+            # Get EBIT (Operating Income) - use helper to get first valid value
+            ebit = self._get_first_valid_value(self.financials, 'EBIT', 0)
+            if ebit == 0:
+                ebit = self._get_first_valid_value(self.financials, 'Operating Income', 0)
+            if ebit == 0:
+                # Approximate EBIT from revenue
+                revenue = self._get_first_valid_value(self.financials, 'Total Revenue', 0)
                 ebit = revenue * 0.15  # Conservative 15% operating margin
+
+            logger.info(f"  FCFF - EBIT: ${ebit/1e9:.2f}B")
 
             # Tax rate
             tax_rate = self.info.get('effectiveTaxRate', 0.21)
+            if tax_rate is None or tax_rate < 0 or tax_rate > 0.5:
+                tax_rate = 0.21
 
-            # D&A
-            if 'Depreciation And Amortization' in self.cash_flow.index:
-                da = abs(self.cash_flow.loc['Depreciation And Amortization'].iloc[0])
-            else:
+            # D&A - use helper for first valid value
+            da = abs(self._get_first_valid_value(self.cash_flow, 'Depreciation And Amortization', 0))
+            if da == 0:
                 da = ebit * 0.05  # Estimate as 5% of EBIT
+            logger.info(f"  FCFF - D&A: ${da/1e9:.2f}B")
 
-            # CapEx
-            if 'Capital Expenditure' in self.cash_flow.index:
-                capex = abs(self.cash_flow.loc['Capital Expenditure'].iloc[0])
-            else:
+            # CapEx - use helper for first valid value
+            capex = abs(self._get_first_valid_value(self.cash_flow, 'Capital Expenditure', 0))
+            if capex == 0:
                 capex = da * 1.2  # Estimate CapEx as 120% of D&A
+            logger.info(f"  FCFF - CapEx: ${capex/1e9:.2f}B")
 
             # Change in NWC (simplified)
             nwc_change = ebit * 0.02  # Estimate as 2% of EBIT
 
             # Calculate current FCFF
             current_fcff = ebit * (1 - tax_rate) + da - capex - nwc_change
+            logger.info(f"  FCFF - Current FCFF: ${current_fcff/1e9:.2f}B")
 
-            # Forecast with growth rate
-            growth_rate = self.info.get('revenueGrowth', 0.05)  # Default 5%
-            growth_rate = max(min(growth_rate, 0.30), -0.10)  # Cap between -10% and 30%
+            # Get growth rate - calculate from historical data if not available
+            growth_rate = self.info.get('revenueGrowth')
+            if growth_rate is None:
+                growth_rate = self._calculate_historical_growth(self.financials, 'Total Revenue', 3)
+            logger.info(f"  FCFF - Growth rate: {growth_rate*100:.1f}%")
 
-            # Declining growth rate over time (more conservative)
+            # Wall Street DCF uses declining growth that converges to terminal rate
+            # High-growth companies (>20%): decline faster to be conservative
+            # Mature companies (<10%): decline slower
+            terminal_growth = 0.025  # 2.5% perpetual growth
+
             forecasts = []
             for year in range(1, years + 1):
-                # Growth declines by 20% each year
-                adjusted_growth = growth_rate * (0.8 ** (year - 1))
+                # Growth declines linearly toward terminal rate
+                years_to_terminal = max(10 - year, 1)
+                adjusted_growth = terminal_growth + (growth_rate - terminal_growth) * (years_to_terminal / 10)
+                adjusted_growth = max(min(adjusted_growth, 0.40), terminal_growth)  # Cap at 40%, floor at terminal
+
                 fcff = current_fcff * ((1 + adjusted_growth) ** year)
                 forecasts.append(fcff)
+
+            logger.info(f"  FCFF - Year 1 forecast: ${forecasts[0]/1e9:.2f}B")
 
             return forecasts
 
         except Exception as e:
             logger.error(f"Error forecasting FCFF: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return [0] * years
 
     def _forecast_fcfe(self, years: int) -> List[float]:
-        """Calculate FCFE: Net Income + D&A - CapEx - ΔNWC + Net Borrowing"""
-        try:
-            # Get net income
-            if 'Net Income' in self.financials.index:
-                net_income = self.financials.loc['Net Income'].iloc[0]
-            else:
-                net_income = 0
+        """Calculate FCFE: Net Income + D&A - CapEx - ΔNWC + Net Borrowing
 
-            # D&A
-            if 'Depreciation And Amortization' in self.cash_flow.index:
-                da = abs(self.cash_flow.loc['Depreciation And Amortization'].iloc[0])
-            else:
+        Wall Street methodology for equity valuation.
+        """
+        try:
+            # Get net income using helper
+            net_income = self._get_first_valid_value(self.financials, 'Net Income', 0)
+            logger.info(f"  FCFE - Net Income: ${net_income/1e9:.2f}B")
+
+            # D&A using helper
+            da = abs(self._get_first_valid_value(self.cash_flow, 'Depreciation And Amortization', 0))
+            if da == 0:
                 da = net_income * 0.05
 
-            # CapEx
-            if 'Capital Expenditure' in self.cash_flow.index:
-                capex = abs(self.cash_flow.loc['Capital Expenditure'].iloc[0])
-            else:
+            # CapEx using helper
+            capex = abs(self._get_first_valid_value(self.cash_flow, 'Capital Expenditure', 0))
+            if capex == 0:
                 capex = da * 1.2
 
             # NWC change
@@ -1902,14 +1979,22 @@ class DCFValuation:
             net_borrowing = 0
 
             current_fcfe = net_income + da - capex - nwc_change + net_borrowing
+            logger.info(f"  FCFE - Current FCFE: ${current_fcfe/1e9:.2f}B")
 
-            # Forecast with growth
-            growth_rate = self.info.get('earningsGrowth', 0.05)
-            growth_rate = max(min(growth_rate, 0.30), -0.10)
+            # Get growth rate from earnings or calculate from historical net income
+            growth_rate = self.info.get('earningsGrowth')
+            if growth_rate is None:
+                growth_rate = self._calculate_historical_growth(self.financials, 'Net Income', 3)
+            logger.info(f"  FCFE - Growth rate: {growth_rate*100:.1f}%")
 
+            # Declining growth toward terminal rate
+            terminal_growth = 0.025
             forecasts = []
             for year in range(1, years + 1):
-                adjusted_growth = growth_rate * (0.8 ** (year - 1))
+                years_to_terminal = max(10 - year, 1)
+                adjusted_growth = terminal_growth + (growth_rate - terminal_growth) * (years_to_terminal / 10)
+                adjusted_growth = max(min(adjusted_growth, 0.40), terminal_growth)
+
                 fcfe = current_fcfe * ((1 + adjusted_growth) ** year)
                 forecasts.append(fcfe)
 
@@ -1917,36 +2002,53 @@ class DCFValuation:
 
         except Exception as e:
             logger.error(f"Error forecasting FCFE: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return [0] * years
 
     def _forecast_simple_fcf(self, years: int) -> List[float]:
-        """Calculate Simple FCF: Operating Cash Flow - CapEx"""
-        try:
-            # Get operating cash flow
-            if 'Operating Cash Flow' in self.cash_flow.index:
-                ocf = self.cash_flow.loc['Operating Cash Flow'].iloc[0]
-            elif 'Total Cash From Operating Activities' in self.cash_flow.index:
-                ocf = self.cash_flow.loc['Total Cash From Operating Activities'].iloc[0]
-            else:
-                ocf = 0
+        """Calculate Simple FCF: Operating Cash Flow - CapEx
 
-            # CapEx
-            if 'Capital Expenditure' in self.cash_flow.index:
-                capex = abs(self.cash_flow.loc['Capital Expenditure'].iloc[0])
-            else:
-                capex = ocf * 0.15
+        This is the most straightforward FCF calculation used by many analysts.
+        OCF already includes working capital changes and non-cash items.
+        """
+        try:
+            # Get operating cash flow using helper for first valid value
+            ocf = self._get_first_valid_value(self.cash_flow, 'Operating Cash Flow', 0)
+            if ocf == 0:
+                ocf = self._get_first_valid_value(self.cash_flow, 'Total Cash From Operating Activities', 0)
+            logger.info(f"  Simple FCF - OCF: ${ocf/1e9:.2f}B")
+
+            # CapEx using helper
+            capex = abs(self._get_first_valid_value(self.cash_flow, 'Capital Expenditure', 0))
+            if capex == 0:
+                capex = ocf * 0.15  # Estimate as 15% of OCF
+            logger.info(f"  Simple FCF - CapEx: ${capex/1e9:.2f}B")
 
             current_fcf = ocf - capex
+            logger.info(f"  Simple FCF - Current FCF: ${current_fcf/1e9:.2f}B")
 
-            # Forecast
-            growth_rate = self.info.get('revenueGrowth', 0.05)
-            growth_rate = max(min(growth_rate, 0.30), -0.10)
+            # Calculate growth from historical OCF or revenue
+            growth_rate = self.info.get('revenueGrowth')
+            if growth_rate is None:
+                # Try OCF growth first, then revenue
+                growth_rate = self._calculate_historical_growth(self.cash_flow, 'Operating Cash Flow', 3)
+                if growth_rate == 0.05:  # Default returned, try revenue
+                    growth_rate = self._calculate_historical_growth(self.financials, 'Total Revenue', 3)
+            logger.info(f"  Simple FCF - Growth rate: {growth_rate*100:.1f}%")
 
+            # Declining growth toward terminal rate (Wall Street standard)
+            terminal_growth = 0.025
             forecasts = []
             for year in range(1, years + 1):
-                adjusted_growth = growth_rate * (0.8 ** (year - 1))
+                years_to_terminal = max(10 - year, 1)
+                adjusted_growth = terminal_growth + (growth_rate - terminal_growth) * (years_to_terminal / 10)
+                adjusted_growth = max(min(adjusted_growth, 0.40), terminal_growth)
+
                 fcf = current_fcf * ((1 + adjusted_growth) ** year)
                 forecasts.append(fcf)
+
+            logger.info(f"  Simple FCF - Year 1 forecast: ${forecasts[0]/1e9:.2f}B")
 
             return forecasts
 
@@ -1954,21 +2056,85 @@ class DCFValuation:
             logger.error(f"Error forecasting Simple FCF: {e}")
             return [0] * years
 
+    def _estimate_beta_from_sector(self) -> float:
+        """Estimate beta based on sector/industry when direct beta not available.
+
+        Based on Damodaran's industry betas (NYU Stern).
+        Higher beta = more volatile than market.
+        """
+        sector = (self.info.get('sector') or '').lower()
+        industry = (self.info.get('industry') or '').lower()
+        sic_code = str(self.info.get('sicCode') or '')
+
+        # SIC code based estimates (more specific)
+        if sic_code:
+            sic_prefix = sic_code[:2] if len(sic_code) >= 2 else sic_code
+            sic_betas = {
+                '36': 1.45,  # Electronic equipment (semiconductors)
+                '35': 1.35,  # Industrial machinery & computers
+                '73': 1.40,  # Business services (software)
+                '28': 1.10,  # Chemicals/pharmaceuticals
+                '37': 1.20,  # Transportation equipment
+                '48': 0.85,  # Communications
+                '49': 0.65,  # Utilities
+                '60': 1.05,  # Banks
+                '62': 1.25,  # Securities/investments
+                '13': 1.30,  # Oil & gas
+                '20': 0.75,  # Food products
+                '53': 0.95,  # Retail
+            }
+            if sic_prefix in sic_betas:
+                return sic_betas[sic_prefix]
+
+        # Sector-based estimates (fallback)
+        sector_betas = {
+            'technology': 1.35,
+            'semiconductor': 1.50,
+            'software': 1.40,
+            'consumer cyclical': 1.15,
+            'financial': 1.10,
+            'healthcare': 0.95,
+            'industrials': 1.10,
+            'energy': 1.20,
+            'utilities': 0.65,
+            'real estate': 0.90,
+            'consumer defensive': 0.70,
+            'communication': 0.95,
+            'basic materials': 1.10,
+        }
+
+        for key, beta in sector_betas.items():
+            if key in sector or key in industry:
+                return beta
+
+        # Default market beta
+        return 1.0
+
     def step3_estimate_discount_rate(self) -> Dict:
-        """Step 3: Calculate WACC (Weighted Average Cost of Capital)"""
+        """Step 3: Calculate WACC (Weighted Average Cost of Capital)
+
+        Wall Street methodology:
+        - Risk-free rate: 10-year Treasury
+        - Equity risk premium: 5-6% historical average
+        - Beta: From market data or estimated from sector
+        - Cost of debt: Interest expense / total debt
+        """
         try:
             logger.info("DCF Step 3: Estimating discount rate (WACC)...")
 
             # Risk-free rate (10-year Treasury)
             rf = self._get_risk_free_rate()
 
-            # Equity risk premium
+            # Equity risk premium - Wall Street typically uses 5-6%
             equity_risk_premium = 0.055  # ~5.5% historical average
 
-            # Beta
-            beta = self.info.get('beta', 1.0)
-            if beta is None or beta <= 0:
-                beta = 1.0
+            # Beta - try from data, else estimate from sector
+            beta = self.info.get('beta')
+            if beta is None or beta <= 0 or beta > 3:
+                beta = self._estimate_beta_from_sector()
+                logger.info(f"  Beta estimated from sector: {beta:.2f}")
+            else:
+                logger.info(f"  Beta from data: {beta:.2f}")
 
             # Cost of Equity using CAPM: rf + β × (rm - rf)
             cost_of_equity = rf + beta * equity_risk_premium
