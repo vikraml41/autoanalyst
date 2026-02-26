@@ -101,6 +101,48 @@ async def market_conditions():
     }
 
 
+@app.get('/api/test-fmp/{ticker}')
+async def test_fmp(ticker: str):
+    """Debug endpoint to test FMP API"""
+    from backend import FMPDataFetcher, FMP_API_KEY
+
+    ticker = ticker.upper()
+    results = {
+        'ticker': ticker,
+        'fmp_key_configured': bool(FMP_API_KEY),
+    }
+
+    if not FMP_API_KEY:
+        results['error'] = 'FMP_API_KEY not configured'
+        return results
+
+    try:
+        fetcher = FMPDataFetcher(ticker)
+        fetcher.fetch_all_data()
+
+        results['success'] = True
+        results['price'] = fetcher.current_price
+        results['company_name'] = fetcher.info.get('longName')
+        results['sector'] = fetcher.info.get('sector')
+        results['industry'] = fetcher.info.get('industry')
+        results['beta'] = fetcher.info.get('beta')
+        results['market_cap'] = fetcher.info.get('marketCap')
+        results['shares_outstanding'] = fetcher.info.get('sharesOutstanding')
+        results['fmp_dcf_value'] = fetcher.fmp_dcf
+        results['financials_rows'] = list(fetcher.financials.index) if not fetcher.financials.empty else []
+        results['balance_sheet_rows'] = list(fetcher.balance_sheet.index) if not fetcher.balance_sheet.empty else []
+        results['cash_flow_rows'] = list(fetcher.cash_flow.index) if not fetcher.cash_flow.empty else []
+        results['info_keys'] = list(fetcher.info.keys())
+
+    except Exception as e:
+        import traceback
+        results['success'] = False
+        results['error'] = str(e)
+        results['traceback'] = traceback.format_exc()[-500:]
+
+    return results
+
+
 @app.get('/api/test-alpha-vantage/{ticker}')
 async def test_alpha_vantage(ticker: str):
     """Debug endpoint to test Alpha Vantage API"""

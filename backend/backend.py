@@ -1617,10 +1617,331 @@ class EdgarDataFetcher:
         return self, self.info, self.current_price
 
 
+# ============ FINANCIAL MODELING PREP (FMP) DATA FETCHER ============
+
+class FMPDataFetcher:
+    """Fetch stock data from Financial Modeling Prep API (stable endpoint).
+
+    FMP provides clean, standardized financial data with pre-calculated metrics.
+    Free tier: 250 requests/day (~40 stock analyses/day).
+    Uses the stable API (financialmodelingprep.com/stable/).
+    """
+
+    BASE_URL = "https://financialmodelingprep.com/stable"
+
+    def __init__(self, ticker: str):
+        self.ticker = ticker.upper()
+        self.api_key = FMP_API_KEY
+        self.info = {}
+        self.financials = pd.DataFrame()
+        self.quarterly_financials = pd.DataFrame()
+        self.balance_sheet = pd.DataFrame()
+        self.cash_flow = pd.DataFrame()
+        self.current_price = None
+        self.fmp_dcf = None  # Store FMP's pre-calculated DCF value
+
+    def _fetch(self, endpoint: str, params: Dict = None) -> Optional[Any]:
+        """Fetch data from FMP stable API. Symbol passed as query param."""
+        url = f"{self.BASE_URL}/{endpoint}"
+        request_params = {'apikey': self.api_key, 'symbol': self.ticker}
+        if params:
+            request_params.update(params)
+
+        try:
+            response = requests.get(url, params=request_params, timeout=15)
+            if response.status_code == 200:
+                data = response.json()
+                if isinstance(data, dict) and 'Error Message' in data:
+                    logger.warning(f"FMP error: {data['Error Message']}")
+                    return None
+                return data
+            elif response.status_code == 429:
+                logger.warning("FMP: Rate limit exceeded (250 requests/day)")
+                return None
+            else:
+                logger.warning(f"FMP: HTTP {response.status_code} for {endpoint}")
+                return None
+        except Exception as e:
+            logger.error(f"FMP fetch error: {e}")
+            return None
+
+    def fetch_profile(self) -> Dict:
+        """Fetch company profile - includes price, beta, market cap, sector"""
+        logger.info(f"FMP: Fetching profile for {self.ticker}")
+        data = self._fetch("profile")
+        if not data or not isinstance(data, list) or len(data) == 0:
+            raise DataFetchError(f"FMP: No profile data for {self.ticker}")
+
+        profile = data[0]
+        self.current_price = profile.get('price')
+        self.info = {
+            'longName': profile.get('companyName', self.ticker),
+            'shortName': self.ticker,
+            'sector': profile.get('sector', ''),
+            'industry': profile.get('industry', ''),
+            'currentPrice': self.current_price,
+            'regularMarketPrice': self.current_price,
+            'previousClose': profile.get('price'),
+            'marketCap': profile.get('marketCap'),
+            'beta': profile.get('beta'),
+            'description': (profile.get('description') or '')[:200],
+            'exchange': profile.get('exchange', ''),
+            'country': profile.get('country', ''),
+        }
+
+        logger.info(f"FMP: {self.info['longName']} - ${self.current_price}, Beta: {self.info.get('beta')}")
+        return self.info
+
+    def _build_financials_df(self, data: List[Dict], field_map: Dict[str, str]) -> pd.DataFrame:
+        """Convert FMP JSON array into DataFrame matching existing format.
+
+        Returns DataFrame with rows=metrics, columns=dates (descending).
+        """
+        if not data:
+            return pd.DataFrame()
+
+        result = {}
+        for row_name, fmp_field in field_map.items():
+            values = {}
+            for period in data:
+                date = period.get('date', '')
+                val = period.get(fmp_field)
+                if date and val is not None:
+                    values[date] = float(val)
+            if values:
+                result[row_name] = values
+
+        if result:
+            df = pd.DataFrame(result).T
+            # Sort columns by date descending (newest first)
+            df = df.reindex(sorted(df.columns, reverse=True), axis=1)
+            return df
+        return pd.DataFrame()
+
+    def fetch_financials(self) -> pd.DataFrame:
+        """Fetch annual income statement"""
+        logger.info(f"FMP: Fetching income statement for {self.ticker}")
+        data = self._fetch("income-statement", {'limit': '5'})
+
+        field_map = {
+            'Total Revenue': 'revenue',
+            'Cost Of Revenue': 'costOfRevenue',
+            'Gross Profit': 'grossProfit',
+            'Operating Income': 'operatingIncome',
+            'Net Income': 'netIncome',
+            'EBIT': 'ebit',
+            'EBITDA': 'ebitda',
+            'Interest Expense': 'interestExpense',
+            'Income Tax Expense': 'incomeTaxExpense',
+            'EPS': 'eps',
+            'EPS Diluted': 'epsdiluted',
+        }
+
+        df = self._build_financials_df(data, field_map)
+
+        # Extract shares outstanding from most recent period
+        if data and len(data) > 0:
+            shares = data[0].get('weightedAverageShsOutDil') or data[0].get('weightedAverageShsOut')
+            if shares:
+                self.info['sharesOutstanding'] = shares
+
+            # Extract effective tax rate
+            income_before_tax = data[0].get('incomeBeforeTax', 0)
+            tax_expense = data[0].get('incomeTaxExpense', 0)
+            if income_before_tax and income_before_tax > 0:
+                self.info['effectiveTaxRate'] = tax_expense / income_before_tax
+
+        logger.info(f"FMP: Income statement has {len(df)} rows, {len(df.columns)} periods")
+        return df
+
+    def fetch_quarterly_financials(self) -> pd.DataFrame:
+        """Fetch quarterly income statement"""
+        data = self._fetch("income-statement", {'limit': '8', 'period': 'quarter'})
+        field_map = {
+            'Total Revenue': 'revenue',
+            'Net Income': 'netIncome',
+            'Operating Income': 'operatingIncome',
+            'Gross Profit': 'grossProfit',
+            'EBITDA': 'ebitda',
+        }
+        return self._build_financials_df(data, field_map)
+
+    def fetch_balance_sheet(self) -> pd.DataFrame:
+        """Fetch annual balance sheet"""
+        logger.info(f"FMP: Fetching balance sheet for {self.ticker}")
+        data = self._fetch("balance-sheet-statement", {'limit': '5'})
+
+        field_map = {
+            'Total Assets': 'totalAssets',
+            'Total Liabilities': 'totalLiabilities',
+            'Total Equity': 'totalStockholdersEquity',
+            'Cash And Cash Equivalents': 'cashAndCashEquivalents',
+            'Total Debt': 'totalDebt',
+            'Total Current Assets': 'totalCurrentAssets',
+            'Total Current Liabilities': 'totalCurrentLiabilities',
+            'Net Debt': 'netDebt',
+            'Short Term Debt': 'shortTermDebt',
+            'Long Term Debt': 'longTermDebt',
+        }
+
+        df = self._build_financials_df(data, field_map)
+
+        # Store total debt and cash in info for WACC calculation
+        if data and len(data) > 0:
+            self.info['totalDebt'] = data[0].get('totalDebt', 0)
+            self.info['totalCash'] = data[0].get('cashAndCashEquivalents', 0)
+
+        logger.info(f"FMP: Balance sheet has {len(df)} rows, {len(df.columns)} periods")
+        return df
+
+    def fetch_cash_flow(self) -> pd.DataFrame:
+        """Fetch annual cash flow statement"""
+        logger.info(f"FMP: Fetching cash flow for {self.ticker}")
+        data = self._fetch("cash-flow-statement", {'limit': '5'})
+
+        field_map = {
+            'Operating Cash Flow': 'netCashProvidedByOperatingActivities',
+            'Capital Expenditure': 'investmentsInPropertyPlantAndEquipment',
+            'Depreciation And Amortization': 'depreciationAndAmortization',
+            'Net Cash From Investing': 'netCashProvidedByInvestingActivities',
+            'Net Cash From Financing': 'netCashProvidedByFinancingActivities',
+            'Free Cash Flow': 'freeCashFlow',
+            'Stock Based Compensation': 'stockBasedCompensation',
+        }
+
+        df = self._build_financials_df(data, field_map)
+        logger.info(f"FMP: Cash flow has {len(df)} rows, {len(df.columns)} periods")
+        return df
+
+    def fetch_dcf(self) -> Optional[float]:
+        """Fetch FMP's pre-calculated DCF intrinsic value"""
+        data = self._fetch("discounted-cash-flow")
+        if data and isinstance(data, list) and len(data) > 0:
+            dcf_value = data[0].get('dcf')
+            if dcf_value:
+                self.fmp_dcf = float(dcf_value)
+                logger.info(f"FMP: Pre-calculated DCF value: ${self.fmp_dcf:.2f}")
+                return self.fmp_dcf
+        return None
+
+    def _calculate_derived_metrics(self):
+        """Calculate additional metrics from available data"""
+        shares = self.info.get('sharesOutstanding', 0)
+        price = self.current_price or 0
+
+        if shares and price:
+            market_cap = self.info.get('marketCap') or (shares * price)
+            self.info['marketCap'] = market_cap
+
+            # P/E ratio
+            net_income = None
+            if not self.financials.empty and 'Net Income' in self.financials.index:
+                row = self.financials.loc['Net Income']
+                for val in row:
+                    if pd.notna(val) and val != 0:
+                        net_income = float(val)
+                        break
+
+            if net_income and net_income > 0:
+                self.info['trailingPE'] = market_cap / net_income
+                self.info['netIncomeToCommon'] = net_income
+
+            # Revenue metrics
+            revenue = None
+            if not self.financials.empty and 'Total Revenue' in self.financials.index:
+                row = self.financials.loc['Total Revenue']
+                for val in row:
+                    if pd.notna(val) and val != 0:
+                        revenue = float(val)
+                        break
+
+            if revenue and revenue > 0:
+                self.info['totalRevenue'] = revenue
+                self.info['priceToSalesTrailing12Months'] = market_cap / revenue
+
+            # Enterprise value
+            total_debt = self.info.get('totalDebt', 0) or 0
+            total_cash = self.info.get('totalCash', 0) or 0
+            ev = market_cap + total_debt - total_cash
+            self.info['enterpriseValue'] = ev
+
+            if revenue and revenue > 0:
+                self.info['enterpriseToRevenue'] = ev / revenue
+
+            # EBITDA
+            if not self.financials.empty and 'EBITDA' in self.financials.index:
+                row = self.financials.loc['EBITDA']
+                for val in row:
+                    if pd.notna(val) and val != 0:
+                        ebitda = float(val)
+                        self.info['ebitda'] = ebitda
+                        if ebitda > 0:
+                            self.info['enterpriseToEbitda'] = ev / ebitda
+                        break
+
+            # Book value
+            if not self.balance_sheet.empty and 'Total Equity' in self.balance_sheet.index:
+                row = self.balance_sheet.loc['Total Equity']
+                for val in row:
+                    if pd.notna(val) and val != 0:
+                        equity = float(val)
+                        bvps = equity / shares
+                        self.info['bookValue'] = bvps
+                        if bvps > 0:
+                            self.info['priceToBook'] = price / bvps
+                        break
+
+            # Revenue and earnings growth (CAGR from data)
+            if not self.financials.empty and 'Total Revenue' in self.financials.index:
+                rev_row = self.financials.loc['Total Revenue']
+                rev_values = [float(v) for v in rev_row if pd.notna(v)]
+                if len(rev_values) >= 2 and rev_values[-1] > 0 and rev_values[0] > 0:
+                    n = len(rev_values) - 1
+                    self.info['revenueGrowth'] = (rev_values[0] / rev_values[-1]) ** (1/n) - 1
+
+            if not self.financials.empty and 'Net Income' in self.financials.index:
+                ni_row = self.financials.loc['Net Income']
+                ni_values = [float(v) for v in ni_row if pd.notna(v)]
+                if len(ni_values) >= 2 and ni_values[-1] > 0 and ni_values[0] > 0:
+                    n = len(ni_values) - 1
+                    self.info['earningsGrowth'] = (ni_values[0] / ni_values[-1]) ** (1/n) - 1
+
+    def fetch_all_data(self) -> Tuple[Any, Dict, float]:
+        """Fetch all data from FMP (6 API calls total)"""
+        logger.info(f"=== FMP: Fetching all data for {self.ticker} ===")
+
+        # 1. Company profile (includes price, beta, market cap)
+        self.fetch_profile()
+
+        if not self.current_price:
+            raise DataFetchError(f"FMP: No price available for {self.ticker}")
+
+        # 2-5. Financial statements
+        self.financials = self.fetch_financials()
+        self.quarterly_financials = self.fetch_quarterly_financials()
+        self.balance_sheet = self.fetch_balance_sheet()
+        self.cash_flow = self.fetch_cash_flow()
+
+        # 6. Pre-calculated DCF (reference value)
+        self.fetch_dcf()
+
+        # Calculate any remaining derived metrics
+        self._calculate_derived_metrics()
+
+        logger.info(f"FMP: Fetched all data - financials: {len(self.financials)} rows, "
+                    f"balance_sheet: {len(self.balance_sheet)} rows, cash_flow: {len(self.cash_flow)} rows")
+
+        if self.fmp_dcf:
+            logger.info(f"FMP: Reference DCF value: ${self.fmp_dcf:.2f}")
+
+        return self, self.info, self.current_price
+
+
 def fetch_stock_data(ticker: str, max_retries: int = 3) -> Tuple[Any, Dict, float]:
     """
-    Fetch stock data using SEC EDGAR as primary source (free, unlimited),
-    with MASSIVE, Alpha Vantage and Yahoo Finance as fallbacks.
+    Fetch stock data using FMP as primary source (clean, standardized),
+    with SEC EDGAR as first fallback (free, unlimited),
+    then MASSIVE, Alpha Vantage, and Yahoo Finance.
     Returns (data_object, info_dict, current_price).
     Raises DataFetchError if data cannot be retrieved.
     """
@@ -1628,7 +1949,25 @@ def fetch_stock_data(ticker: str, max_retries: int = 3) -> Tuple[Any, Dict, floa
     errors = []
     edgar_fetcher = None  # Keep reference to EDGAR data even if price fails
 
-    # Try SEC EDGAR first (free, unlimited, has all financial statements)
+    # Try FMP first (clean standardized data, includes beta and analyst metrics)
+    if FMP_API_KEY:
+        try:
+            logger.info(f"Trying FMP API for {ticker}...")
+            fetcher = FMPDataFetcher(ticker)
+            result = fetcher.fetch_all_data()
+            if fetcher.current_price and (not fetcher.financials.empty or not fetcher.balance_sheet.empty):
+                logger.info(f"FMP: Successfully fetched data for {ticker}")
+                return result
+            logger.warning("FMP: Returned limited data, trying EDGAR...")
+            errors.append("FMP: Limited data returned")
+        except DataFetchError as e:
+            errors.append(f"FMP: {e}")
+            logger.warning(f"FMP failed: {e}, trying EDGAR...")
+        except Exception as e:
+            errors.append(f"FMP: {e}")
+            logger.warning(f"FMP error: {e}, trying EDGAR...")
+
+    # Fallback to SEC EDGAR (free, unlimited, has all financial statements)
     try:
         logger.info(f"Trying SEC EDGAR API for {ticker}...")
         fetcher = EdgarDataFetcher(ticker)
