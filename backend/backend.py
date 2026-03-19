@@ -1229,14 +1229,29 @@ class EdgarDataFetcher:
 
         # Try to get shares outstanding from company facts
         # Note: shares outstanding is in 'shares' unit, not 'USD'
-        for concept in ['EntityCommonStockSharesOutstanding', 'CommonStockSharesOutstanding']:
-            shares_facts = self._extract_facts(concept, 'dei', unit='shares')
-            if shares_facts:
-                # Get most recent value
-                latest = max(shares_facts, key=lambda x: x.get('end', ''))
-                self.info['sharesOutstanding'] = latest.get('val')
-                logger.info(f"EDGAR: Shares outstanding: {self.info['sharesOutstanding']:,}")
+        # Check multiple concepts across multiple taxonomies (dei and us-gaap)
+        shares_found = False
+        for taxonomy in ['dei', 'us-gaap']:
+            for concept in ['EntityCommonStockSharesOutstanding', 'CommonStockSharesOutstanding']:
+                shares_facts = self._extract_facts(concept, taxonomy, unit='shares')
+                if shares_facts:
+                    latest = max(shares_facts, key=lambda x: x.get('end', ''))
+                    self.info['sharesOutstanding'] = latest.get('val')
+                    logger.info(f"EDGAR: Shares outstanding ({concept}/{taxonomy}): {self.info['sharesOutstanding']:,}")
+                    shares_found = True
+                    break
+            if shares_found:
                 break
+
+        # Fallback: try weighted average diluted shares from income statement
+        if not shares_found:
+            for concept in ['WeightedAverageNumberOfDilutedSharesOutstanding', 'WeightedAverageNumberOfSharesOutstandingBasic']:
+                shares_facts = self._extract_facts(concept, 'us-gaap', unit='shares')
+                if shares_facts:
+                    latest = max(shares_facts, key=lambda x: x.get('end', ''))
+                    self.info['sharesOutstanding'] = latest.get('val')
+                    logger.info(f"EDGAR: Shares outstanding (fallback {concept}): {self.info['sharesOutstanding']:,}")
+                    break
 
         return self.info
 
@@ -1824,6 +1839,38 @@ class FMPDataFetcher:
                 return self.fmp_dcf
         return None
 
+    def fetch_analyst_data(self) -> Dict:
+        """Fetch analyst price targets and ratings from FMP"""
+        result = {}
+
+        # Price target consensus
+        data = self._fetch("price-target-consensus")
+        if data and isinstance(data, list) and len(data) > 0:
+            target = data[0]
+            result['analystTargetHigh'] = target.get('targetHigh')
+            result['analystTargetLow'] = target.get('targetLow')
+            result['analystTargetConsensus'] = target.get('targetConsensus')
+            result['analystTargetMedian'] = target.get('targetMedian')
+            logger.info(f"FMP: Analyst target: ${result['analystTargetConsensus']:.2f} "
+                        f"(${result['analystTargetLow']:.0f}-${result['analystTargetHigh']:.0f})")
+
+        # Grades consensus (buy/hold/sell)
+        data = self._fetch("grades-consensus")
+        if data and isinstance(data, list) and len(data) > 0:
+            grades = data[0]
+            result['analystStrongBuy'] = grades.get('strongBuy', 0)
+            result['analystBuy'] = grades.get('buy', 0)
+            result['analystHold'] = grades.get('hold', 0)
+            result['analystSell'] = grades.get('sell', 0)
+            result['analystStrongSell'] = grades.get('strongSell', 0)
+            result['analystConsensus'] = grades.get('consensus', '')
+            logger.info(f"FMP: Analyst consensus: {result['analystConsensus']} "
+                        f"(Buy: {result['analystBuy']}, Hold: {result['analystHold']}, Sell: {result['analystSell']})")
+
+        # Store in info dict for use by other modules
+        self.info.update(result)
+        return result
+
     def _calculate_derived_metrics(self):
         """Calculate additional metrics from available data"""
         shares = self.info.get('sharesOutstanding', 0)
@@ -1925,6 +1972,9 @@ class FMPDataFetcher:
         # 6. Pre-calculated DCF (reference value)
         self.fetch_dcf()
 
+        # 7. Analyst price targets and ratings (2 additional calls)
+        self.fetch_analyst_data()
+
         # Calculate any remaining derived metrics
         self._calculate_derived_metrics()
 
@@ -1935,6 +1985,32 @@ class FMPDataFetcher:
             logger.info(f"FMP: Reference DCF value: ${self.fmp_dcf:.2f}")
 
         return self, self.info, self.current_price
+
+
+def _merge_fmp_profile_into(fmp_fetcher, target_fetcher):
+    """Merge FMP profile/analyst data into another fetcher's info dict.
+
+    When FMP gets profile (price, beta, analyst targets) but financials fail (402),
+    we fall back to EDGAR for financials but want to keep FMP's valuable metadata.
+    """
+    fmp_keys = [
+        'beta', 'analystTargetHigh', 'analystTargetLow', 'analystTargetConsensus',
+        'analystTargetMedian', 'analystStrongBuy', 'analystBuy', 'analystHold',
+        'analystSell', 'analystStrongSell', 'analystConsensus',
+        'revenueGrowth', 'earningsGrowth', 'sector', 'industry',
+        'longName', 'shortName', 'longBusinessSummary',
+    ]
+    for key in fmp_keys:
+        val = fmp_fetcher.info.get(key)
+        if val is not None:
+            target_fetcher.info[key] = val
+
+    # Also copy fmp_dcf reference
+    if hasattr(fmp_fetcher, 'fmp_dcf') and fmp_fetcher.fmp_dcf:
+        target_fetcher.fmp_dcf = fmp_fetcher.fmp_dcf
+
+    logger.info(f"Merged FMP profile data (beta={fmp_fetcher.info.get('beta')}, "
+                f"analyst_target={fmp_fetcher.info.get('analystTargetConsensus')}) into fallback fetcher")
 
 
 def fetch_stock_data(ticker: str, max_retries: int = 3) -> Tuple[Any, Dict, float]:
@@ -1948,6 +2024,7 @@ def fetch_stock_data(ticker: str, max_retries: int = 3) -> Tuple[Any, Dict, floa
     logger.info(f"=== Fetching data for {ticker} ===")
     errors = []
     edgar_fetcher = None  # Keep reference to EDGAR data even if price fails
+    fmp_partial = None  # Keep FMP profile/analyst data even if financials fail
 
     # Try FMP first (clean standardized data, includes beta and analyst metrics)
     if FMP_API_KEY:
@@ -1958,7 +2035,12 @@ def fetch_stock_data(ticker: str, max_retries: int = 3) -> Tuple[Any, Dict, floa
             if fetcher.current_price and (not fetcher.financials.empty or not fetcher.balance_sheet.empty):
                 logger.info(f"FMP: Successfully fetched data for {ticker}")
                 return result
-            logger.warning("FMP: Returned limited data, trying EDGAR...")
+            # FMP got profile (price, beta, analyst) but no financials - save for merging
+            if fetcher.current_price:
+                fmp_partial = fetcher
+                logger.warning("FMP: Got profile but limited financials, trying EDGAR for statements...")
+            else:
+                logger.warning("FMP: Returned limited data, trying EDGAR...")
             errors.append("FMP: Limited data returned")
         except DataFetchError as e:
             errors.append(f"FMP: {e}")
@@ -1974,8 +2056,11 @@ def fetch_stock_data(ticker: str, max_retries: int = 3) -> Tuple[Any, Dict, floa
         result = fetcher.fetch_all_data()
         # Check if we got meaningful data
         if fetcher.current_price and (not fetcher.financials.empty or not fetcher.balance_sheet.empty):
+            # If FMP got profile data, merge analyst/beta info into EDGAR result
+            if fmp_partial:
+                _merge_fmp_profile_into(fmp_partial, fetcher)
             logger.info(f"EDGAR: Successfully fetched data for {ticker}")
-            return result
+            return fetcher, fetcher.info, fetcher.current_price
         logger.warning("EDGAR: Returned limited data, trying fallbacks...")
         errors.append("EDGAR: Limited data returned")
     except DataFetchError as e:
@@ -1984,6 +2069,15 @@ def fetch_stock_data(ticker: str, max_retries: int = 3) -> Tuple[Any, Dict, floa
         if 'price' in str(e).lower() and hasattr(fetcher, 'financials') and not fetcher.financials.empty:
             logger.info("EDGAR: Got financials but price failed, will try to get price separately...")
             edgar_fetcher = fetcher
+            # If FMP had the price/profile, merge FMP profile into EDGAR
+            if fmp_partial:
+                _merge_fmp_profile_into(fmp_partial, edgar_fetcher)
+                edgar_fetcher.current_price = fmp_partial.current_price
+                edgar_fetcher.info['currentPrice'] = fmp_partial.current_price
+                edgar_fetcher.info['regularMarketPrice'] = fmp_partial.current_price
+                edgar_fetcher._calculate_derived_metrics()
+                logger.info(f"Combined FMP profile (price ${fmp_partial.current_price}) with EDGAR financials")
+                return edgar_fetcher, edgar_fetcher.info, edgar_fetcher.current_price
         else:
             logger.warning(f"EDGAR failed: {e}, trying MASSIVE...")
     except Exception as e:
@@ -2043,7 +2137,8 @@ def fetch_stock_data(ticker: str, max_retries: int = 3) -> Tuple[Any, Dict, floa
             edgar_fetcher.current_price = scraper.current_price
             edgar_fetcher.info['currentPrice'] = scraper.current_price
             edgar_fetcher.info['regularMarketPrice'] = scraper.current_price
-            # Calculate derived metrics now that we have the price
+            if fmp_partial:
+                _merge_fmp_profile_into(fmp_partial, edgar_fetcher)
             edgar_fetcher._calculate_derived_metrics()
             return edgar_fetcher, edgar_fetcher.info, scraper.current_price
 
@@ -2069,7 +2164,8 @@ def fetch_stock_data(ticker: str, max_retries: int = 3) -> Tuple[Any, Dict, floa
                         edgar_fetcher.current_price = price
                         edgar_fetcher.info['currentPrice'] = price
                         edgar_fetcher.info['regularMarketPrice'] = price
-                        # Calculate derived metrics now that we have the price
+                        if fmp_partial:
+                            _merge_fmp_profile_into(fmp_partial, edgar_fetcher)
                         edgar_fetcher._calculate_derived_metrics()
                         logger.info(f"Got price from chart API: ${price}")
                         return edgar_fetcher, edgar_fetcher.info, price
@@ -2682,10 +2778,36 @@ class DCFValuation:
 
             equity_value = enterprise_value + cash - debt
 
-            # Per-share value
-            shares_outstanding = self.info.get('sharesOutstanding') or 1
-            if shares_outstanding <= 0:
+            # Per-share value - try multiple sources for shares outstanding
+            shares_outstanding = self.info.get('sharesOutstanding')
+
+            # Fallback: try to get from income statement (weighted average diluted shares)
+            if not shares_outstanding and not self.financials.empty:
+                for row_name in ['Weighted Average Shares Outstanding Diluted', 'Weighted Average Shares Outstanding', 'EPS Diluted']:
+                    if row_name in self.financials.index:
+                        val = self._get_first_valid_value(self.financials, row_name, 0)
+                        if row_name.startswith('EPS') and val > 0:
+                            # Calculate shares from EPS and net income
+                            net_income = self._get_first_valid_value(self.financials, 'Net Income', 0)
+                            if net_income > 0:
+                                shares_outstanding = net_income / val
+                        elif val > 0:
+                            shares_outstanding = val
+                        if shares_outstanding:
+                            logger.info(f"  Using shares from {row_name}: {shares_outstanding:,.0f}")
+                            break
+
+            # Fallback: calculate from market cap / price
+            if not shares_outstanding and self.current_price and self.current_price > 0:
+                market_cap = self.info.get('marketCap', 0)
+                if market_cap and market_cap > 0:
+                    shares_outstanding = market_cap / self.current_price
+                    logger.info(f"  Calculated shares from market cap: {shares_outstanding:,.0f}")
+
+            if not shares_outstanding or shares_outstanding <= 0:
                 shares_outstanding = 1
+                logger.warning("  Could not determine shares outstanding, using 1")
+
             intrinsic_value_per_share = equity_value / shares_outstanding
 
             # Current market price (stored from step1)
@@ -2800,12 +2922,21 @@ class DCFValuation:
             # Step 2: Forecast Cash Flows
             cash_flow_forecasts = self.step2_forecast_cash_flows(forecast_years=5)
 
-            # Use FCFF as primary method
-            primary_cf = cash_flow_forecasts.get('fcff', [])
+            # Use median of all methods to avoid outlier bias
+            # (e.g. FCFF can be very low for high-capex companies like GOOG)
+            fcff = cash_flow_forecasts.get('fcff', [])
+            fcfe = cash_flow_forecasts.get('fcfe', [])
+            simple = cash_flow_forecasts.get('simple_fcf', [])
 
-            if not primary_cf or all(cf == 0 for cf in primary_cf):
-                # Fallback to simple FCF
-                primary_cf = cash_flow_forecasts.get('simple_fcf', [])
+            available_methods = [m for m in [fcff, fcfe, simple] if m and any(cf != 0 for cf in m)]
+            if len(available_methods) >= 2:
+                primary_cf = [float(np.median(vals)) for vals in zip(*available_methods)]
+                logger.info(f"  Using median of {len(available_methods)} methods for primary CF")
+            elif available_methods:
+                primary_cf = available_methods[0]
+                logger.info(f"  Using single available method for primary CF")
+            else:
+                primary_cf = []
 
             # Step 3: Estimate Discount Rate
             discount_info = self.step3_estimate_discount_rate()
@@ -2825,6 +2956,11 @@ class DCFValuation:
                 primary_cf
             )
 
+            # Calculate blended target price using multiple data points
+            target_price_info = self._calculate_blended_target_price(valuation_results)
+            valuation_results['target_price'] = target_price_info.get('target_price')
+            valuation_results['target_price_breakdown'] = target_price_info
+
             # Compile complete results
             complete_results = {
                 'ticker': self.ticker,
@@ -2837,7 +2973,14 @@ class DCFValuation:
                 'terminal_value': terminal_value_info,
                 'valuation': valuation_results,
                 'sensitivity': sensitivity_results,
-                'recommendation': self._generate_dcf_recommendation(valuation_results)
+                'recommendation': self._generate_dcf_recommendation(valuation_results),
+                'analyst_data': {
+                    'analyst_target_consensus': self.info.get('analystTargetConsensus'),
+                    'analyst_target_high': self.info.get('analystTargetHigh'),
+                    'analyst_target_low': self.info.get('analystTargetLow'),
+                    'analyst_consensus': self.info.get('analystConsensus'),
+                    'fmp_dcf': getattr(self.stock, 'fmp_dcf', None) if self.stock else None,
+                }
             }
 
             logger.info(f"\n{'='*60}")
@@ -2852,25 +2995,102 @@ class DCFValuation:
             logger.error(f"Error in full DCF analysis: {e}")
             raise DataFetchError(f"DCF analysis failed: {e}")
 
-    def _generate_dcf_recommendation(self, valuation: Dict) -> str:
-        """Generate DCF-based recommendation"""
-        intrinsic = valuation.get('intrinsic_value_per_share', 0)
-        current = valuation.get('current_price', 0)
-        buy_price = valuation.get('buy_price', 0)
+    def _calculate_blended_target_price(self, valuation: Dict) -> Dict:
+        """Calculate a blended target price using multiple data points.
 
-        if current == 0 or intrinsic == 0:
+        Blends:
+        1. Our DCF intrinsic value
+        2. FMP's pre-calculated DCF (if available)
+        3. Analyst consensus price target (if available)
+        4. Current price as an anchor (market reflects information we don't have)
+
+        Weights adjust based on data availability:
+        - With analyst data: Analyst (40%) + DCF avg (30%) + Current price (30%)
+        - Without analyst data: DCF avg (50%) + Current price (50%)
+        """
+        current_price = valuation.get('current_price', 0)
+        our_dcf = valuation.get('intrinsic_value_per_share', 0)
+
+        # Get FMP DCF if available
+        fmp_dcf = None
+        if self.stock and hasattr(self.stock, 'fmp_dcf'):
+            fmp_dcf = self.stock.fmp_dcf
+
+        # Get analyst target if available
+        analyst_target = self.info.get('analystTargetConsensus')
+
+        # Average our DCF models
+        dcf_values = [v for v in [our_dcf, fmp_dcf] if v and v > 0]
+        avg_dcf = sum(dcf_values) / len(dcf_values) if dcf_values else our_dcf
+
+        # Sanity check: if DCF is wildly different from current price (>3x or <0.2x),
+        # it likely reflects data issues (foreign currency, missing data, etc.)
+        # Reduce DCF weight in the blend accordingly
+        dcf_confidence = 1.0
+        if current_price > 0 and avg_dcf > 0:
+            ratio = avg_dcf / current_price
+            if ratio > 3.0 or ratio < 0.2:
+                dcf_confidence = 0.3  # Low confidence in DCF
+                logger.warning(f"  DCF value ${avg_dcf:.2f} is {ratio:.1f}x current price - reducing DCF weight")
+            elif ratio > 2.0 or ratio < 0.33:
+                dcf_confidence = 0.6  # Moderate confidence
+                logger.warning(f"  DCF value ${avg_dcf:.2f} is {ratio:.1f}x current price - moderating DCF weight")
+
+        breakdown = {
+            'our_dcf': our_dcf,
+            'fmp_dcf': fmp_dcf,
+            'analyst_target': analyst_target,
+            'current_price': current_price,
+            'dcf_confidence': dcf_confidence,
+        }
+
+        if analyst_target and analyst_target > 0 and current_price > 0:
+            # Full blend with analyst data
+            # Adjust DCF weight based on confidence
+            dcf_w = 0.30 * dcf_confidence
+            price_w = 0.30 + (0.30 * (1 - dcf_confidence))  # Absorb lost DCF weight
+            analyst_w = 0.40
+            target = (analyst_target * analyst_w) + (avg_dcf * dcf_w) + (current_price * price_w)
+            breakdown['weights'] = {'analyst': analyst_w, 'dcf': round(dcf_w, 2), 'current_price': round(price_w, 2)}
+        elif avg_dcf and avg_dcf > 0 and current_price > 0:
+            # DCF + current price blend
+            dcf_w = 0.50 * dcf_confidence
+            price_w = 1.0 - dcf_w
+            target = (avg_dcf * dcf_w) + (current_price * price_w)
+            breakdown['weights'] = {'dcf': round(dcf_w, 2), 'current_price': round(price_w, 2)}
+        else:
+            target = current_price
+            breakdown['weights'] = {'current_price': 1.0}
+
+        breakdown['target_price'] = round(target, 2)
+
+        # Calculate upside/downside from target
+        if current_price > 0:
+            breakdown['target_upside'] = round(((target / current_price) - 1) * 100, 1)
+
+        logger.info(f"  Blended target price: ${target:.2f} "
+                    f"(DCF: ${avg_dcf:.2f}, Analyst: ${analyst_target or 'N/A'}, "
+                    f"Current: ${current_price:.2f})")
+
+        return breakdown
+
+    def _generate_dcf_recommendation(self, valuation: Dict) -> str:
+        """Generate recommendation based on blended target price"""
+        target_info = valuation.get('target_price_breakdown', {})
+        target = target_info.get('target_price', 0) or valuation.get('intrinsic_value_per_share', 0)
+        current = valuation.get('current_price', 0)
+
+        if current == 0 or target == 0:
             return "Unable to determine - insufficient data"
 
-        if buy_price > current:
-            upside = ((intrinsic / current) - 1) * 100
-            return f"Positive - Undervalued by {upside:.1f}%. Fair value: ${intrinsic:.2f}"
-        elif intrinsic > current:
-            return f"Positive - Fairly valued to slightly undervalued. Fair value: ${intrinsic:.2f}"
-        elif intrinsic > current * 0.9:
-            return f"Neutral - Trading near fair value. Fair value: ${intrinsic:.2f}"
+        upside = ((target / current) - 1) * 100
+
+        if upside > 15:
+            return f"Positive - Target ${target:.2f} ({upside:+.1f}% upside)"
+        elif upside > -5:
+            return f"Neutral - Target ${target:.2f} ({upside:+.1f}%)"
         else:
-            overvalued = ((current / intrinsic) - 1) * 100 if intrinsic > 0 else 0
-            return f"Negative - Overvalued by {overvalued:.1f}%. Fair value: ${intrinsic:.2f}"
+            return f"Negative - Target ${target:.2f} ({upside:+.1f}% downside)"
 
 
 # ============ REVENUE FORECASTING MODULE ============
@@ -4119,16 +4339,25 @@ class StockAnalyzer:
 
     def _create_executive_summary(self, dcf: Dict, revenue: Dict, comps: Dict, synthesis: Dict) -> Dict:
         """Create executive summary of all analyses"""
+        dcf_valuation = dcf.get('valuation', {})
+        target_breakdown = dcf_valuation.get('target_price_breakdown', {})
+        analyst_data = dcf.get('analyst_data', {})
+
         return {
             'company_name': dcf.get('business_info', {}).get('company_name', self.ticker),
             'sector': dcf.get('business_info', {}).get('sector', 'N/A'),
-            'current_price': dcf.get('valuation', {}).get('current_price', 0),
-            'dcf_intrinsic_value': dcf.get('valuation', {}).get('intrinsic_value_per_share', 0),
+            'current_price': dcf_valuation.get('current_price', 0),
+            'dcf_intrinsic_value': dcf_valuation.get('intrinsic_value_per_share', 0),
+            'target_price': target_breakdown.get('target_price', 0),
+            'target_upside': target_breakdown.get('target_upside', 0),
             'comps_implied_value': comps.get('valuation', {}).get('overall_assessment', {}).get('average_implied_price', 0),
             'consensus_target': synthesis.get('target_price', 0),
+            'analyst_target': analyst_data.get('analyst_target_consensus'),
+            'analyst_consensus': analyst_data.get('analyst_consensus'),
+            'fmp_dcf': analyst_data.get('fmp_dcf'),
             'recommendation': synthesis.get('final_recommendation', {}),
             'key_metrics': {
-                'dcf_upside': dcf.get('valuation', {}).get('premium_discount', 0),
+                'dcf_upside': dcf_valuation.get('premium_discount', 0),
                 'revenue_cagr': revenue.get('growth_analysis', {}).get('cagr', 0),
                 'comps_upside': comps.get('valuation', {}).get('overall_assessment', {}).get('overall_upside_downside', 0),
                 'ml_score': synthesis.get('ml_score', 0)
